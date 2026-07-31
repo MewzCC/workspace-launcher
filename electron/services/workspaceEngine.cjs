@@ -3,7 +3,7 @@
 // 通过 onProgress 回调向上层（IPC）上报启动进度
 const { exec } = require('child_process')
 const processManager = require('./processManager.cjs')
-const { workspaceDao, scriptDao, logDao } = require('../db/index.cjs')
+const { workspaceDao, batScriptDao, scriptDao, logDao } = require('../db/index.cjs')
 
 // 延时工具，返回 Promise，ms 毫秒后 resolve
 function delay(ms) {
@@ -184,7 +184,48 @@ async function launchWorkspace(workspaceId, onProgress) {
       }
     }
 
-    // 6. 全部完成
+    // 6. 所有软件启动完成后，按配置顺序运行脚本库中关联的 BAT/CMD 脚本
+    const linkedBatchScripts = batScriptDao.listByWorkspace(workspaceId)
+    for (const batchScript of linkedBatchScripts) {
+      if (batchScript.delay_ms > 0) {
+        await delay(batchScript.delay_ms)
+      }
+
+      report({
+        phase: 'post_script',
+        status: 'running',
+        message: `正在启动脚本：${batchScript.name}`
+      })
+
+      try {
+        await processManager.launchBatch(batchScript.path, batchScript.args)
+        report({
+          phase: 'post_script',
+          status: 'success',
+          message: `脚本已启动：${batchScript.name}`
+        })
+        logDao.create({
+          workspace_id: workspaceId,
+          software_id: null,
+          status: 'success',
+          message: `启动后脚本 ${batchScript.name} 已启动`
+        })
+      } catch (err) {
+        report({
+          phase: 'post_script',
+          status: 'failed',
+          message: `${batchScript.name}: ${err.message}`
+        })
+        logDao.create({
+          workspace_id: workspaceId,
+          software_id: null,
+          status: 'failed',
+          message: `启动后脚本 ${batchScript.name} 启动失败: ${err.message}`
+        })
+      }
+    }
+
+    // 7. 全部完成
     report({ phase: 'done' })
   } catch (err) {
     report({ phase: 'error', status: 'failed', message: err.message })

@@ -66,7 +66,7 @@ export function Settings() {
         </div>
         <div className="info-row">
           <span className="info-label">版本</span>
-          <span className="info-value">1.0.0</span>
+          <span className="info-value">1.1.0</span>
         </div>
         <div className="info-row">
           <span className="info-label">技术栈</span>

@@ -1,47 +1,35 @@
-// 自动化脚本页面
-// 左侧工作空间选择 + 右侧 pre/post 脚本编辑器
-// 选中工作空间后加载已有脚本并填充表单，保存时调 scriptApi.upsert
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Check, ChevronDown, ChevronUp, Library, Search, Terminal } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import { useStore } from '../store/useStore'
-import { scriptApi } from '../lib/ipc'
+import { batScriptApi, scriptApi } from '../lib/ipc'
 import './Automation.css'
 
-// 单个脚本区块：标题、语言选择、延迟输入、内容文本域、保存按钮
-// type: 'pre' | 'post'
 function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
-  // 语言（默认 cmd）、延迟毫秒（默认 0）、脚本内容
   const [language, setLanguage] = useState('cmd')
   const [delayMs, setDelayMs] = useState(0)
   const [content, setContent] = useState('')
-  // 当传入的 script 变化时同步表单
+
   useEffect(() => {
-    if (script) {
-      setLanguage(script.language || 'cmd')
-      setDelayMs(script.delay_ms ?? 0)
-      setContent(script.content || '')
-    } else {
-      // 无记录时重置为默认
-      setLanguage('cmd')
-      setDelayMs(0)
-      setContent('')
-    }
+    setLanguage(script?.language || 'cmd')
+    setDelayMs(script?.delay_ms ?? 0)
+    setContent(script?.content || '')
   }, [script])
 
-  // 保存当前脚本到后端
   const handleSave = async () => {
     try {
-      await scriptApi.upsert({
+      const result = await scriptApi.upsert({
         workspace_id: workspaceId,
         type,
         language,
         content,
         delay_ms: Number(delayMs) || 0
       })
+      if (result?.error) throw new Error(result.error)
       onSaveStatus(`${title} 保存成功`)
     } catch (err) {
-      onSaveStatus(`${title} 保存失败: ${err.message}`)
+      onSaveStatus(`${title} 保存失败：${err.message}`)
     }
   }
 
@@ -49,170 +37,246 @@ function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
     <GlassCard hover={false} className="script-block">
       <div className="script-block-header">
         <div className="script-block-title">{title}</div>
-        <GlowButton variant="primary" size="sm" onClick={handleSave}>
-          保存
-        </GlowButton>
+        <GlowButton variant="primary" size="sm" onClick={handleSave}>保存</GlowButton>
       </div>
 
-      {/* 语言选择 */}
       <div className="script-form-group">
         <label className="script-form-label">脚本语言</label>
         <div className="lang-selector">
           <label className="lang-option">
-            <input
-              type="radio"
-              name={`lang-${type}-${workspaceId}`}
-              value="cmd"
-              checked={language === 'cmd'}
-              onChange={() => setLanguage('cmd')}
-            />
+            <input type="radio" name={`lang-${type}-${workspaceId}`} checked={language === 'cmd'} onChange={() => setLanguage('cmd')} />
             CMD
           </label>
           <label className="lang-option">
-            <input
-              type="radio"
-              name={`lang-${type}-${workspaceId}`}
-              value="powershell"
-              checked={language === 'powershell'}
-              onChange={() => setLanguage('powershell')}
-            />
+            <input type="radio" name={`lang-${type}-${workspaceId}`} checked={language === 'powershell'} onChange={() => setLanguage('powershell')} />
             PowerShell
           </label>
         </div>
       </div>
 
-      {/* 延迟输入 */}
       <div className="script-form-group">
         <label className="script-form-label">延迟（毫秒）</label>
-        <input
-          type="number"
-          className="delay-input"
-          min="0"
-          step="100"
-          value={delayMs}
-          onChange={(e) => setDelayMs(e.target.value)}
-        />
+        <input type="number" className="delay-input" min="0" step="100" value={delayMs} onChange={(e) => setDelayMs(e.target.value)} />
       </div>
 
-      {/* 脚本内容 */}
       <div className="script-form-group">
         <label className="script-form-label">脚本内容</label>
-        <textarea
-          className="script-textarea"
-          placeholder="docker start mysql"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
+        <textarea className="script-textarea" placeholder="docker start mysql" value={content} onChange={(e) => setContent(e.target.value)} />
       </div>
     </GlassCard>
   )
 }
 
+function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus }) {
+  const [selected, setSelected] = useState([])
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    setSelected(
+      (linkedScripts || []).map((script, index) => ({
+        id: script.id,
+        delay_ms: script.delay_ms ?? 0,
+        launch_order: script.launch_order ?? index
+      }))
+    )
+  }, [workspaceId, linkedScripts])
+
+  const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected])
+  const filteredScripts = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return scripts
+    return scripts.filter((script) =>
+      [script.name, script.description, script.path].some((value) =>
+        String(value || '').toLowerCase().includes(needle)
+      )
+    )
+  }, [query, scripts])
+
+  const orderedSelected = useMemo(
+    () => selected
+      .map((item) => ({ ...item, script: scripts.find((script) => script.id === item.id) }))
+      .filter((item) => item.script)
+      .sort((a, b) => a.launch_order - b.launch_order),
+    [scripts, selected]
+  )
+
+  const toggleScript = (script) => {
+    setSelected((current) => {
+      if (current.some((item) => item.id === script.id)) {
+        return current.filter((item) => item.id !== script.id)
+      }
+      return [...current, { id: script.id, delay_ms: 0, launch_order: current.length }]
+    })
+  }
+
+  const moveScript = (id, direction) => {
+    setSelected((current) => {
+      const ordered = [...current].sort((a, b) => a.launch_order - b.launch_order)
+      const index = ordered.findIndex((item) => item.id === id)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= ordered.length) return current
+      ;[ordered[index], ordered[target]] = [ordered[target], ordered[index]]
+      return ordered.map((item, launch_order) => ({ ...item, launch_order }))
+    })
+  }
+
+  const updateDelay = (id, value) => {
+    setSelected((current) => current.map((item) =>
+      item.id === id ? { ...item, delay_ms: Math.max(0, Number(value) || 0) } : item
+    ))
+  }
+
+  const handleSave = async () => {
+    try {
+      const items = orderedSelected.map((item, launch_order) => ({
+        bat_script_id: item.id,
+        launch_order,
+        delay_ms: item.delay_ms
+      }))
+      const result = await batScriptApi.setWorkspaceScripts(workspaceId, items)
+      if (result?.error) throw new Error(result.error)
+      setSelected((result || []).map((script, index) => ({
+        id: script.id,
+        delay_ms: script.delay_ms ?? 0,
+        launch_order: script.launch_order ?? index
+      })))
+      onSaveStatus(`启动后脚本已保存，共 ${items.length} 个`)
+    } catch (err) {
+      onSaveStatus(`启动后脚本保存失败：${err.message}`)
+    }
+  }
+
+  return (
+    <GlassCard hover={false} className="batch-automation-card">
+      <div className="script-block-header batch-card-heading">
+        <div>
+          <div className="batch-card-title"><Terminal size={19} />启动后运行 BAT 脚本</div>
+          <p>工作空间内的软件全部启动后，按顺序运行软件库中已添加的脚本。</p>
+        </div>
+        <GlowButton variant="primary" size="sm" onClick={handleSave}>保存配置</GlowButton>
+      </div>
+
+      {scripts.length === 0 ? (
+        <div className="batch-empty-state">
+          <Library size={24} />
+          <div><strong>脚本库还是空的</strong><span>请先前往“软件库 → BAT 脚本”添加 .bat 或 .cmd 文件。</span></div>
+        </div>
+      ) : (
+        <>
+          <div className="batch-picker-header">
+            <div className="batch-search"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索脚本名称或路径" /></div>
+            <span>已选择 {selected.length} / {scripts.length}</span>
+          </div>
+          <div className="batch-script-picker">
+            {filteredScripts.map((script) => {
+              const active = selectedIds.has(script.id)
+              return (
+                <button key={script.id} type="button" className={`batch-picker-item ${active ? 'active' : ''}`} onClick={() => toggleScript(script)}>
+                  <span className="batch-file-icon">BAT</span>
+                  <span className="batch-picker-copy"><strong>{script.name}</strong><small>{script.path}</small></span>
+                  <span className="batch-check">{active && <Check size={15} />}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {orderedSelected.length > 0 && (
+            <div className="batch-run-plan">
+              <div className="batch-run-plan-title">运行顺序与延迟</div>
+              {orderedSelected.map((item, index) => (
+                <div className="batch-run-row" key={item.id}>
+                  <span className="batch-order">{index + 1}</span>
+                  <div className="batch-run-name"><strong>{item.script.name}</strong><small>{item.script.args || '无启动参数'}</small></div>
+                  <label className="batch-delay"><span>启动前延迟</span><input type="number" min="0" step="100" value={item.delay_ms} onChange={(e) => updateDelay(item.id, e.target.value)} /><em>ms</em></label>
+                  <div className="batch-order-actions">
+                    <button type="button" disabled={index === 0} onClick={() => moveScript(item.id, -1)} aria-label="上移"><ChevronUp size={16} /></button>
+                    <button type="button" disabled={index === orderedSelected.length - 1} onClick={() => moveScript(item.id, 1)} aria-label="下移"><ChevronDown size={16} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </GlassCard>
+  )
+}
+
 function Automation() {
-  // 工作空间列表来自 store，选中 id 为本页本地状态
-  const workspaces = useStore((s) => s.workspaces)
+  const workspaces = useStore((state) => state.workspaces)
   const [selectedId, setSelectedId] = useState(null)
-  // 已加载的脚本列表（pre/post）
   const [scripts, setScripts] = useState([])
-  // 全局提示信息
+  const [batchScripts, setBatchScripts] = useState([])
+  const [linkedBatchScripts, setLinkedBatchScripts] = useState([])
   const [statusMsg, setStatusMsg] = useState('')
 
-  // 选中工作空间变化时加载已有脚本
   useEffect(() => {
     if (selectedId == null) {
       setScripts([])
+      setLinkedBatchScripts([])
       return
     }
     let cancelled = false
-    scriptApi
-      .listByWorkspace(selectedId)
-      .then((list) => {
-        if (!cancelled) setScripts(list || [])
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error('加载脚本失败:', err)
-          setScripts([])
-        }
-      })
-    return () => {
-      cancelled = true
-    }
+    Promise.all([
+      scriptApi.listByWorkspace(selectedId),
+      batScriptApi.list(),
+      batScriptApi.listByWorkspace(selectedId)
+    ]).then(([inlineList, libraryList, linkedList]) => {
+      if (cancelled) return
+      setScripts(inlineList?.error ? [] : inlineList || [])
+      setBatchScripts(libraryList?.error ? [] : libraryList || [])
+      setLinkedBatchScripts(linkedList?.error ? [] : linkedList || [])
+    }).catch((err) => {
+      if (!cancelled) setStatusMsg(`加载自动化配置失败：${err.message}`)
+    })
+    return () => { cancelled = true }
   }, [selectedId])
 
-  // 保存后的提示 3 秒后自动清除
   useEffect(() => {
-    if (!statusMsg) return
+    if (!statusMsg) return undefined
     const timer = setTimeout(() => setStatusMsg(''), 3000)
     return () => clearTimeout(timer)
   }, [statusMsg])
 
-  const selectedWorkspace = workspaces.find((w) => w.id === selectedId)
-  // 分别取 pre / post 脚本记录
-  const preScript = scripts.find((s) => s.type === 'pre')
-  const postScript = scripts.find((s) => s.type === 'post')
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedId)
+  const preScript = scripts.find((script) => script.type === 'pre')
+  const postScript = scripts.find((script) => script.type === 'post')
 
   return (
     <div className="automation-page">
       <section className="page-header">
-        <div className="page-header-left">
-          <h1 className="page-title">自动化</h1>
-          <p className="page-subtitle">为工作空间配置启动前后的脚本</p>
-        </div>
+        <div className="page-header-left"><h1 className="page-title">自动化</h1><p className="page-subtitle">为工作空间配置启动前后脚本与自动运行流程</p></div>
       </section>
 
       <div className="automation-body">
-      {/* 左侧：工作空间选择列表 */}
-      <GlassCard hover={false} className="ws-selector">
-        <h3>工作空间</h3>
-        <div className="ws-selector-list">
-          {workspaces.length === 0 && (
-            <div className="ws-selector-empty">暂无工作空间</div>
-          )}
-          {workspaces.map((w) => (
-            <div
-              key={w.id}
-              className={`ws-selector-item ${selectedId === w.id ? 'active' : ''}`}
-              onClick={() => setSelectedId(w.id)}
-            >
-              <span className="ws-selector-icon">{w.icon || '🚀'}</span>
-              <span className="ws-selector-name">{w.name}</span>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
+        <GlassCard hover={false} className="ws-selector">
+          <h3>工作空间</h3>
+          <div className="ws-selector-list">
+            {workspaces.length === 0 && <div className="ws-selector-empty">暂无工作空间</div>}
+            {workspaces.map((workspace) => (
+              <button key={workspace.id} type="button" className={`ws-selector-item ${selectedId === workspace.id ? 'active' : ''}`} onClick={() => setSelectedId(workspace.id)}>
+                <span className="ws-selector-icon">{workspace.icon || '🚀'}</span><span className="ws-selector-name">{workspace.name}</span>
+              </button>
+            ))}
+          </div>
+        </GlassCard>
 
-      {/* 右侧：脚本编辑器 */}
-      <div className="script-editor">
-        {selectedWorkspace == null ? (
-          <GlassCard hover={false} className="empty-state">
-            请从左侧选择一个工作空间
-          </GlassCard>
-        ) : (
-          <>
-            {statusMsg && <div className="save-status">{statusMsg}</div>}
-            <ScriptBlock
-              title="启动前脚本 (Pre-launch)"
-              type="pre"
-              workspaceId={selectedId}
-              script={preScript}
-              onSaveStatus={setStatusMsg}
-            />
-            <ScriptBlock
-              title="启动后脚本 (Post-launch)"
-              type="post"
-              workspaceId={selectedId}
-              script={postScript}
-              onSaveStatus={setStatusMsg}
-            />
-          </>
-        )}
-      </div>
+        <div className="script-editor">
+          {selectedWorkspace == null ? (
+            <GlassCard hover={false} className="empty-state">请从左侧选择一个工作空间</GlassCard>
+          ) : (
+            <>
+              {statusMsg && <div className="save-status">{statusMsg}</div>}
+              <ScriptBlock title="启动前脚本 (Pre-launch)" type="pre" workspaceId={selectedId} script={preScript} onSaveStatus={setStatusMsg} />
+              <ScriptBlock title="启动后脚本 (Post-launch)" type="post" workspaceId={selectedId} script={postScript} onSaveStatus={setStatusMsg} />
+              <BatchScriptBlock workspaceId={selectedId} scripts={batchScripts} linkedScripts={linkedBatchScripts} onSaveStatus={setStatusMsg} />
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 export default Automation
-// 具名导出便于按需引入
 export { Automation }

@@ -21,7 +21,22 @@ function getStmts() {
           updated_at = datetime('now')
       WHERE id = @id
     `),
-    remove: db.prepare('DELETE FROM bat_scripts WHERE id = ?')
+    remove: db.prepare('DELETE FROM bat_scripts WHERE id = ?'),
+    listByWorkspace: db.prepare(`
+      SELECT b.*, wb.launch_order, wb.delay_ms
+      FROM workspace_bat_scripts wb
+      JOIN bat_scripts b ON b.id = wb.bat_script_id
+      WHERE wb.workspace_id = ?
+      ORDER BY wb.launch_order ASC, b.id ASC
+    `),
+    deleteWorkspaceRelations: db.prepare(
+      'DELETE FROM workspace_bat_scripts WHERE workspace_id = ?'
+    ),
+    insertWorkspaceRelation: db.prepare(`
+      INSERT INTO workspace_bat_scripts
+        (workspace_id, bat_script_id, launch_order, delay_ms)
+      VALUES (@workspace_id, @bat_script_id, @launch_order, @delay_ms)
+    `)
   }
   return stmts
 }
@@ -65,4 +80,32 @@ function remove(id) {
   return getStmts().remove.run(id).changes > 0
 }
 
-module.exports = { list, get, create, update, remove }
+function listByWorkspace(workspaceId) {
+  return getStmts().listByWorkspace.all(workspaceId)
+}
+
+function setForWorkspace(workspaceId, scripts) {
+  const db = getDb()
+  const stmts = getStmts()
+  const normalized = Array.isArray(scripts)
+    ? scripts.map((item, index) => ({
+        workspace_id: Number(workspaceId),
+        bat_script_id: Number(item.bat_script_id),
+        launch_order: Number.isFinite(Number(item.launch_order))
+          ? Number(item.launch_order)
+          : index,
+        delay_ms: Math.max(0, Number(item.delay_ms) || 0)
+      }))
+    : []
+
+  const replace = db.transaction(() => {
+    stmts.deleteWorkspaceRelations.run(workspaceId)
+    for (const item of normalized) {
+      stmts.insertWorkspaceRelation.run(item)
+    }
+  })
+  replace()
+  return listByWorkspace(workspaceId)
+}
+
+module.exports = { list, get, create, update, remove, listByWorkspace, setForWorkspace }

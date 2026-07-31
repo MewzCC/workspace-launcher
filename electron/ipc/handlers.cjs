@@ -130,6 +130,12 @@ function registerIpcHandlers() {
 
   // ===== BAT 脚本库 =====
   ipcMain.handle('batScript:list', () => wrap(() => batScriptDao.list()))
+  ipcMain.handle('batScript:listByWorkspace', (_e, workspaceId) =>
+    wrap(() => batScriptDao.listByWorkspace(workspaceId))
+  )
+  ipcMain.handle('batScript:setWorkspaceScripts', (_e, workspaceId, items) =>
+    wrap(() => batScriptDao.setForWorkspace(workspaceId, items))
+  )
   ipcMain.handle('batScript:create', (_e, data) => wrap(() => batScriptDao.create(data)))
   ipcMain.handle('batScript:update', (_e, id, data) => wrap(() => batScriptDao.update(id, data)))
   ipcMain.handle('batScript:delete', (_e, id) => wrap(() => batScriptDao.remove(id)))

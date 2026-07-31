@@ -39,6 +39,9 @@ export const softwareApi = {
 
 export const batScriptApi = {
   list: () => api.batScript.list(),
+  listByWorkspace: (workspaceId) => api.batScript.listByWorkspace(workspaceId),
+  setWorkspaceScripts: (workspaceId, items) =>
+    api.batScript.setWorkspaceScripts(workspaceId, items),
   create: (data) => api.batScript.create(data),
   update: (id, data) => api.batScript.update(id, data),
   remove: (id) => api.batScript.delete(id),

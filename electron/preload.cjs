@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  version: '1.0.0',
+  version: '1.1.0',
   // 工作空间相关接口
   workspace: {
     list: () => ipcRenderer.invoke('workspace:list'),
@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('api', {
   },
   batScript: {
     list: () => ipcRenderer.invoke('batScript:list'),
+    listByWorkspace: (workspaceId) =>
+      ipcRenderer.invoke('batScript:listByWorkspace', workspaceId),
+    setWorkspaceScripts: (workspaceId, items) =>
+      ipcRenderer.invoke('batScript:setWorkspaceScripts', workspaceId, items),
     create: (data) => ipcRenderer.invoke('batScript:create', data),
     update: (id, data) => ipcRenderer.invoke('batScript:update', id, data),
     delete: (id) => ipcRenderer.invoke('batScript:delete', id),

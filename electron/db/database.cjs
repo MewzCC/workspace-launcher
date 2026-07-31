@@ -58,6 +58,16 @@ const CREATE_TABLES_SQL = `
     updated_at TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS workspace_bat_scripts (
+    workspace_id INTEGER NOT NULL,
+    bat_script_id INTEGER NOT NULL,
+    launch_order INTEGER DEFAULT 0,
+    delay_ms INTEGER DEFAULT 0,
+    PRIMARY KEY (workspace_id, bat_script_id),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+    FOREIGN KEY (bat_script_id) REFERENCES bat_scripts(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS launch_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workspace_id INTEGER,

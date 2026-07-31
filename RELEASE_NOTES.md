@@ -25,4 +25,11 @@ LaunchPad 首个正式版本发布！它是一款面向 Windows 的开源工作�
 
 > 当前安装包尚未使用商业代码签名证书。Windows SmartScreen 可能提示“未知发布者”，请确认文件来自本项目官方 GitHub Release 页面。
 
+## 🔐 SHA-256
+
+```text
+CBBA30D68F2CF4A84B7C7EA323F9065B3F8DBBA01DD56C8278F1387E9ECD899F  LaunchPad-Setup-1.0.0-x64.exe
+622DFCE8656FA4BAA7F0694F3939678B38CA109244A804699B4DD23C5C060219  LaunchPad-Portable-1.0.0-x64.exe
+```
+
 如果 LaunchPad 对你有帮助，欢迎点亮 ⭐ Star，让更多寻找 Windows 一键启动、软件启动器和工作空间管理工具的用户发现它。

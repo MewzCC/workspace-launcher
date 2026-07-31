@@ -1,8 +1,9 @@
 // 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
 import React, { useEffect, useState } from 'react'
-import { Play, ArrowRight } from 'lucide-react'
+import { Play, ArrowRight, Check, Pencil } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
+import Modal from '../components/Modal'
 import SoftwareIcon from '../components/SoftwareIcon'
 import { workspaceApi, onLaunchProgress } from '../lib/ipc'
 import { useStore } from '../store/useStore'
@@ -27,7 +28,9 @@ function formatTime(date) {
 export function Dashboard() {
   // 从 store 读取工作空间列表、启动状态及相关动作
   const workspaces = useStore((s) => s.workspaces)
+  const software = useStore((s) => s.software)
   const launching = useStore((s) => s.launching)
+  const setWorkspaces = useStore((s) => s.setWorkspaces)
   const setCurrentView = useStore((s) => s.setCurrentView)
   const startLaunch = useStore((s) => s.startLaunch)
   const updateLaunchProgress = useStore((s) => s.updateLaunchProgress)
@@ -58,6 +61,52 @@ export function Dashboard() {
   }
 
   const greeting = getGreeting(now.getHours())
+  const [quickEditing, setQuickEditing] = useState(null)
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState([])
+  const [savingQuickEdit, setSavingQuickEdit] = useState(false)
+
+  const openQuickEdit = (workspace) => {
+    setQuickEditing(workspace)
+    setSelectedSoftwareIds((workspace.software || []).map((item) => item.id))
+  }
+
+  const toggleQuickSoftware = (softwareId) => {
+    setSelectedSoftwareIds((current) =>
+      current.includes(softwareId)
+        ? current.filter((id) => id !== softwareId)
+        : [...current, softwareId]
+    )
+  }
+
+  const saveQuickEdit = async () => {
+    if (!quickEditing || savingQuickEdit) return
+    setSavingQuickEdit(true)
+    try {
+      const previous = new Map(
+        (quickEditing.software || []).map((item) => [item.id, item])
+      )
+      await workspaceApi.update(quickEditing.id, {
+        name: quickEditing.name,
+        description: quickEditing.description || '',
+        icon: quickEditing.icon || '🚀',
+        software: selectedSoftwareIds.map((softwareId, index) => {
+          const old = previous.get(softwareId)
+          return {
+            software_id: softwareId,
+            launch_order: old?.launch_order ?? index + 1,
+            delay_ms: old?.delay_ms ?? 0
+          }
+        })
+      })
+      setWorkspaces(await workspaceApi.list())
+      setQuickEditing(null)
+    } catch (err) {
+      console.error('快速编辑工作空间失败:', err)
+      window.alert('保存失败：' + (err?.message || err))
+    } finally {
+      setSavingQuickEdit(false)
+    }
+  }
 
   return (
     <div className="dashboard">
@@ -100,16 +149,58 @@ export function Dashboard() {
               workspace={ws}
               launching={launching}
               onLaunch={handleLaunch}
+              onEdit={openQuickEdit}
             />
           ))}
         </div>
+      )}
+
+      {quickEditing && (
+        <Modal
+          title={`快速编辑 · ${quickEditing.name}`}
+          onClose={() => setQuickEditing(null)}
+          onSave={saveQuickEdit}
+          saveText={savingQuickEdit ? '保存中...' : '保存应用'}
+        >
+          <p className="quick-edit-hint">
+            这里只调整工作空间包含的应用，名称、图标、启动顺序和延迟保持不变。
+          </p>
+          <div className="quick-edit-software">
+            {software.length === 0 ? (
+              <div className="quick-edit-empty">软件库暂无应用，请先添加软件。</div>
+            ) : (
+              software.map((item) => {
+                const selected = selectedSoftwareIds.includes(item.id)
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`quick-edit-item ${selected ? 'selected' : ''}`}
+                    onClick={() => toggleQuickSoftware(item.id)}
+                    aria-pressed={selected}
+                  >
+                    <SoftwareIcon
+                      path={item.path}
+                      fallback={item.icon || '📦'}
+                      size="sm"
+                    />
+                    <span className="quick-edit-name">{item.name}</span>
+                    <span className="quick-edit-check" aria-hidden="true">
+                      {selected && <Check size={14} />}
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   )
 }
 
 // 快速启动卡片：工作空间图标与名称 + 软件列表 + 启动按钮
-function QuickCard({ workspace, launching, onLaunch }) {
+function QuickCard({ workspace, launching, onLaunch, onEdit }) {
   const software = workspace.software || []
   // 仅展示前 3 个软件，超出部分以 +N 形式提示
   const visible = software.slice(0, 3)
@@ -135,7 +226,30 @@ function QuickCard({ workspace, launching, onLaunch }) {
           </div>
         ))}
         {extraCount > 0 && (
-          <div className="software-item software-more">+{extraCount}</div>
+          <div className="software-more-wrap">
+            <button
+              type="button"
+              className="software-item software-more"
+              onClick={() => onEdit(workspace)}
+              aria-label={`还有 ${extraCount} 个应用，点击快速编辑`}
+            >
+              +{extraCount}
+            </button>
+            <div className="software-more-tooltip" role="tooltip">
+              <span className="software-more-title">其余应用</span>
+              {software.slice(3).map((item) => (
+                <span className="software-more-entry" key={item.id}>
+                  <SoftwareIcon
+                    path={item.path}
+                    fallback={item.icon || '📦'}
+                    size="xs"
+                  />
+                  {item.name}
+                </span>
+              ))}
+              <span className="software-more-action">点击可快速编辑</span>
+            </div>
+          </div>
         )}
         {software.length === 0 && (
           <div className="software-item software-empty">暂未添加软件</div>
@@ -144,6 +258,14 @@ function QuickCard({ workspace, launching, onLaunch }) {
 
       {/* 底部：启动按钮 */}
       <div className="quick-card-footer">
+        <GlowButton
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(workspace)}
+        >
+          <Pencil size={14} />
+          快速编辑
+        </GlowButton>
         <GlowButton
           variant="primary"
           size="sm"

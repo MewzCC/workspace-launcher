@@ -1,7 +1,61 @@
 /* 设置页面样式：对齐设计稿品牌令牌 */
 
 .settings {
-  max-width: 720px;
+  max-width: 900px;
+}
+
+.repository-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 58%),
+    var(--brand-card);
+}
+
+.repository-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.repository-copy h3 {
+  margin: 0 0 6px;
+}
+
+.repository-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 26%, transparent);
+  border-radius: 12px;
+}
+
+.repository-desc {
+  margin: 0 0 8px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.repository-path {
+  color: var(--brand-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .repository-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 /* 设置区块：由 GlassCard 包裹，提供内边距 */

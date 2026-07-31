@@ -9,7 +9,9 @@ import {
   FolderOpen,
   Package,
   Check,
-  X
+  X,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
@@ -204,6 +206,69 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
   )
 }
 
+function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
+  const status = testStatus[item.id]
+  const testIcon =
+    status === 'testing' ? null :
+    status === 'success' ? <Check size={14} /> :
+    status === 'fail' ? <X size={14} /> : <Play size={14} />
+  const testText =
+    status === 'testing' ? '启动中...' :
+    status === 'success' ? '已启动' :
+    status === 'fail' ? '失败' : '测试启动'
+  const testClass =
+    status === 'success' ? 'btn-test-success' :
+    status === 'fail' ? 'btn-test-fail' : ''
+
+  return (
+    <div className="software-row">
+      <div className="software-row-main">
+        <span className="software-row-icon">
+          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} size="md" />
+        </span>
+        <div className="software-row-copy">
+          <span className="software-row-name">{item.name}</span>
+          <span className="software-row-path" title={item.path}>
+            {item.path || '未设置路径'}
+          </span>
+        </div>
+      </div>
+      <div className="software-row-description">
+        {item.description || '暂无描述'}
+      </div>
+      <div className="software-row-status">
+        <span className="sw-status-dot available"></span>
+        可用
+      </div>
+      <div className="software-row-actions">
+        <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
+          <Pencil size={14} />
+          编辑
+        </GlowButton>
+        <GlowButton
+          variant="secondary"
+          size="sm"
+          className={testClass}
+          disabled={status === 'testing'}
+          onClick={() => onTest(item)}
+        >
+          {testIcon}
+          {testText}
+        </GlowButton>
+        <button
+          type="button"
+          className="software-row-delete"
+          onClick={() => onDelete(item)}
+          aria-label={`删除 ${item.name}`}
+          title="删除"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SoftwareLibrary() {
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
@@ -216,6 +281,22 @@ function SoftwareLibrary() {
   const [bulkAdding, setBulkAdding] = useState(false)
   // 顶部提示消息（批量添加结果）
   const [notice, setNotice] = useState('')
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('lp-software-view') === 'list' ? 'list' : 'grid'
+    } catch {
+      return 'grid'
+    }
+  })
+
+  const changeViewMode = (mode) => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('lp-software-view', mode)
+    } catch {
+      // 本地偏好写入失败时仍保持本次会话状态
+    }
+  }
 
   // 刷新软件列表到 store
   const refresh = async () => {
@@ -356,6 +437,28 @@ function SoftwareLibrary() {
           <p className="page-subtitle">管理可启动的应用程序，配置路径与启动参数</p>
         </div>
         <div className="page-actions">
+          <div className="view-switcher" role="group" aria-label="软件库展示方式">
+            <button
+              type="button"
+              className={`view-switcher-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => changeViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
+              title="卡片视图"
+            >
+              <LayoutGrid size={16} />
+              <span>卡片</span>
+            </button>
+            <button
+              type="button"
+              className={`view-switcher-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => changeViewMode('list')}
+              aria-pressed={viewMode === 'list'}
+              title="列表视图"
+            >
+              <List size={17} />
+              <span>列表</span>
+            </button>
+          </div>
           <GlowButton
             variant="secondary"
             onClick={handleBulkAdd}
@@ -386,16 +489,27 @@ function SoftwareLibrary() {
           <p>还没有添加软件，点击右上角添加，或去扫描中心自动发现</p>
         </GlassCard>
       ) : (
-        <div className="software-grid">
+        <div className={viewMode === 'list' ? 'software-list-view' : 'software-grid'}>
           {software.map((item) => (
-            <SoftwareCard
-              key={item.id}
-              item={item}
-              testStatus={testStatus}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onTest={handleTest}
-            />
+            viewMode === 'list' ? (
+              <SoftwareRow
+                key={item.id}
+                item={item}
+                testStatus={testStatus}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onTest={handleTest}
+              />
+            ) : (
+              <SoftwareCard
+                key={item.id}
+                item={item}
+                testStatus={testStatus}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onTest={handleTest}
+              />
+            )
           ))}
         </div>
       )}

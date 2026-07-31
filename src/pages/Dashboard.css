@@ -90,11 +90,155 @@
 /* 超出数量的提示 */
 .software-more {
   font-size: 13px;
+  width: fit-content;
+  padding: 3px 8px;
+  color: var(--brand-primary-400);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.software-more-wrap {
+  position: relative;
+  width: fit-content;
+}
+
+.software-more-tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: max-content;
+  min-width: 190px;
+  max-width: 280px;
+  padding: 12px;
+  color: var(--brand-popover-foreground);
+  background: var(--brand-popover);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  box-shadow: var(--brand-shadow-card);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(5px);
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms;
+  pointer-events: none;
+}
+
+.software-more-wrap:hover .software-more-tooltip,
+.software-more-wrap:focus-within .software-more-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.software-more-title {
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.software-more-entry {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--brand-foreground);
+  font-size: 12px;
+}
+
+.software-more-action {
+  padding-top: 7px;
+  color: var(--brand-primary-400);
+  border-top: 1px solid var(--brand-border);
+  font-size: 11px;
 }
 
 /* 卡片底部：启动按钮靠右 */
 .quick-card-footer {
   margin-top: 16px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quick-edit-hint {
+  margin: 0 0 14px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.quick-edit-software {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.quick-edit-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 9px 11px;
+  color: var(--brand-foreground);
+  text-align: left;
+  background: var(--brand-muted);
+  border: 1px solid transparent;
+  border-radius: var(--brand-radius-md);
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.quick-edit-item:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
+.quick-edit-item.selected {
+  background: color-mix(in srgb, var(--brand-primary) 13%, transparent);
+  border-color: var(--brand-primary);
+}
+
+.quick-edit-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-edit-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--brand-primary-foreground);
+  background: var(--brand-primary);
+  border-radius: 50%;
+}
+
+.quick-edit-check:empty {
+  background: transparent;
+  border: 1px solid var(--brand-border);
+}
+
+.quick-edit-empty {
+  grid-column: 1 / -1;
+  padding: 28px;
+  color: var(--brand-muted-foreground);
+  text-align: center;
+  border: 1px dashed var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+@media (max-width: 680px) {
+  .quick-edit-software {
+    grid-template-columns: 1fr;
+  }
 }

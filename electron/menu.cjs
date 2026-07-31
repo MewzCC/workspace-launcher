@@ -120,7 +120,7 @@ function setupAppMenu() {
         {
           label: '在 GitHub 上查看',
           click: () => {
-            shell.openExternal('https://github.com').catch(() => {})
+            shell.openExternal('https://github.com/MewzCC/workspace-launcher').catch(() => {})
           }
         }
       ]

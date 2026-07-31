@@ -1,12 +1,14 @@
 // 设置页面：应用信息 / 数据信息 / 危险操作区 / 版权信息
 import React, { useState } from 'react'
+import { Code2, ExternalLink, Star } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
-import { workspaceApi, softwareApi } from '../lib/ipc'
+import { workspaceApi, softwareApi, externalApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import './Settings.css'
 
 export function Settings() {
+  const repositoryUrl = 'https://github.com/MewzCC/workspace-launcher'
   // 从 store 读取工作空间、软件列表及刷新动作
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -70,6 +72,30 @@ export function Settings() {
           <span className="info-label">技术栈</span>
           <span className="info-value">Electron + React + SQLite</span>
         </div>
+      </GlassCard>
+
+      <GlassCard className="settings-section repository-card" hover={false}>
+        <div className="repository-copy">
+          <span className="repository-icon" aria-hidden="true">
+            <Code2 size={24} />
+          </span>
+          <div>
+            <h3>开源仓库</h3>
+            <p className="repository-desc">
+              查看源代码、下载最新版本，或提交功能建议与问题反馈。
+            </p>
+            <code className="repository-path">MewzCC/workspace-launcher</code>
+          </div>
+        </div>
+        <GlowButton
+          variant="primary"
+          size="md"
+          onClick={() => externalApi.open(repositoryUrl)}
+        >
+          <Star size={15} />
+          在 GitHub 查看
+          <ExternalLink size={14} />
+        </GlowButton>
       </GlassCard>
 
       {/* 数据信息 */}

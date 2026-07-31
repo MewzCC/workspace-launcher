@@ -56,6 +56,10 @@ export const dialogApi = {
   openDirectory: () => api.dialog.openDirectory()
 }
 
+export const externalApi = {
+  open: (url) => api.external.open(url)
+}
+
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色
 export const themeApi = {
   set: (theme) => api.theme.set(theme)

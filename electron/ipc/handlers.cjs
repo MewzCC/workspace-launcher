@@ -1,7 +1,7 @@
 // IPC 处理器注册模块
 // 在 app ready 时调用 registerIpcHandlers() 注册所有 ipcMain.handle 处理器
 // 处理器内部用 try/catch 包裹，异常返回 {error: message}
-const { ipcMain, dialog, BrowserWindow, app } = require('electron')
+const { ipcMain, dialog, BrowserWindow, app, shell } = require('electron')
 const db = require('../db/index.cjs')
 const softwareScanner = require('../services/softwareScanner.cjs')
 const workspaceEngine = require('../services/workspaceEngine.cjs')
@@ -181,6 +181,18 @@ function registerIpcHandlers() {
         return null
       }
       return result.filePaths[0]
+    })
+  })
+
+  // ===== 安全外链 =====
+  ipcMain.handle('external:open', async (_e, rawUrl) => {
+    return wrap(async () => {
+      const url = new URL(rawUrl)
+      if (url.protocol !== 'https:' || url.hostname !== 'github.com') {
+        throw new Error('不允许打开该外部链接')
+      }
+      await shell.openExternal(url.toString())
+      return { success: true }
     })
   })
 }

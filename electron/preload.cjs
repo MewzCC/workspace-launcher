@@ -54,6 +54,9 @@ contextBridge.exposeInMainWorld('api', {
     openFiles: (filters) => ipcRenderer.invoke('dialog:openFiles', filters),
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory')
   },
+  external: {
+    open: (url) => ipcRenderer.invoke('external:open', url)
+  },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {
     set: (theme) => ipcRenderer.invoke('theme:set', theme)

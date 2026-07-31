@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  version: '1.1.1',
+  version: '1.2.0',
   // 工作空间相关接口
   workspace: {
     list: () => ipcRenderer.invoke('workspace:list'),
@@ -70,6 +70,13 @@ contextBridge.exposeInMainWorld('api', {
   },
   external: {
     open: (url) => ipcRenderer.invoke('external:open', url)
+  },
+  system: {
+    getPreferences: () => ipcRenderer.invoke('system:getPreferences'),
+    setOpenAtLogin: (enabled) => ipcRenderer.invoke('system:setOpenAtLogin', enabled),
+    setStartMinimized: (enabled) => ipcRenderer.invoke('system:setStartMinimized', enabled),
+    setCloseToTray: (enabled) => ipcRenderer.invoke('system:setCloseToTray', enabled),
+    setKillBeforeLaunch: (enabled) => ipcRenderer.invoke('system:setKillBeforeLaunch', enabled)
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {

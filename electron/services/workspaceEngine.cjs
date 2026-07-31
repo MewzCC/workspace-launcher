@@ -3,7 +3,7 @@
 // 通过 onProgress 回调向上层（IPC）上报启动进度
 const { exec } = require('child_process')
 const processManager = require('./processManager.cjs')
-const { workspaceDao, batScriptDao, scriptDao, logDao } = require('../db/index.cjs')
+const { workspaceDao, batScriptDao, scriptDao, logDao, settingsDao } = require('../db/index.cjs')
 
 // 延时工具，返回 Promise，ms 毫秒后 resolve
 function delay(ms) {
@@ -75,6 +75,7 @@ async function launchWorkspace(workspaceId, onProgress) {
       report({ phase: 'error', status: 'failed', message: `工作空间不存在: ${workspaceId}` })
       throw new Error(`工作空间不存在: ${workspaceId}`)
     }
+    const killBeforeLaunch = settingsDao.get('killBeforeLaunch')
 
     // 2. 查询 pre/post 脚本
     const preScript = scriptDao.getByWorkspaceAndType(workspaceId, 'pre')
@@ -120,6 +121,30 @@ async function launchWorkspace(workspaceId, onProgress) {
       // 启动前延时
       if (software.delay_ms && software.delay_ms > 0) {
         await delay(software.delay_ms)
+      }
+
+      if (killBeforeLaunch) {
+        try {
+          const terminated = await processManager.terminateByExecutablePath(software.path)
+          if (terminated.killed > 0) {
+            report({
+              phase: 'software',
+              softwareId,
+              softwareName,
+              status: 'running',
+              message: `已结束 ${terminated.killed} 个已有进程，正在重新启动`
+            })
+            await delay(300)
+          }
+        } catch (err) {
+          report({
+            phase: 'software',
+            softwareId,
+            softwareName,
+            status: 'running',
+            message: `结束已有进程失败，继续尝试启动: ${err.message}`
+          })
+        }
       }
 
       report({

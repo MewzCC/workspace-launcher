@@ -6,6 +6,8 @@ const db = require('../db/index.cjs')
 const softwareScanner = require('../services/softwareScanner.cjs')
 const workspaceEngine = require('../services/workspaceEngine.cjs')
 const processManager = require('../services/processManager.cjs')
+const systemPreferences = require('../services/systemPreferences.cjs')
+const trayService = require('../services/trayService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 
@@ -29,9 +31,21 @@ function registerIpcHandlers() {
   // ===== 工作空间 =====
   ipcMain.handle('workspace:list', () => wrap(() => workspaceDao.list()))
   ipcMain.handle('workspace:get', (_e, id) => wrap(() => workspaceDao.get(id)))
-  ipcMain.handle('workspace:create', (_e, data) => wrap(() => workspaceDao.create(data)))
-  ipcMain.handle('workspace:update', (_e, id, data) => wrap(() => workspaceDao.update(id, data)))
-  ipcMain.handle('workspace:delete', (_e, id) => wrap(() => workspaceDao.remove(id)))
+  ipcMain.handle('workspace:create', (_e, data) => wrap(() => {
+    const result = workspaceDao.create(data)
+    trayService.refreshTrayMenu()
+    return result
+  }))
+  ipcMain.handle('workspace:update', (_e, id, data) => wrap(() => {
+    const result = workspaceDao.update(id, data)
+    trayService.refreshTrayMenu()
+    return result
+  }))
+  ipcMain.handle('workspace:delete', (_e, id) => wrap(() => {
+    const result = workspaceDao.remove(id)
+    trayService.refreshTrayMenu()
+    return result
+  }))
   ipcMain.handle('workspace:launch', async (e, workspaceId) => {
     return wrap(async () => {
       const win = BrowserWindow.fromWebContents(e.sender)
@@ -255,6 +269,23 @@ function registerIpcHandlers() {
       return { success: true }
     })
   })
+
+  // ===== 系统与启动 =====
+  ipcMain.handle('system:getPreferences', () => wrap(() => systemPreferences.getPreferences()))
+  ipcMain.handle('system:setOpenAtLogin', (_e, enabled) => wrap(() => {
+    const result = systemPreferences.setOpenAtLogin(enabled)
+    trayService.refreshTrayMenu()
+    return result
+  }))
+  ipcMain.handle('system:setStartMinimized', (_e, enabled) =>
+    wrap(() => systemPreferences.setStartMinimized(enabled))
+  )
+  ipcMain.handle('system:setCloseToTray', (_e, enabled) =>
+    wrap(() => systemPreferences.setCloseToTray(enabled))
+  )
+  ipcMain.handle('system:setKillBeforeLaunch', (_e, enabled) =>
+    wrap(() => systemPreferences.setKillBeforeLaunch(enabled))
+  )
 }
 
 module.exports = { registerIpcHandlers }

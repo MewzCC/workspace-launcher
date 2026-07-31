@@ -1,7 +1,7 @@
 // 进程启动管理模块
 // 提供可执行文件启动能力，支持独立子进程模式
 // 主进程使用，渲染层通过 IPC 间接调用
-const { spawn } = require('child_process')
+const { spawn, execFile } = require('child_process')
 const { shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
@@ -160,4 +160,55 @@ function launchBatch(scriptPath, args = []) {
   })
 }
 
-module.exports = { launchExe, launchExeDetached, launchBatch, validateExecutablePath }
+function terminateByExecutablePath(exePath) {
+  return new Promise((resolve, reject) => {
+    let targetPath
+    try {
+      targetPath = validateExecutablePath(exePath)
+    } catch (err) {
+      reject(err)
+      return
+    }
+    if (targetPath.toLowerCase() === process.execPath.toLowerCase()) {
+      reject(new Error('已阻止结束 LaunchPad 自身进程'))
+      return
+    }
+    if (process.platform !== 'win32') {
+      resolve({ killed: 0, exePath: targetPath })
+      return
+    }
+
+    const script = [
+      "$target = $env:LAUNCHPAD_TARGET_EXE",
+      "$matched = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $target, [StringComparison]::OrdinalIgnoreCase) })",
+      "$count = 0",
+      "foreach ($proc in $matched) { Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop; $count++ }",
+      "Write-Output $count"
+    ].join('; ')
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      {
+        windowsHide: true,
+        timeout: 10000,
+        env: { ...process.env, LAUNCHPAD_TARGET_EXE: targetPath }
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`无法结束已有进程: ${String(stderr || err.message).trim()}`))
+          return
+        }
+        resolve({ killed: Math.max(0, Number.parseInt(String(stdout).trim(), 10) || 0), exePath: targetPath })
+      }
+    )
+  })
+}
+
+module.exports = {
+  launchExe,
+  launchExeDetached,
+  launchBatch,
+  validateExecutablePath,
+  terminateByExecutablePath
+}

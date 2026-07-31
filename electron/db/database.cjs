@@ -68,6 +68,12 @@ const CREATE_TABLES_SQL = `
     FOREIGN KEY (bat_script_id) REFERENCES bat_scripts(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS launch_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workspace_id INTEGER,

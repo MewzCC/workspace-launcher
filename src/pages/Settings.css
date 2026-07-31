@@ -4,6 +4,144 @@
   max-width: 900px;
 }
 
+.system-settings-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--brand-primary) 13%, transparent), transparent 34%),
+    var(--brand-card);
+}
+
+.system-settings-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary), transparent 88%);
+}
+
+.system-settings-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.system-settings-heading h3 {
+  margin: 0 0 4px;
+}
+
+.system-settings-heading p {
+  margin: 0;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.system-settings-icon,
+.system-setting-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, transparent);
+}
+
+.system-settings-icon {
+  width: 43px;
+  height: 43px;
+  border-radius: 13px;
+}
+
+.tray-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  margin-left: auto;
+  color: var(--brand-state-success);
+  background: color-mix(in srgb, var(--brand-state-success) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-state-success) 25%, transparent);
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tray-live-badge span {
+  width: 7px;
+  height: 7px;
+  background: var(--brand-state-success);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-state-success) 14%, transparent);
+}
+
+.system-setting-list {
+  overflow: hidden;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-lg);
+  background: color-mix(in srgb, var(--brand-card-solid) 54%, transparent);
+}
+
+.system-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 72px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--brand-border);
+  transition: background 180ms ease;
+}
+
+.system-setting-row:last-child { border-bottom: 0; }
+.system-setting-row:hover { background: color-mix(in srgb, var(--brand-primary) 4%, transparent); }
+
+.system-setting-symbol {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.system-setting-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.system-setting-copy strong {
+  color: var(--brand-foreground);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.system-setting-copy span {
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.process-policy-row {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand-state-warning) 7%, transparent), transparent 45%);
+}
+
+.process-policy-row .system-setting-symbol {
+  color: var(--brand-state-warning);
+  background: color-mix(in srgb, var(--brand-state-warning) 10%, transparent);
+  border-color: color-mix(in srgb, var(--brand-state-warning) 28%, transparent);
+}
+
+.system-setting-message {
+  padding: 9px 12px;
+  margin-top: 12px;
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  border-radius: var(--brand-radius-md);
+  font-size: 12px;
+}
+
 .repository-card {
   display: flex;
   align-items: center;
@@ -56,6 +194,9 @@
     align-items: stretch;
     flex-direction: column;
   }
+
+  .system-settings-heading { align-items: flex-start; flex-wrap: wrap; }
+  .tray-live-badge { margin-left: 56px; }
 }
 
 /* 设置区块：由 GlassCard 包裹，提供内边距 */

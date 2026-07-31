@@ -60,7 +60,7 @@ export function Settings() {
         <h3>应用信息</h3>
         <div className="info-row">
           <span className="info-label">名称</span>
-          <span className="info-value">Workspace Launcher</span>
+          <span className="info-value">LaunchPad</span>
         </div>
         <div className="info-row">
           <span className="info-label">版本</span>
@@ -109,7 +109,7 @@ export function Settings() {
       </GlassCard>
 
       {/* 底部版权信息 */}
-      <p className="copyright">Workspace Launcher © 2026</p>
+      <p className="copyright">LaunchPad © 2026</p>
     </div>
   )
 }

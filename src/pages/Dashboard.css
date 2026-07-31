@@ -173,6 +173,42 @@
   line-height: 1.55;
 }
 
+.quick-edit-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 12px;
+  margin-bottom: 12px;
+  color: var(--brand-muted-foreground);
+  background: var(--brand-input);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.quick-edit-search:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+
+.quick-edit-search input {
+  min-width: 0;
+  color: var(--brand-foreground);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.quick-edit-search button {
+  display: inline-flex;
+  padding: 3px;
+  color: var(--brand-muted-foreground);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
 .quick-edit-software {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

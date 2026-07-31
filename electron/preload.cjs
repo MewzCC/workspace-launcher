@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld('api', {
     // 批量提取文件图标，返回 { [filePath]: dataURL }
     getIcons: (filePaths) => ipcRenderer.invoke('software:getIcons', filePaths)
   },
+  batScript: {
+    list: () => ipcRenderer.invoke('batScript:list'),
+    create: (data) => ipcRenderer.invoke('batScript:create', data),
+    update: (id, data) => ipcRenderer.invoke('batScript:update', id, data),
+    delete: (id) => ipcRenderer.invoke('batScript:delete', id),
+    run: (id) => ipcRenderer.invoke('batScript:run', id)
+  },
   // 脚本相关接口
   script: {
     listByWorkspace: (workspaceId) =>

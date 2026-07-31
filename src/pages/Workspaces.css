@@ -167,6 +167,42 @@
   border-radius: var(--brand-radius-md);
 }
 
+.workspace-software-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 11px;
+  margin-top: 8px;
+  color: var(--brand-muted-foreground);
+  background: var(--brand-input);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.workspace-software-search:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+
+.workspace-software-search input {
+  min-width: 0;
+  color: var(--brand-foreground);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.workspace-software-search button {
+  display: inline-flex;
+  padding: 3px;
+  color: var(--brand-muted-foreground);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
 .software-picker-item {
   display: flex;
   align-items: center;

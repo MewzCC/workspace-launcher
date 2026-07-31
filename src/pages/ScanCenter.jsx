@@ -4,6 +4,7 @@
 // 2. 盘符扫描：递归扫描指定盘符下所有 .exe（适合 D:/E: 等数据盘）
 // 3. 目录扫描：扫描指定目录的 .exe（精确控制范围）
 import React, { useState, useMemo, useEffect } from 'react'
+import { Search, X } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
@@ -59,6 +60,7 @@ function ScanCenter() {
   const [adding, setAdding] = useState(false)
   // 操作提示消息
   const [message, setMessage] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   // 进入页面时加载盘符列表
   useEffect(() => {
@@ -96,7 +98,16 @@ function ScanCenter() {
   }, [software])
 
   // 可选项目：扫描结果中未存在于软件库的项
-  const selectableItems = results.filter(
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredResults = useMemo(() => {
+    if (!normalizedQuery) return results
+    return results.filter((item) =>
+      [item.name, item.path]
+        .some((value) => String(value || '').toLowerCase().includes(normalizedQuery))
+    )
+  }, [results, normalizedQuery])
+
+  const selectableItems = filteredResults.filter(
     (r) => !existingPaths.has((r.path || '').toLowerCase())
   )
   // 全选状态：仅针对可选项目
@@ -112,6 +123,7 @@ function ScanCenter() {
     setMessage('')
     setResults([])
     setSelected({})
+    setSearchQuery('')
     try {
       let list
       if (mode === MODE_STANDARD) {
@@ -360,6 +372,20 @@ function ScanCenter() {
       {/* 扫描结果：全选 + 添加按钮 + 列表 */}
       {results.length > 0 && (
         <>
+          <div className="scan-search">
+            <Search size={17} aria-hidden="true" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="搜索应用名称或文件路径"
+              aria-label="搜索扫描结果"
+            />
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery('')} aria-label="清空搜索">
+                <X size={15} />
+              </button>
+            )}
+          </div>
           <div className="scan-result-header">
             <label className="select-all">
               <input
@@ -370,7 +396,7 @@ function ScanCenter() {
               <span>全选</span>
             </label>
             <div className="result-summary">
-              共 {results.length} 个，已选 {selectedCount} 个
+              显示 {filteredResults.length} / {results.length} 个，已选 {selectedCount} 个
             </div>
             <GlowButton
               variant="secondary"
@@ -381,7 +407,7 @@ function ScanCenter() {
             </GlowButton>
           </div>
           <div className="scan-list">
-            {results.map((r, idx) => {
+            {filteredResults.map((r, idx) => {
               // 已存在于软件库则标记"已添加"
               const added = existingPaths.has((r.path || '').toLowerCase())
               const checked = !!selected[r.path]
@@ -395,6 +421,9 @@ function ScanCenter() {
                 />
               )
             })}
+            {filteredResults.length === 0 && (
+              <div className="scan-no-results">没有找到匹配的应用或路径</div>
+            )}
           </div>
         </>
       )}

@@ -1,7 +1,7 @@
 // 应用管理页面（原工作空间）：工作空间 CRUD + 一键启动动画
 // 视觉对齐设计稿：页头(标题+副标题+CTA) + 卡片网格 + 模态表单
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, Play, PackageOpen } from 'lucide-react'
+import { Plus, Pencil, Trash2, Play, PackageOpen, Search, X } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -38,6 +38,7 @@ function Workspaces() {
   const [form, setForm] = useState({ name: '', description: '', icon: '🚀' })
   // 已选软件：[{ software_id, name, icon, launch_order, delay_ms }]
   const [selectedSoftware, setSelectedSoftware] = useState([])
+  const [softwareSearch, setSoftwareSearch] = useState('')
   const [saving, setSaving] = useState(false)
   // 防止保存重复提交
   const savingRef = useRef(false)
@@ -47,11 +48,13 @@ function Workspaces() {
     setEditingId(null)
     setForm({ name: '', description: '', icon: '🚀' })
     setSelectedSoftware([])
+    setSoftwareSearch('')
     setModalOpen(true)
   }
 
   // 打开编辑 Modal，预填工作空间数据
   const openEdit = (workspace) => {
+    setSoftwareSearch('')
     setEditingId(workspace.id)
     setForm({
       name: workspace.name || '',
@@ -353,13 +356,34 @@ function Workspaces() {
           {/* 软件选择 */}
           <div className="form-group">
             <label className="form-label">软件选择</label>
+            <div className="workspace-software-search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                value={softwareSearch}
+                onChange={(event) => setSoftwareSearch(event.target.value)}
+                placeholder="搜索软件名称或路径"
+                aria-label="搜索软件"
+              />
+              {softwareSearch && (
+                <button type="button" onClick={() => setSoftwareSearch('')} aria-label="清空搜索">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
             <div className="software-picker">
               {software.length === 0 && (
                 <div className="software-picker-empty">
                   暂无可用软件，请先在软件库添加
                 </div>
               )}
-              {software.map((sw) => (
+              {software
+                .filter((sw) => {
+                  const query = softwareSearch.trim().toLowerCase()
+                  return !query || [sw.name, sw.path].some((value) =>
+                    String(value || '').toLowerCase().includes(query)
+                  )
+                })
+                .map((sw) => (
                 <label className="software-picker-item" key={sw.id}>
                   <input
                     type="checkbox"

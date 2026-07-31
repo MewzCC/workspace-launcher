@@ -8,6 +8,7 @@ module.exports = {
   closeDb,
   workspaceDao: require('./workspaceDao.cjs'),
   softwareDao: require('./softwareDao.cjs'),
+  batScriptDao: require('./batScriptDao.cjs'),
   scriptDao: require('./scriptDao.cjs'),
   logDao: require('./logDao.cjs')
 }

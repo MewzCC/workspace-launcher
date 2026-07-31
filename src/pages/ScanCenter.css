@@ -227,6 +227,54 @@
   color: var(--brand-muted-foreground);
 }
 
+.scan-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 13px;
+  margin: 18px 0 10px;
+  color: var(--brand-muted-foreground);
+  background: var(--brand-card);
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+}
+
+.scan-search:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.scan-search input {
+  min-width: 0;
+  color: var(--brand-foreground);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+
+.scan-search button {
+  display: inline-flex;
+  padding: 4px;
+  color: var(--brand-muted-foreground);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.scan-no-results {
+  padding: 42px;
+  color: var(--brand-muted-foreground);
+  text-align: center;
+  border: 1px dashed var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
 /* 扫描结果列表 */
 .scan-list {
   display: flex;

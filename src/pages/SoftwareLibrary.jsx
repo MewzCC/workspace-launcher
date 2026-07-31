@@ -1,6 +1,6 @@
 // 软件库页面：展示已添加的软件，支持添加/编辑/删除/测试启动
 // 视觉对齐设计稿，复用共享 Modal 组件，去除重复样式
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Plus,
   Pencil,
@@ -11,13 +11,16 @@ import {
   Check,
   X,
   LayoutGrid,
-  List
+  List,
+  Search,
+  Terminal,
+  FileText
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
-import { softwareApi, dialogApi } from '../lib/ipc'
+import { softwareApi, batScriptApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import './SoftwareLibrary.css'
 
@@ -269,9 +272,141 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
   )
 }
 
+function BatScriptModal({ initial, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name: initial?.name || '',
+    description: initial?.description || '',
+    path: initial?.path || '',
+    args: initial?.args || ''
+  })
+  const [saving, setSaving] = useState(false)
+
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }))
+
+  const handleBrowse = async () => {
+    const filePath = await dialogApi.openFile([
+      { name: 'Windows 批处理脚本', extensions: ['bat', 'cmd'] }
+    ])
+    if (!filePath) return
+    setForm((current) => ({
+      ...current,
+      path: filePath,
+      name: current.name || filePath.split(/[\\/]/).pop().replace(/\.(bat|cmd)$/i, '')
+    }))
+  }
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.path.trim()) return
+    setSaving(true)
+    try {
+      await onSave({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        path: form.path.trim(),
+        args: form.args.trim()
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={initial ? '编辑 BAT 脚本' : '添加 BAT 脚本'}
+      onClose={onClose}
+      onSave={handleSave}
+      saveText={saving ? '保存中...' : '保存脚本'}
+    >
+      <div className="bat-modal-note">
+        <Terminal size={16} />
+        仅支持本地 .bat 与 .cmd 文件。执行时会打开 Windows 命令窗口。
+      </div>
+      <div className="form-group">
+        <label className="form-label">名称 *</label>
+        <input
+          className="form-input"
+          value={form.name}
+          onChange={(event) => update('name', event.target.value)}
+          placeholder="例如：启动开发环境"
+          autoFocus
+        />
+      </div>
+      <div className="form-group">
+        <label className="form-label">描述</label>
+        <input
+          className="form-input"
+          value={form.description}
+          onChange={(event) => update('description', event.target.value)}
+          placeholder="说明这个脚本会做什么（可选）"
+        />
+      </div>
+      <div className="form-group">
+        <label className="form-label">脚本路径 *</label>
+        <div className="path-row">
+          <input
+            className="form-input"
+            value={form.path}
+            onChange={(event) => update('path', event.target.value)}
+            placeholder="D:\\Scripts\\start-dev.bat"
+          />
+          <GlowButton type="button" variant="ghost" size="sm" onClick={handleBrowse}>
+            <FolderOpen size={14} />
+            浏览
+          </GlowButton>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="form-label">启动参数</label>
+        <input
+          className="form-input"
+          value={form.args}
+          onChange={(event) => update('args', event.target.value)}
+          placeholder="例如：--dev 3000（可选）"
+        />
+      </div>
+    </Modal>
+  )
+}
+
+function BatScriptCard({ item, runStatus, onEdit, onDelete, onRun }) {
+  const status = runStatus[item.id]
+  return (
+    <GlassCard className="bat-script-card" hover>
+      <div className="bat-script-heading">
+        <span className="bat-script-icon"><Terminal size={20} /></span>
+        <div className="bat-script-title-wrap">
+          <span className="bat-script-title">{item.name}</span>
+          <span className="bat-script-type">BAT / CMD</span>
+        </div>
+      </div>
+      <p className="bat-script-desc">{item.description || '暂无描述'}</p>
+      <div className="bat-script-path" title={item.path}>{item.path}</div>
+      {item.args && <div className="bat-script-args">参数：{item.args}</div>}
+      <div className="bat-script-actions">
+        <GlowButton variant="primary" size="sm" disabled={status === 'running'} onClick={() => onRun(item)}>
+          <Play size={14} />
+          {status === 'running' ? '启动中...' : status === 'success' ? '已启动' : status === 'fail' ? '启动失败' : '运行脚本'}
+        </GlowButton>
+        <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
+          <Pencil size={14} /> 编辑
+        </GlowButton>
+        <button type="button" className="software-row-delete" onClick={() => onDelete(item)} aria-label={`删除 ${item.name}`}>
+          <Trash2 size={15} />
+        </button>
+      </div>
+    </GlassCard>
+  )
+}
+
 function SoftwareLibrary() {
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
+  const [activeTab, setActiveTab] = useState('software')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [batScripts, setBatScripts] = useState([])
+  const [batModalOpen, setBatModalOpen] = useState(false)
+  const [editingBat, setEditingBat] = useState(null)
+  const [batRunStatus, setBatRunStatus] = useState({})
   // 模态相关状态
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -303,6 +438,17 @@ function SoftwareLibrary() {
     const list = await softwareApi.list()
     setSoftware(list)
   }
+
+  const refreshBatScripts = async () => {
+    const list = await batScriptApi.list()
+    setBatScripts(Array.isArray(list) ? list : [])
+  }
+
+  useEffect(() => {
+    refreshBatScripts().catch((error) => {
+      console.error('加载 BAT 脚本失败:', error)
+    })
+  }, [])
 
   // 软件列表变化时批量预加载图标到共享缓存
   useEffect(() => {
@@ -429,6 +575,80 @@ function SoftwareLibrary() {
     setEditing(null)
   }
 
+  const openAddBat = () => {
+    setEditingBat(null)
+    setBatModalOpen(true)
+  }
+
+  const openEditBat = (item) => {
+    setEditingBat(item)
+    setBatModalOpen(true)
+  }
+
+  const saveBat = async (data) => {
+    const result = editingBat
+      ? await batScriptApi.update(editingBat.id, data)
+      : await batScriptApi.create(data)
+    if (result?.error) {
+      window.alert('保存失败：' + result.error)
+      return
+    }
+    await refreshBatScripts()
+    setBatModalOpen(false)
+    setEditingBat(null)
+  }
+
+  const deleteBat = async (item) => {
+    if (!window.confirm(`确定删除脚本「${item.name}」吗？`)) return
+    const result = await batScriptApi.remove(item.id)
+    if (result?.error) {
+      window.alert('删除失败：' + result.error)
+      return
+    }
+    await refreshBatScripts()
+  }
+
+  const runBat = async (item) => {
+    setBatRunStatus((current) => ({ ...current, [item.id]: 'running' }))
+    try {
+      const result = await batScriptApi.run(item.id)
+      setBatRunStatus((current) => ({
+        ...current,
+        [item.id]: result?.success ? 'success' : 'fail'
+      }))
+    } catch {
+      setBatRunStatus((current) => ({ ...current, [item.id]: 'fail' }))
+    }
+    setTimeout(() => {
+      setBatRunStatus((current) => {
+        const next = { ...current }
+        delete next[item.id]
+        return next
+      })
+    }, 3000)
+  }
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredSoftware = useMemo(() => {
+    if (!normalizedQuery) return software
+    return software.filter((item) =>
+      [item.name, item.description, item.path, item.args]
+        .some((value) => String(value || '').toLowerCase().includes(normalizedQuery))
+    )
+  }, [software, normalizedQuery])
+  const filteredBatScripts = useMemo(() => {
+    if (!normalizedQuery) return batScripts
+    return batScripts.filter((item) =>
+      [item.name, item.description, item.path, item.args]
+        .some((value) => String(value || '').toLowerCase().includes(normalizedQuery))
+    )
+  }, [batScripts, normalizedQuery])
+
+  const switchLibraryTab = (tab) => {
+    setActiveTab(tab)
+    setSearchQuery('')
+  }
+
   return (
     <div className="software-page">
       <section className="page-header">
@@ -437,51 +657,98 @@ function SoftwareLibrary() {
           <p className="page-subtitle">管理可启动的应用程序，配置路径与启动参数</p>
         </div>
         <div className="page-actions">
-          <div className="view-switcher" role="group" aria-label="软件库展示方式">
-            <button
-              type="button"
-              className={`view-switcher-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => changeViewMode('grid')}
-              aria-pressed={viewMode === 'grid'}
-              title="卡片视图"
-            >
-              <LayoutGrid size={16} />
-              <span>卡片</span>
-            </button>
-            <button
-              type="button"
-              className={`view-switcher-btn ${viewMode === 'list' ? 'active' : ''}`}
-              onClick={() => changeViewMode('list')}
-              aria-pressed={viewMode === 'list'}
-              title="列表视图"
-            >
-              <List size={17} />
-              <span>列表</span>
-            </button>
-          </div>
-          <GlowButton
-            variant="secondary"
-            onClick={handleBulkAdd}
-            disabled={bulkAdding}
-          >
-            <FolderOpen size={16} />
-            {bulkAdding ? '添加中...' : '批量添加'}
-          </GlowButton>
-          <GlowButton variant="primary" onClick={handleAdd}>
-            <Plus size={16} />
-            添加软件
-          </GlowButton>
+          {activeTab === 'software' ? (
+            <>
+              <div className="view-switcher" role="group" aria-label="软件库展示方式">
+                <button
+                  type="button"
+                  className={`view-switcher-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  onClick={() => changeViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
+                  title="卡片视图"
+                >
+                  <LayoutGrid size={16} />
+                  <span>卡片</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-switcher-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => changeViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  title="列表视图"
+                >
+                  <List size={17} />
+                  <span>列表</span>
+                </button>
+              </div>
+              <GlowButton variant="secondary" onClick={handleBulkAdd} disabled={bulkAdding}>
+                <FolderOpen size={16} />
+                {bulkAdding ? '添加中...' : '批量添加'}
+              </GlowButton>
+              <GlowButton variant="primary" onClick={handleAdd}>
+                <Plus size={16} /> 添加软件
+              </GlowButton>
+            </>
+          ) : (
+            <GlowButton variant="primary" onClick={openAddBat}>
+              <Plus size={16} /> 添加 BAT 脚本
+            </GlowButton>
+          )}
         </div>
       </section>
 
+      <div className={`library-tabs ${activeTab === 'bat' ? 'show-bat' : ''}`} role="tablist" aria-label="软件库类型">
+        <span className="library-tab-slider" aria-hidden="true" />
+        <button
+          type="button"
+          className={`library-tab ${activeTab === 'software' ? 'active' : ''}`}
+          onClick={() => switchLibraryTab('software')}
+          role="tab"
+          aria-selected={activeTab === 'software'}
+        >
+          <Package size={17} />
+          应用程序
+          <span className="library-tab-count">{software.length}</span>
+        </button>
+        <button
+          type="button"
+          className={`library-tab ${activeTab === 'bat' ? 'active' : ''}`}
+          onClick={() => switchLibraryTab('bat')}
+          role="tab"
+          aria-selected={activeTab === 'bat'}
+        >
+          <Terminal size={17} />
+          BAT 脚本
+          <span className="library-tab-count">{batScripts.length}</span>
+        </button>
+      </div>
+
+      <div className="library-search">
+        <Search size={17} aria-hidden="true" />
+        <input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={activeTab === 'software' ? '搜索软件名称、路径、描述或参数' : '搜索脚本名称、路径、描述或参数'}
+          aria-label={activeTab === 'software' ? '搜索软件' : '搜索 BAT 脚本'}
+        />
+        {searchQuery && (
+          <button type="button" onClick={() => setSearchQuery('')} aria-label="清空搜索">
+            <X size={15} />
+          </button>
+        )}
+        <span className="library-search-result">
+          {activeTab === 'software' ? filteredSoftware.length : filteredBatScripts.length} 个结果
+        </span>
+      </div>
+
       {/* 批量添加结果提示，点击可关闭 */}
-      {notice && (
+      {activeTab === 'software' && notice && (
         <div className="bulk-notice" onClick={() => setNotice('')}>
           {notice}
         </div>
       )}
 
-      {software.length === 0 ? (
+      {activeTab === 'software' && (software.length === 0 ? (
         <GlassCard hover={false} className="empty-state">
           <div className="empty-icon-wrap">
             <Package size={40} />
@@ -490,7 +757,7 @@ function SoftwareLibrary() {
         </GlassCard>
       ) : (
         <div className={viewMode === 'list' ? 'software-list-view' : 'software-grid'}>
-          {software.map((item) => (
+          {filteredSoftware.map((item) => (
             viewMode === 'list' ? (
               <SoftwareRow
                 key={item.id}
@@ -511,14 +778,50 @@ function SoftwareLibrary() {
               />
             )
           ))}
+          {filteredSoftware.length === 0 && (
+            <div className="library-no-results">没有找到匹配的软件</div>
+          )}
         </div>
-      )}
+      ))}
+
+      {activeTab === 'bat' && (batScripts.length === 0 ? (
+        <GlassCard hover={false} className="empty-state">
+          <div className="empty-icon-wrap"><FileText size={40} /></div>
+          <p>还没有 BAT 脚本，点击右上角添加本地 .bat 或 .cmd 文件</p>
+        </GlassCard>
+      ) : (
+        <div className="bat-script-grid">
+          {filteredBatScripts.map((item) => (
+            <BatScriptCard
+              key={item.id}
+              item={item}
+              runStatus={batRunStatus}
+              onEdit={openEditBat}
+              onDelete={deleteBat}
+              onRun={runBat}
+            />
+          ))}
+          {filteredBatScripts.length === 0 && (
+            <div className="library-no-results">没有找到匹配的 BAT 脚本</div>
+          )}
+        </div>
+      ))}
 
       {modalOpen && (
         <SoftwareModal
           initial={editing}
           onSave={handleSave}
           onClose={closeModal}
+        />
+      )}
+      {batModalOpen && (
+        <BatScriptModal
+          initial={editingBat}
+          onSave={saveBat}
+          onClose={() => {
+            setBatModalOpen(false)
+            setEditingBat(null)
+          }}
         />
       )}
     </div>

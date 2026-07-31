@@ -7,7 +7,7 @@ const softwareScanner = require('../services/softwareScanner.cjs')
 const workspaceEngine = require('../services/workspaceEngine.cjs')
 const processManager = require('../services/processManager.cjs')
 
-const { workspaceDao, softwareDao, scriptDao, logDao } = db
+const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 
 // 通用错误包装：将处理器的异常转为 {error} 对象
 // 处理器可以是同步或异步函数
@@ -125,6 +125,20 @@ function registerIpcHandlers() {
       })
       await Promise.all(tasks)
       return result
+    })
+  })
+
+  // ===== BAT 脚本库 =====
+  ipcMain.handle('batScript:list', () => wrap(() => batScriptDao.list()))
+  ipcMain.handle('batScript:create', (_e, data) => wrap(() => batScriptDao.create(data)))
+  ipcMain.handle('batScript:update', (_e, id, data) => wrap(() => batScriptDao.update(id, data)))
+  ipcMain.handle('batScript:delete', (_e, id) => wrap(() => batScriptDao.remove(id)))
+  ipcMain.handle('batScript:run', (_e, id) => {
+    return wrap(async () => {
+      const script = batScriptDao.get(id)
+      if (!script) throw new Error('脚本不存在')
+      await processManager.launchBatch(script.path, script.args)
+      return { success: true, message: `${script.name} 已启动` }
     })
   })
 

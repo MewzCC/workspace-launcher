@@ -48,6 +48,16 @@ const CREATE_TABLES_SQL = `
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS bat_scripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    path TEXT NOT NULL,
+    args TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS launch_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workspace_id INTEGER,

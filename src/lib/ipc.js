@@ -37,6 +37,14 @@ export const softwareApi = {
   getIcons: (filePaths) => api.software.getIcons(filePaths)
 }
 
+export const batScriptApi = {
+  list: () => api.batScript.list(),
+  create: (data) => api.batScript.create(data),
+  update: (id, data) => api.batScript.update(id, data),
+  remove: (id) => api.batScript.delete(id),
+  run: (id) => api.batScript.run(id)
+}
+
 // 脚本 API
 export const scriptApi = {
   listByWorkspace: (workspaceId) => api.script.listByWorkspace(workspaceId),

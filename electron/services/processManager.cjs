@@ -86,4 +86,36 @@ function launchExeDetached(exePath, args = [], options = {}) {
   })
 }
 
-module.exports = { launchExe, launchExeDetached }
+function launchBatch(scriptPath, args = []) {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(scriptPath)) {
+      reject(new Error(`脚本文件不存在: ${scriptPath}`))
+      return
+    }
+    if (!/\.(bat|cmd)$/i.test(scriptPath)) {
+      reject(new Error('仅支持执行 .bat 或 .cmd 脚本'))
+      return
+    }
+
+    const cmdExe = process.env.ComSpec || 'cmd.exe'
+    const argArr = parseArgs(args)
+    const child = spawn(
+      cmdExe,
+      ['/d', '/s', '/c', 'call', scriptPath, ...argArr],
+      {
+        cwd: path.dirname(scriptPath),
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false
+      }
+    )
+
+    child.once('spawn', () => {
+      child.unref()
+      resolve({ pid: child.pid, scriptPath })
+    })
+    child.once('error', reject)
+  })
+}
+
+module.exports = { launchExe, launchExeDetached, launchBatch }

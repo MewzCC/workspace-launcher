@@ -1,6 +1,6 @@
 // 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
 import React, { useEffect, useState } from 'react'
-import { Play, ArrowRight, Check, Pencil } from 'lucide-react'
+import { Play, ArrowRight, Check, Pencil, Search, X } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -64,10 +64,12 @@ export function Dashboard() {
   const [quickEditing, setQuickEditing] = useState(null)
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState([])
   const [savingQuickEdit, setSavingQuickEdit] = useState(false)
+  const [quickSearch, setQuickSearch] = useState('')
 
   const openQuickEdit = (workspace) => {
     setQuickEditing(workspace)
     setSelectedSoftwareIds((workspace.software || []).map((item) => item.id))
+    setQuickSearch('')
   }
 
   const toggleQuickSoftware = (softwareId) => {
@@ -165,11 +167,32 @@ export function Dashboard() {
           <p className="quick-edit-hint">
             这里只调整工作空间包含的应用，名称、图标、启动顺序和延迟保持不变。
           </p>
+          <div className="quick-edit-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              value={quickSearch}
+              onChange={(event) => setQuickSearch(event.target.value)}
+              placeholder="搜索应用名称或路径"
+              aria-label="搜索可选应用"
+            />
+            {quickSearch && (
+              <button type="button" onClick={() => setQuickSearch('')} aria-label="清空搜索">
+                <X size={14} />
+              </button>
+            )}
+          </div>
           <div className="quick-edit-software">
             {software.length === 0 ? (
               <div className="quick-edit-empty">软件库暂无应用，请先添加软件。</div>
             ) : (
-              software.map((item) => {
+              software
+                .filter((item) => {
+                  const query = quickSearch.trim().toLowerCase()
+                  return !query || [item.name, item.path].some((value) =>
+                    String(value || '').toLowerCase().includes(query)
+                  )
+                })
+                .map((item) => {
                 const selected = selectedSoftwareIds.includes(item.id)
                 return (
                   <button

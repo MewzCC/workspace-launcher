@@ -1,5 +1,6 @@
-// 首页 Dashboard：问候语 + 实时时钟 + 快速启动卡片网格
+// 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
 import React, { useEffect, useState } from 'react'
+import { Play, ArrowRight } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import SoftwareIcon from '../components/SoftwareIcon'
@@ -61,26 +62,36 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       {/* 顶部问候区：左侧问候语 + 副标题，右侧实时时钟 */}
-      <div className="greeting">
-        <div className="greeting-text">
-          <h1>{greeting}</h1>
-          <p>准备进入你的工作状态</p>
+      <section className="page-header greeting">
+        <div className="page-header-left">
+          <h1 className="page-title greeting-title">{greeting}</h1>
+          <p className="page-subtitle">准备进入你的工作状态</p>
         </div>
         <div className="clock">{formatTime(now)}</div>
+      </section>
+
+      {/* 区块标题 */}
+      <div className="section-title">
+        快速启动
+        <span className="count">{workspaces.length} 个工作空间</span>
       </div>
 
       {/* 快速启动卡片网格，或无工作空间时的空状态 */}
       {workspaces.length === 0 ? (
-        <div className="empty-state">
-          <p>还没有工作空间，去工作空间页面创建一个吧</p>
+        <GlassCard hover={false} className="empty-state">
+          <div className="empty-icon-wrap">
+            <Play size={40} />
+          </div>
+          <p>还没有工作空间，去应用管理页面创建一个吧</p>
           <GlowButton
             variant="primary"
             size="md"
             onClick={() => setCurrentView('workspaces')}
           >
-            前往工作空间
+            前往应用管理
+            <ArrowRight size={16} />
           </GlowButton>
-        </div>
+        </GlassCard>
       ) : (
         <div className="workspace-grid">
           {workspaces.map((ws) => (
@@ -139,7 +150,8 @@ function QuickCard({ workspace, launching, onLaunch }) {
           disabled={isLaunching}
           onClick={() => onLaunch(workspace.id)}
         >
-          {isLaunching ? '启动中...' : '▶ 启动'}
+          <Play size={14} />
+          {isLaunching ? '启动中...' : '启动'}
         </GlowButton>
       </div>
     </GlassCard>

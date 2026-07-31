@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
+    "lucide-react": "^1.28.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
@@ -44,7 +45,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "signAndEditExecutable": false

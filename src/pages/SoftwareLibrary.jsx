@@ -1,7 +1,19 @@
 // 软件库页面：展示已添加的软件，支持添加/编辑/删除/测试启动
+// 视觉对齐设计稿，复用共享 Modal 组件，去除重复样式
 import React, { useState, useEffect } from 'react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Play,
+  FolderOpen,
+  Package,
+  Check,
+  X
+} from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
+import Modal from '../components/Modal'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
 import { softwareApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
@@ -10,7 +22,7 @@ import './SoftwareLibrary.css'
 // 预设 emoji 图标列表
 const PRESET_ICONS = ['📦', '🌐', '💻', '🐳', '⌨', '🎵', '🎮', '📄', '📊']
 
-// 内联模态：添加/编辑软件表单
+// 内联模态：添加/编辑软件表单（复用共享 Modal）
 function SoftwareModal({ initial, onSave, onClose }) {
   // 表单状态：编辑时预填，新建时默认值
   const [form, setForm] = useState({
@@ -41,8 +53,7 @@ function SoftwareModal({ initial, onSave, onClose }) {
   }
 
   // 保存：校验名称必填，调用 onSave 提交
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSave = async () => {
     if (!form.name.trim()) return
     setSaving(true)
     try {
@@ -59,98 +70,83 @@ function SoftwareModal({ initial, onSave, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{initial ? '编辑软件' : '添加软件'}</h3>
-          <button type="button" className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <form className="modal-body" onSubmit={handleSubmit}>
-          {/* 名称（必填） */}
-          <div className="form-group">
-            <label className="form-label">名称 *</label>
-            <input
-              className="form-input"
-              value={form.name}
-              onChange={(e) => update('name', e.target.value)}
-              placeholder="例如：VS Code"
-              autoFocus
-            />
-          </div>
-          {/* 描述 */}
-          <div className="form-group">
-            <label className="form-label">描述</label>
-            <input
-              className="form-input"
-              value={form.description}
-              onChange={(e) => update('description', e.target.value)}
-              placeholder="简要描述（可选）"
-            />
-          </div>
-          {/* 图标选择：预设 emoji + 自定义输入 */}
-          <div className="form-group">
-            <label className="form-label">图标</label>
-            <div className="emoji-picker">
-              {PRESET_ICONS.map((ic) => (
-                <button
-                  key={ic}
-                  type="button"
-                  className={`emoji-chip ${form.icon === ic ? 'active' : ''}`}
-                  onClick={() => update('icon', ic)}
-                >
-                  {ic}
-                </button>
-              ))}
-              <input
-                className="emoji-input"
-                value={form.icon}
-                onChange={(e) => update('icon', e.target.value)}
-                maxLength={4}
-                title="自定义 emoji"
-              />
-            </div>
-          </div>
-          {/* 可执行文件路径 + 浏览按钮 */}
-          <div className="form-group">
-            <label className="form-label">可执行文件路径</label>
-            <div className="path-row">
-              <input
-                className="form-input"
-                value={form.path}
-                onChange={(e) => update('path', e.target.value)}
-                placeholder="C:\Program Files\app\app.exe"
-              />
-              <GlowButton type="button" variant="ghost" size="sm" onClick={handleBrowse}>
-                浏览
-              </GlowButton>
-            </div>
-          </div>
-          {/* 启动参数 */}
-          <div className="form-group">
-            <label className="form-label">启动参数</label>
-            <input
-              className="form-input"
-              value={form.args}
-              onChange={(e) => update('args', e.target.value)}
-              placeholder="例如：--fullscreen（可选）"
-            />
-          </div>
-          <div className="modal-footer">
-            <GlowButton type="button" variant="ghost" size="md" onClick={onClose}>
-              取消
-            </GlowButton>
-            <GlowButton
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={saving || !form.name.trim()}
-            >
-              {saving ? '保存中...' : '保存'}
-            </GlowButton>
-          </div>
-        </form>
+    <Modal
+      title={initial ? '编辑软件' : '添加软件'}
+      onClose={onClose}
+      onSave={handleSave}
+      saveText={saving ? '保存中...' : '保存'}
+    >
+      {/* 名称（必填） */}
+      <div className="form-group">
+        <label className="form-label">名称 *</label>
+        <input
+          className="form-input"
+          value={form.name}
+          onChange={(e) => update('name', e.target.value)}
+          placeholder="例如：VS Code"
+          autoFocus
+        />
       </div>
-    </div>
+      {/* 描述 */}
+      <div className="form-group">
+        <label className="form-label">描述</label>
+        <input
+          className="form-input"
+          value={form.description}
+          onChange={(e) => update('description', e.target.value)}
+          placeholder="简要描述（可选）"
+        />
+      </div>
+      {/* 图标选择：预设 emoji + 自定义输入 */}
+      <div className="form-group">
+        <label className="form-label">图标</label>
+        <div className="emoji-picker">
+          {PRESET_ICONS.map((ic) => (
+            <button
+              key={ic}
+              type="button"
+              className={`emoji-chip ${form.icon === ic ? 'active' : ''}`}
+              onClick={() => update('icon', ic)}
+            >
+              {ic}
+            </button>
+          ))}
+          <input
+            className="emoji-input"
+            value={form.icon}
+            onChange={(e) => update('icon', e.target.value)}
+            maxLength={4}
+            title="自定义 emoji"
+          />
+        </div>
+      </div>
+      {/* 可执行文件路径 + 浏览按钮 */}
+      <div className="form-group">
+        <label className="form-label">可执行文件路径</label>
+        <div className="path-row">
+          <input
+            className="form-input"
+            value={form.path}
+            onChange={(e) => update('path', e.target.value)}
+            placeholder="C:\Program Files\app\app.exe"
+          />
+          <GlowButton type="button" variant="ghost" size="sm" onClick={handleBrowse}>
+            <FolderOpen size={14} />
+            浏览
+          </GlowButton>
+        </div>
+      </div>
+      {/* 启动参数 */}
+      <div className="form-group">
+        <label className="form-label">启动参数</label>
+        <input
+          className="form-input"
+          value={form.args}
+          onChange={(e) => update('args', e.target.value)}
+          placeholder="例如：--fullscreen（可选）"
+        />
+      </div>
+    </Modal>
   )
 }
 
@@ -158,10 +154,14 @@ function SoftwareModal({ initial, onSave, onClose }) {
 function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
   // 测试启动状态：testing/success/fail/undefined
   const status = testStatus[item.id]
+  const testIcon =
+    status === 'testing' ? null :
+    status === 'success' ? <Check size={14} /> :
+    status === 'fail' ? <X size={14} /> : <Play size={14} />
   const testText =
     status === 'testing' ? '启动中...' :
-    status === 'success' ? '✓ 已启动' :
-    status === 'fail' ? '✕ 失败' : '▶ 测试启动'
+    status === 'success' ? '已启动' :
+    status === 'fail' ? '失败' : '测试启动'
   const testClass =
     status === 'success' ? 'btn-test-success' :
     status === 'fail' ? 'btn-test-fail' : ''
@@ -169,7 +169,9 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
   return (
     <GlassCard className="software-card" hover>
       <div className="sw-card-header">
-        <SoftwareIcon path={item.path} fallback={item.icon || '📦'} size="lg" />
+        <span className="sw-icon-wrap">
+          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} size="lg" />
+        </span>
         <span className="sw-name">{item.name}</span>
       </div>
       <div className="sw-desc">{item.description || '暂无描述'}</div>
@@ -179,9 +181,13 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
         <span>可用</span>
       </div>
       <div className="sw-actions">
-        <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>✏ 编辑</GlowButton>
+        <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
+          <Pencil size={14} />
+          编辑
+        </GlowButton>
         <GlowButton variant="ghost" size="sm" className="btn-danger" onClick={() => onDelete(item)}>
-          🗑 删除
+          <Trash2 size={14} />
+          删除
         </GlowButton>
         <GlowButton
           variant="secondary"
@@ -190,6 +196,7 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
           disabled={status === 'testing'}
           onClick={() => onTest(item)}
         >
+          {testIcon}
           {testText}
         </GlowButton>
       </div>
@@ -343,19 +350,26 @@ function SoftwareLibrary() {
 
   return (
     <div className="software-page">
-      <div className="page-header">
-        <h2 className="page-title">📦 软件库</h2>
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">软件库</h1>
+          <p className="page-subtitle">管理可启动的应用程序，配置路径与启动参数</p>
+        </div>
         <div className="page-actions">
           <GlowButton
             variant="secondary"
             onClick={handleBulkAdd}
             disabled={bulkAdding}
           >
-            {bulkAdding ? '添加中...' : '⚡ 批量添加'}
+            <FolderOpen size={16} />
+            {bulkAdding ? '添加中...' : '批量添加'}
           </GlowButton>
-          <GlowButton variant="primary" onClick={handleAdd}>+ 添加软件</GlowButton>
+          <GlowButton variant="primary" onClick={handleAdd}>
+            <Plus size={16} />
+            添加软件
+          </GlowButton>
         </div>
-      </div>
+      </section>
 
       {/* 批量添加结果提示，点击可关闭 */}
       {notice && (
@@ -366,7 +380,9 @@ function SoftwareLibrary() {
 
       {software.length === 0 ? (
         <GlassCard hover={false} className="empty-state">
-          <div className="empty-icon">📦</div>
+          <div className="empty-icon-wrap">
+            <Package size={40} />
+          </div>
           <p>还没有添加软件，点击右上角添加，或去扫描中心自动发现</p>
         </GlassCard>
       ) : (

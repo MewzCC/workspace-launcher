@@ -48,7 +48,12 @@ export function Settings() {
 
   return (
     <div className="settings">
-      <h1>⚙ 设置</h1>
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">设置</h1>
+          <p className="page-subtitle">查看应用信息与管理数据</p>
+        </div>
+      </section>
 
       {/* 应用信息 */}
       <GlassCard className="settings-section" hover={false}>

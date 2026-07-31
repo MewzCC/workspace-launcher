@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Workspace Launcher</title>
+    <title>LaunchPad</title>
+    <!-- 主题初始化：读取本地存储，避免刷新闪烁 -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('lp-theme')
+          var theme = saved === 'light' || saved === 'dark' ? saved : 'light'
+          document.documentElement.classList.add(theme)
+        } catch (e) {
+          document.documentElement.classList.add('light')
+        }
+      })()
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

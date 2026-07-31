@@ -1,0 +1,36 @@
+/* 幽灵图标按钮：透明背景 + hover 浅底，对齐设计稿 .ghost-icon-btn */
+.ghost-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.ghost-icon-btn:hover:not(:disabled) {
+  background-color: var(--brand-muted);
+  color: var(--brand-foreground);
+}
+
+.ghost-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+
+.ghost-icon-btn.danger:hover:not(:disabled) {
+  color: var(--brand-state-error);
+  background-color: color-mix(in srgb, var(--brand-state-error) 12%, transparent);
+}
+
+.ghost-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

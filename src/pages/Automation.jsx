@@ -154,6 +154,14 @@ function Automation() {
 
   return (
     <div className="automation-page">
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">自动化</h1>
+          <p className="page-subtitle">为工作空间配置启动前后的脚本</p>
+        </div>
+      </section>
+
+      <div className="automation-body">
       {/* 左侧：工作空间选择列表 */}
       <GlassCard hover={false} className="ws-selector">
         <h3>工作空间</h3>
@@ -199,6 +207,7 @@ function Automation() {
             />
           </>
         )}
+      </div>
       </div>
     </div>
   )

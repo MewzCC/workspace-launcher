@@ -1,27 +1,7 @@
-/* 软件扫描中心页面样式 */
+/* 软件扫描中心页面样式：对齐设计稿品牌令牌 */
 
 .scan-page {
   max-width: 1000px;
-}
-
-/* 页面头部：标题 + 扫描按钮 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.scan-intro {
-  color: var(--color-text-muted);
-  margin-bottom: 16px;
-  font-size: 14px;
 }
 
 /* 扫描模式切换标签 */
@@ -30,9 +10,9 @@
   gap: 4px;
   margin-bottom: 16px;
   padding: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
   width: fit-content;
   flex-wrap: wrap;
 }
@@ -41,38 +21,40 @@
   padding: 8px 16px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--brand-transition);
   font-family: inherit;
 }
 
 .mode-tab:hover {
-  color: var(--color-text);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-foreground) 6%, transparent);
 }
 
 .mode-tab.active {
-  color: var(--color-text);
-  background: rgba(99, 102, 241, 0.18);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-primary) 20%, transparent);
 }
 
 /* 模式参数面板 */
 .mode-panel {
   margin-bottom: 16px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
+  background: var(--brand-card);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-lg);
 }
 
 .mode-desc {
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   font-size: 13px;
   margin-bottom: 12px;
   line-height: 1.5;
@@ -97,44 +79,43 @@
 .mode-form .form-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--brand-muted-foreground);
 }
 
 .mode-form .form-input,
 .mode-form .form-select {
   width: 100%;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
+  padding: 8px 12px;
+  background: var(--brand-input);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-foreground);
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  transition: var(--transition);
+  transition: var(--brand-transition);
 }
 
 .mode-form .form-input:focus,
 .mode-form .form-select:focus {
-  border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.08);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-ring);
 }
 
 .mode-form .form-select option {
-  background: var(--color-bg-elevated);
-  color: var(--color-text);
+  background: var(--brand-background-elevated);
+  color: var(--brand-foreground);
 }
 
 .mode-form input[type="range"] {
   width: 100%;
-  accent-color: var(--color-primary);
+  accent-color: var(--brand-primary);
   cursor: pointer;
 }
 
 .mode-form .form-hint {
   font-size: 11px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   opacity: 0.7;
 }
 
@@ -154,17 +135,17 @@
   align-items: center;
   gap: 12px;
   margin: 20px 0;
-  color: var(--color-text);
+  color: var(--brand-foreground);
   font-size: 15px;
 }
 
 .scanner-icon {
   font-size: 32px;
   display: inline-block;
-  animation: spin 2s linear infinite;
+  animation: scan-spin 2s linear infinite;
 }
 
-@keyframes spin {
+@keyframes scan-spin {
   to {
     transform: rotate(360deg);
   }
@@ -174,10 +155,10 @@
 .scan-message {
   margin: 16px 0;
   padding: 12px 16px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-foreground);
   font-size: 14px;
 }
 
@@ -188,7 +169,7 @@
   align-items: center;
   margin: 20px 0;
   padding: 12px 0;
-  border-bottom: 1px solid var(--color-card-border);
+  border-bottom: 1px solid var(--brand-border);
   gap: 16px;
 }
 
@@ -198,21 +179,52 @@
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--brand-foreground);
 }
 
-/* 复选框统一样式 */
+/* 复选框统一样式：对齐设计稿 .app-checkbox */
 .select-all input,
 .scan-item input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--color-primary);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--brand-radius-sm);
+  border: 1px solid var(--brand-border);
+  background-color: var(--brand-input);
   cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.select-all input:hover,
+.scan-item input[type="checkbox"]:hover {
+  border-color: var(--brand-primary);
+}
+
+.select-all input:checked,
+.scan-item input[type="checkbox"]:checked {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.select-all input:checked::after,
+.scan-item input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--brand-primary-foreground);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .result-summary {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
 }
 
 /* 扫描结果列表 */
@@ -227,34 +239,23 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: var(--radius-sm);
+  background: var(--brand-card);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  border-radius: var(--brand-radius-md);
   border: 1px solid transparent;
-  transition: var(--transition);
+  transition: var(--brand-transition);
+  min-width: 0;
 }
 
 .scan-item:hover {
-  border-color: var(--color-card-border);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  background-color: color-mix(in srgb, var(--brand-primary) 6%, transparent);
 }
 
 /* 已添加项：半透明 */
 .scan-item.added {
   opacity: 0.5;
-}
-
-.scan-item-icon {
-  font-size: 20px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-/* 真实 exe 图标图片 */
-.scan-item-icon-img {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  border-radius: 4px;
 }
 
 .scan-item-info {
@@ -265,41 +266,25 @@
 .scan-item-name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--brand-foreground);
   margin-bottom: 2px;
 }
 
 .scan-item-path {
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--brand-font-mono);
 }
 
 /* "已添加"徽章 */
 .scan-item-badge {
   font-size: 11px;
-  color: var(--color-success);
+  color: var(--brand-state-success);
   padding: 2px 8px;
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brand-state-success) 12%, transparent);
+  border-radius: var(--brand-radius-sm);
   flex-shrink: 0;
-}
-
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 64px 32px;
-}
-
-.empty-icon {
-  font-size: 56px;
-  margin-bottom: 16px;
-  line-height: 1;
-}
-
-.empty-state p {
-  color: var(--color-text-muted);
-  font-size: 14px;
 }

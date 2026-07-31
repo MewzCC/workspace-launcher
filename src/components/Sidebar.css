@@ -1,54 +1,65 @@
-/* 侧边栏样式：玻璃风格 + 折叠动画 + 导航项高亮 */
+/* 侧边栏样式：LaunchPad 品牌 + 玻璃风格 + 响应式抽屉 */
 
 .sidebar {
-  width: 240px;
-  height: 100vh;
-  position: sticky;
+  position: fixed;
+  left: 0;
   top: 0;
-  background: var(--color-card);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
-  border-right: 1px solid var(--color-card-border);
+  bottom: 0;
+  width: 240px;
+  background: var(--brand-sidebar-bg);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  border-right: 1px solid var(--brand-border);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-/* 折叠状态：缩窄到图标宽度 */
-.sidebar.collapsed {
-  width: 72px;
+  z-index: 50;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.3s ease;
 }
 
 /* ===== Logo 区 ===== */
-.logo {
-  padding: 20px 24px;
-  font-size: 20px;
-  font-weight: 700;
+.sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--color-text);
+  gap: 12px;
+  padding: 28px 24px 20px;
 }
 
-.logo-icon {
-  font-size: 22px;
+.sidebar-logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--brand-radius-md);
+  background: var(--brand-primary);
+  color: var(--brand-primary-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.logo-text {
-  white-space: nowrap;
+.sidebar-logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--brand-foreground);
+  flex: 1;
 }
 
-/* 折叠时隐藏文字 */
-.sidebar.collapsed .logo-text {
+/* 移动端关闭按钮（默认隐藏，仅移动端显示） */
+.sidebar-close {
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  transition: var(--brand-transition);
 }
 
-.sidebar.collapsed .logo {
-  justify-content: center;
-  padding: 20px 0;
+.sidebar-close:hover {
+  background: var(--brand-muted);
+  color: var(--brand-foreground);
 }
 
 /* ===== 导航列表 ===== */
@@ -57,7 +68,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px;
+  padding: 8px 16px;
   overflow-y: auto;
 }
 
@@ -67,77 +78,139 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--brand-radius-md);
   cursor: pointer;
-  transition: var(--transition);
-  color: var(--color-text-muted);
-  position: relative;
+  transition: var(--brand-transition);
+  color: var(--brand-muted-foreground);
   width: 100%;
   text-align: left;
-}
-
-/* Hover 动画：背景出现 + 轻微左移 */
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--color-text);
-  transform: translateX(2px);
-}
-
-/* 当前页高亮 */
-.nav-item.active {
-  background: var(--color-card);
-  color: var(--color-primary);
-}
-
-/* 当前页左侧主色边条 */
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  background: var(--color-primary);
-  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .nav-icon {
-  font-size: 20px;
-  width: 24px;
-  text-align: center;
   flex-shrink: 0;
-  line-height: 1;
+}
+
+/* Hover：浅底 + 主文字色 */
+.nav-item:hover {
+  background: var(--brand-card);
+  color: var(--brand-foreground);
+}
+
+/* 当前页高亮：主色浅底 + 主色文字 */
+.nav-item.active {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  color: var(--brand-primary);
 }
 
 .nav-label {
-  font-size: 14px;
   white-space: nowrap;
 }
 
-/* 折叠时隐藏文字、居中图标 */
-.sidebar.collapsed .nav-label {
-  display: none;
-}
-
-.sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 12px 0;
-}
-
-/* ===== 底部折叠按钮 ===== */
-.collapse-btn {
+/* ===== 底部区 ===== */
+.sidebar-footer {
   padding: 16px;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  border-top: 1px solid var(--color-card-border);
   display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 14px;
-  transition: var(--transition);
+  flex-direction: column;
+  gap: 12px;
 }
 
-.collapse-btn:hover {
-  color: var(--color-text);
-  background: rgba(255, 255, 255, 0.04);
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--brand-radius-md);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-card);
+  color: var(--brand-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--brand-transition);
+}
+
+.theme-toggle:hover {
+  background: var(--brand-muted);
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  color: var(--brand-primary);
+}
+
+.version-card {
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  padding: 12px 16px;
+}
+
+.version-label {
+  font-size: 12px;
+  color: var(--brand-muted-foreground);
+}
+
+.version-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--brand-foreground);
+  margin-top: 4px;
+}
+
+/* ===== 移动端汉堡按钮（默认隐藏） ===== */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--brand-radius-md);
+  background: var(--brand-card);
+  border: 1px solid var(--brand-border);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  color: var(--brand-foreground);
+  align-items: center;
+  justify-content: center;
+  transition: var(--brand-transition);
+}
+
+.mobile-menu-btn:hover {
+  background: var(--brand-muted);
+}
+
+/* 移动端遮罩 */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--brand-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 45;
+}
+
+/* ===== 响应式：<=1024px 切换为抽屉模式 ===== */
+@media (max-width: 1024px) {
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.mobile-open ~ .sidebar-overlay,
+  .sidebar-overlay {
+    display: block;
+  }
+
+  .sidebar-close {
+    display: inline-flex;
+  }
 }

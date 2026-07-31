@@ -1,42 +1,43 @@
-/* 首页 Dashboard 样式 */
+/* 启动台样式 */
 
 .dashboard {
   padding: 0;
 }
 
-/* 顶部问候区：左侧问候语，右侧时钟，两端对齐 */
+/* 顶部问候区：左侧问候语 + 右侧时钟 */
 .greeting {
-  margin-bottom: 32px;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
 }
 
-/* 问候主标题：渐变文字效果 */
-.greeting h1 {
-  font-size: 36px;
+/* 问候主标题：渐变文字（适配明暗主题） */
+.greeting-title {
+  font-size: 32px;
   font-weight: 700;
-  background: linear-gradient(135deg, #fff, #9CA3AF);
+  background: linear-gradient(
+    135deg,
+    var(--brand-foreground),
+    var(--brand-muted-foreground)
+  );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* 副标题 */
-.greeting p {
-  color: var(--color-text-muted);
-  font-size: 16px;
-  margin-top: 8px;
-}
-
-/* 实时时钟：等宽数字避免抖动 */
+/* 实时时钟：等宽数字 + 玻璃胶囊 */
 .clock {
   font-size: 14px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   font-variant-numeric: tabular-nums;
+  font-family: var(--brand-font-mono);
+  padding: 8px 14px;
+  border-radius: var(--brand-radius-md);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-card);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
 }
 
-/* 工作空间卡片网格：响应式自适应列数，每列最小 280px */
+/* 工作空间卡片网格：响应式自适应列数 */
 .workspace-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -60,11 +61,13 @@
 
 .quick-card-icon {
   font-size: 32px;
+  line-height: 1;
 }
 
 .quick-card-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  color: var(--brand-foreground);
 }
 
 /* 软件列表：占满卡片剩余空间 */
@@ -81,13 +84,12 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
 }
 
 /* 超出数量的提示 */
 .software-more {
   font-size: 13px;
-  color: var(--color-text-muted);
 }
 
 /* 卡片底部：启动按钮靠右 */
@@ -95,16 +97,4 @@
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--color-text-muted);
-}
-
-.empty-state p {
-  font-size: 15px;
-  margin-bottom: 16px;
 }

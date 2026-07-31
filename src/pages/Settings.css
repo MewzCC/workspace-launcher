@@ -1,13 +1,7 @@
-/* 设置页面样式 */
+/* 设置页面样式：对齐设计稿品牌令牌 */
 
 .settings {
   max-width: 720px;
-}
-
-/* 页面标题 */
-.settings h1 {
-  font-size: 28px;
-  margin-bottom: 24px;
 }
 
 /* 设置区块：由 GlassCard 包裹，提供内边距 */
@@ -17,8 +11,8 @@
 
 /* 区块小标题：大写 + 字间距 */
 .settings-section h3 {
-  font-size: 16px;
-  color: var(--color-text-muted);
+  font-size: 14px;
+  color: var(--brand-muted-foreground);
   margin-bottom: 16px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -30,7 +24,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid var(--color-card-border);
+  border-bottom: 1px solid var(--brand-border);
 }
 
 /* 最后一行去掉分隔线 */
@@ -39,42 +33,44 @@
 }
 
 .info-label {
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
+  font-size: 14px;
 }
 
 .info-value {
-  color: var(--color-text);
+  color: var(--brand-foreground);
   font-weight: 500;
+  font-size: 14px;
 }
 
 /* 危险操作区：红色边框警示 */
 .danger-zone {
-  border: 1px solid var(--color-error);
-  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--brand-state-error) 50%, transparent);
+  border-radius: var(--brand-radius-md);
   padding: 20px;
 }
 
 .danger-desc {
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   font-size: 14px;
   margin-bottom: 16px;
 }
 
 /* 危险按钮：覆盖 ghost 变体为红色样式 */
 .danger-btn {
-  border: 1px solid var(--color-error) !important;
-  color: var(--color-error) !important;
-  background: rgba(239, 68, 68, 0.1) !important;
+  border: 1px solid var(--brand-state-error) !important;
+  color: var(--brand-state-error) !important;
+  background: color-mix(in srgb, var(--brand-state-error) 10%, transparent) !important;
 }
 
 .danger-btn:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.2) !important;
+  background: color-mix(in srgb, var(--brand-state-error) 20%, transparent) !important;
 }
 
 /* 底部版权信息 */
 .copyright {
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   font-size: 13px;
   margin-top: 24px;
   padding: 16px 0;

@@ -1,20 +1,7 @@
-/* 工作空间页面 */
+/* 应用管理页面样式：工作空间卡片网格 + 模态表单 */
+
 .workspaces-page {
   padding: 0;
-}
-
-/* 页头：标题与新建按钮 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text);
 }
 
 /* 工作空间网格：自适应列宽 */
@@ -40,13 +27,14 @@
 
 .ws-icon {
   font-size: 28px;
+  line-height: 1;
 }
 
 .ws-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   flex: 1;
-  color: var(--color-text);
+  color: var(--brand-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -57,7 +45,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   flex-shrink: 0;
 }
 
@@ -69,18 +57,18 @@
 }
 
 .ws-status-dot.stopped {
-  background: #6B7280;
+  background: var(--brand-muted-foreground);
 }
 
 .ws-status-dot.running {
-  background: var(--color-success);
+  background: var(--brand-state-success);
   animation: pulse-green 1.5s infinite;
 }
 
 /* 运行中绿色脉冲动画 */
 @keyframes pulse-green {
   0% {
-    box-shadow: 0 0 0 0 var(--color-success);
+    box-shadow: 0 0 0 0 var(--brand-state-success);
   }
   100% {
     box-shadow: 0 0 0 6px transparent;
@@ -88,8 +76,8 @@
 }
 
 .ws-desc {
-  color: var(--color-text-muted);
-  font-size: 14px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
   margin-bottom: 16px;
   min-height: 20px;
   /* 描述超长时最多显示两行 */
@@ -106,22 +94,23 @@
   gap: 8px;
   flex: 1;
   margin-bottom: 16px;
+  align-content: flex-start;
 }
 
 .ws-software-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--color-text-muted);
+  background: var(--brand-muted);
+  border-radius: var(--brand-radius-sm);
+  font-size: 12px;
+  color: var(--brand-foreground);
 }
 
 .ws-software-empty {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
   opacity: 0.6;
 }
 
@@ -129,25 +118,13 @@
 .ws-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* 删除按钮：hover 时红色提示 */
 .ws-btn-delete:hover:not(:disabled) {
-  color: var(--color-error) !important;
-  border-color: var(--color-error) !important;
-}
-
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--color-text-muted);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-  opacity: 0.5;
+  color: var(--brand-state-error) !important;
+  border-color: var(--brand-state-error) !important;
 }
 
 /* 图标预设按钮 */
@@ -165,29 +142,29 @@
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--brand-transition);
 }
 
 .icon-preset:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 }
 
 .icon-preset.active {
-  border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
 }
 
 /* 软件选择列表 */
 .software-picker {
-  margin-top: 12px;
+  margin-top: 8px;
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
 }
 
 .software-picker-item {
@@ -195,9 +172,9 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-card-border);
+  border-bottom: 1px solid var(--brand-border);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--brand-transition);
 }
 
 .software-picker-item:last-child {
@@ -205,28 +182,30 @@
 }
 
 .software-picker-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--brand-muted);
 }
 
 .software-picker-empty {
   padding: 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
 }
 
 .picker-icon {
   font-size: 16px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .picker-name {
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--brand-foreground);
 }
 
 /* 启动顺序与延迟列表 */
 .order-delay-list {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .order-delay-row {
@@ -235,7 +214,8 @@
   align-items: center;
   font-size: 13px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--color-card-border);
+  border-bottom: 1px solid var(--brand-border);
+  flex-wrap: wrap;
 }
 
 .order-delay-row:last-child {
@@ -244,7 +224,11 @@
 
 .od-name {
   flex: 1;
-  color: var(--color-text);
+  min-width: 120px;
+  color: var(--brand-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .od-field {
@@ -252,11 +236,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--brand-muted-foreground);
 }
 
 /* 顺序/延迟输入框：窄宽度 */
 .od-input {
-  width: 60px;
+  width: 64px;
   padding: 6px 8px;
 }

@@ -2,9 +2,9 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 11, 18, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: var(--brand-overlay);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,19 +12,19 @@
   padding: 24px;
 }
 
-/* 模态面板：GlassCard 玻璃质感 */
+/* 模态面板：实色 popover 背景 + 圆角 */
 .modal-panel {
-  background: var(--color-card);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-lg);
+  background: var(--brand-popover);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-lg);
   max-width: 560px;
   width: 100%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--brand-shadow-card);
 }
 
 /* 顶部标题栏 */
@@ -33,28 +33,32 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--color-card-border);
+  border-bottom: 1px solid var(--brand-border);
 }
 
 .modal-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--brand-foreground);
 }
 
 .modal-close {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  line-height: 1;
-  padding: 0 4px;
-  transition: var(--transition);
+  transition: var(--brand-transition);
 }
 
 .modal-close:hover {
-  color: var(--color-text);
+  background: var(--brand-muted);
+  color: var(--brand-foreground);
 }
 
 /* 内容区：可纵向滚动 */
@@ -70,7 +74,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid var(--color-card-border);
+  border-top: 1px solid var(--brand-border);
 }
 
 /* 表单元素统一样式 */
@@ -81,25 +85,31 @@
 .form-label {
   display: block;
   margin-bottom: 6px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .form-input {
   width: 100%;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
+  padding: 8px 12px;
+  background: var(--brand-input);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-foreground);
   font-size: 14px;
   font-family: inherit;
-  transition: var(--transition);
+  transition: var(--brand-transition);
+}
+
+.form-input::placeholder {
+  color: var(--brand-muted-foreground);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-ring);
 }
 
 /* textarea 可纵向拉伸 */
@@ -113,5 +123,5 @@ textarea.form-input {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--color-primary);
+  accent-color: var(--brand-primary);
 }

@@ -1,4 +1,4 @@
-// 主布局组件：Sidebar + 主区域，根据 currentView 渲染对应真实页面
+// 主布局组件：固定 Sidebar + 主区域，根据 currentView 渲染对应真实页面
 import React from 'react'
 import Sidebar from './Sidebar'
 import { useStore } from '../store/useStore'

@@ -1,5 +1,7 @@
-// 工作空间页面：核心页面，含工作空间 CRUD 与一键启动动画
+// 应用管理页面（原工作空间）：工作空间 CRUD + 一键启动动画
+// 视觉对齐设计稿：页头(标题+副标题+CTA) + 卡片网格 + 模态表单
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Pencil, Trash2, Play, PackageOpen } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -189,20 +191,26 @@ function Workspaces() {
 
   return (
     <div className="workspaces-page">
-      {/* 页头：标题 + 新建按钮 */}
-      <div className="page-header">
-        <h1 className="page-title">🚀 工作空间</h1>
+      {/* 页头：标题 + 副标题 + 添加按钮 */}
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">应用管理</h1>
+          <p className="page-subtitle">管理工作空间，配置软件组合与启动顺序</p>
+        </div>
         <GlowButton variant="primary" size="md" onClick={openCreate}>
-          + 新建工作空间
+          <Plus size={16} />
+          添加工作空间
         </GlowButton>
-      </div>
+      </section>
 
       {/* 工作空间网格 / 空状态 */}
       {workspaces.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">🚀</div>
+        <GlassCard hover={false} className="empty-state">
+          <div className="empty-icon-wrap">
+            <PackageOpen size={40} />
+          </div>
           <p>暂无工作空间，点击右上角创建一个吧</p>
-        </div>
+        </GlassCard>
       ) : (
         <div className="workspace-grid">
           {workspaces.map((ws) => {
@@ -256,14 +264,16 @@ function Workspaces() {
                     onClick={() => handleLaunch(ws)}
                     disabled={isRunning}
                   >
-                    ▶ 一键启动
+                    <Play size={14} />
+                    {isRunning ? '启动中...' : '一键启动'}
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
                     size="sm"
                     onClick={() => openEdit(ws)}
                   >
-                    ✏ 编辑
+                    <Pencil size={14} />
+                    编辑
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
@@ -271,7 +281,8 @@ function Workspaces() {
                     className="ws-btn-delete"
                     onClick={() => handleDelete(ws)}
                   >
-                    🗑 删除
+                    <Trash2 size={14} />
+                    删除
                   </GlowButton>
                 </div>
               </GlassCard>

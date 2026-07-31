@@ -108,9 +108,12 @@ function Monitor() {
   return (
     <div className="monitor-page">
       {/* 页面标题 */}
-      <div className="page-header">
-        <h1 className="page-title">📊 状态监控</h1>
-      </div>
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">状态监控</h1>
+          <p className="page-subtitle">查看工作空间运行状态与启动日志</p>
+        </div>
+      </section>
 
       {/* 工作空间选择器：按钮组 */}
       <div className="ws-picker">

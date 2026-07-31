@@ -207,20 +207,24 @@ function ScanCenter() {
     if (next === mode) return
     setMode(next)
     setResults([])
-    setSelected([])
+    setSelected({})
     setMessage('')
     setHasScanned(false)
   }
 
   return (
     <div className="scan-page">
-      <div className="page-header">
-        <h2 className="page-title">🔍 软件扫描中心</h2>
-        <GlowButton variant="primary" onClick={handleScan} disabled={scanning}>
-          {scanning ? '扫描中...' : '开始扫描'}
-        </GlowButton>
-      </div>
-      <p className="scan-intro">自动发现已安装的应用程序</p>
+      <section className="page-header">
+        <div className="page-header-left">
+          <h1 className="page-title">扫描中心</h1>
+          <p className="page-subtitle">自动发现已安装的应用程序，批量添加到软件库</p>
+        </div>
+        <div className="page-actions">
+          <GlowButton variant="primary" onClick={handleScan} disabled={scanning}>
+            {scanning ? '扫描中...' : '开始扫描'}
+          </GlowButton>
+        </div>
+      </section>
 
       {/* 扫描模式切换 */}
       <div className="mode-tabs">

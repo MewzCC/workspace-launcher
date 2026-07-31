@@ -1,6 +1,7 @@
 // 通用模态框组件：全屏覆盖 + 居中玻璃面板
 // 支持 ESC 关闭、点击遮罩关闭，可选底部按钮栏（取消/保存）
 import React, { useEffect } from 'react'
+import { X } from 'lucide-react'
 import GlowButton from './ui/GlowButton'
 import './Modal.css'
 
@@ -38,7 +39,7 @@ function Modal({
             aria-label="关闭"
             type="button"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 

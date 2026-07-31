@@ -1,0 +1,199 @@
+/* 启动动画覆盖层：全屏半透明 + 模糊 */
+.launch-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 11, 18, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 40px;
+}
+
+/* 启动面板：GlassCard 风格，限宽限高并允许纵向滚动 */
+.launch-panel {
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部标题栏 */
+.launch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.launch-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.launch-icon {
+  font-size: 24px;
+}
+
+/* 圆形进度环：SVG 居中 120px */
+.progress-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 8px auto 16px;
+}
+
+.progress-ring svg {
+  display: block;
+}
+
+/* 环形中央百分比文字 */
+.progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* 完成态提示 */
+.launch-complete {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--color-success);
+}
+
+.launch-complete.is-error {
+  color: var(--color-error);
+}
+
+/* 软件状态灯列表 */
+.status-list {
+  margin: 20px 0;
+}
+
+.status-empty {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 12px 0;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+/* 状态灯：12px 圆点，不同状态不同颜色 */
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.pending {
+  background: #6B7280;
+}
+
+.status-dot.running {
+  background: var(--color-primary);
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.success {
+  background: var(--color-success);
+}
+
+.status-dot.failed {
+  background: var(--color-error);
+}
+
+/* running 状态脉冲动画 */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-primary);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+.status-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.status-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.status-label--running {
+  color: var(--color-primary);
+}
+
+.status-label--success {
+  color: var(--color-success);
+}
+
+.status-label--failed {
+  color: var(--color-error);
+}
+
+/* 实时日志流：等宽字体，深色背景，限高滚动 */
+.log-stream {
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.log-line {
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.log-line.success {
+  color: var(--color-success);
+}
+
+.log-line.failed {
+  color: var(--color-error);
+}
+
+.log-line.running {
+  color: var(--color-primary);
+}
+
+.log-time {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.log-phase {
+  color: var(--color-secondary);
+  opacity: 0.8;
+}

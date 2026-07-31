@@ -1,0 +1,32 @@
+/* 主题变量定义：Glassmorphism 暗色主题色值与设计令牌 */
+:root {
+  /* 背景色 */
+  --color-bg: #080B12;            /* 深色底 */
+  --color-bg-elevated: #0F131C;   /* 稍亮层 */
+  --color-card: rgba(255, 255, 255, 0.08);        /* 玻璃卡片背景 */
+  --color-card-border: rgba(255, 255, 255, 0.12); /* 玻璃卡片边框 */
+
+  /* 文字色 */
+  --color-text: #E5E7EB;          /* 主文字 */
+  --color-text-muted: #9CA3AF;    /* 次文字 */
+
+  /* 主题色 */
+  --color-primary: #6366F1;       /* 主色 */
+  --color-secondary: #22D3EE;     /* 辅助色 */
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;              /* 卡片大圆角 */
+
+  /* 模糊与阴影 */
+  --blur: 20px;                                       /* 玻璃模糊值 */
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);       /* 卡片柔和阴影 */
+  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.4);    /* 主色发光 */
+
+  /* 过渡 */
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

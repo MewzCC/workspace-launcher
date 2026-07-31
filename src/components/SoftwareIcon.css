@@ -1,0 +1,30 @@
+/* 共享软件图标组件样式 */
+/* 真实 exe 图标图片，按尺寸控制大小 */
+.software-icon-img {
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* 尺寸变体 */
+.software-icon-img--xs {
+  width: 16px;
+  height: 16px;
+}
+
+.software-icon-img--sm {
+  width: 20px;
+  height: 20px;
+}
+
+.software-icon-img--md {
+  width: 28px;
+  height: 28px;
+}
+
+.software-icon-img--lg {
+  width: 32px;
+  height: 32px;
+}

@@ -1,0 +1,192 @@
+/* 自动化脚本页面样式 */
+
+/* 页面容器：左右布局，占满视口高度 */
+.automation-page {
+  display: flex;
+  gap: 20px;
+  height: calc(100vh - 100px);
+}
+
+/* 左侧工作空间选择器 */
+.ws-selector {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-selector h3 {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.ws-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+}
+
+.ws-selector-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 工作空间项 */
+.ws-selector-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: var(--transition);
+}
+
+.ws-selector-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text);
+}
+
+.ws-selector-item.active {
+  background: var(--color-card);
+  color: var(--color-primary);
+}
+
+.ws-selector-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ws-selector-name {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 右侧脚本编辑器 */
+.script-editor {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 保存提示条 */
+.save-status {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary);
+  font-size: 13px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+/* 脚本区块（用 GlassCard 包裹） */
+.script-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.script-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.script-block-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* 表单组 */
+.script-form-group {
+  margin-bottom: 12px;
+}
+
+.script-form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 语言选择器 */
+.lang-selector {
+  display: flex;
+  gap: 12px;
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.lang-option input[type='radio'] {
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* 脚本内容文本域 */
+.script-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  resize: vertical;
+  transition: var(--transition);
+}
+
+.script-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* 延迟输入框 */
+.delay-input {
+  width: 120px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.delay-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  height: 100%;
+  min-height: 200px;
+}

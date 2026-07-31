@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+screenshots/
+build/
+
+# Build output
+out/
+dist/
+dist_electron/
+release/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Electron
+*.tsbuildinfo
+.cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temp
+*.tmp
+*.tmp.*
+
+# IDE
+.trae/
+
+# Screenshots
+screenshots/

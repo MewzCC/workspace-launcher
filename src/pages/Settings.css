@@ -1,0 +1,81 @@
+/* 设置页面样式 */
+
+.settings {
+  max-width: 720px;
+}
+
+/* 页面标题 */
+.settings h1 {
+  font-size: 28px;
+  margin-bottom: 24px;
+}
+
+/* 设置区块：由 GlassCard 包裹，提供内边距 */
+.settings-section {
+  margin-bottom: 20px;
+}
+
+/* 区块小标题：大写 + 字间距 */
+.settings-section h3 {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* 信息行：左右两端对齐，底部分隔线 */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+/* 最后一行去掉分隔线 */
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: var(--color-text-muted);
+}
+
+.info-value {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* 危险操作区：红色边框警示 */
+.danger-zone {
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.danger-desc {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* 危险按钮：覆盖 ghost 变体为红色样式 */
+.danger-btn {
+  border: 1px solid var(--color-error) !important;
+  color: var(--color-error) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* 底部版权信息 */
+.copyright {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-top: 24px;
+  padding: 16px 0;
+}

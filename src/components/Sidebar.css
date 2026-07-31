@@ -1,0 +1,143 @@
+/* 侧边栏样式：玻璃风格 + 折叠动画 + 导航项高亮 */
+
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--color-card);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border-right: 1px solid var(--color-card-border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* 折叠状态：缩窄到图标宽度 */
+.sidebar.collapsed {
+  width: 72px;
+}
+
+/* ===== Logo 区 ===== */
+.logo {
+  padding: 20px 24px;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text);
+}
+
+.logo-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  white-space: nowrap;
+}
+
+/* 折叠时隐藏文字 */
+.sidebar.collapsed .logo-text {
+  display: none;
+}
+
+.sidebar.collapsed .logo {
+  justify-content: center;
+  padding: 20px 0;
+}
+
+/* ===== 导航列表 ===== */
+.nav-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* 单个导航项 */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--color-text-muted);
+  position: relative;
+  width: 100%;
+  text-align: left;
+}
+
+/* Hover 动画：背景出现 + 轻微左移 */
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text);
+  transform: translateX(2px);
+}
+
+/* 当前页高亮 */
+.nav-item.active {
+  background: var(--color-card);
+  color: var(--color-primary);
+}
+
+/* 当前页左侧主色边条 */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+.nav-icon {
+  font-size: 20px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.nav-label {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* 折叠时隐藏文字、居中图标 */
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+/* ===== 底部折叠按钮 ===== */
+.collapse-btn {
+  padding: 16px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-card-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.collapse-btn:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.04);
+}

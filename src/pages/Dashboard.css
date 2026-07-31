@@ -1,0 +1,110 @@
+/* 首页 Dashboard 样式 */
+
+.dashboard {
+  padding: 0;
+}
+
+/* 顶部问候区：左侧问候语，右侧时钟，两端对齐 */
+.greeting {
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 问候主标题：渐变文字效果 */
+.greeting h1 {
+  font-size: 36px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff, #9CA3AF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 副标题 */
+.greeting p {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+/* 实时时钟：等宽数字避免抖动 */
+.clock {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 工作空间卡片网格：响应式自适应列数，每列最小 280px */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* 快速启动卡片：纵向布局，撑满网格单元高度 */
+.quick-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 卡片顶部：图标 + 名称 */
+.quick-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.quick-card-icon {
+  font-size: 32px;
+}
+
+.quick-card-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 软件列表：占满卡片剩余空间 */
+.software-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 单个软件项：图标 + 名称 */
+.software-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+/* 超出数量的提示 */
+.software-more {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 卡片底部：启动按钮靠右 */
+.quick-card-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-muted);
+}
+
+.empty-state p {
+  font-size: 15px;
+  margin-bottom: 16px;
+}

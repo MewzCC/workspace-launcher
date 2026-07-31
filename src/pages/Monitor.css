@@ -1,0 +1,245 @@
+/* 状态监控页面样式 */
+
+.monitor-page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* 工作空间选择器：按钮组 */
+.ws-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ws-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+  font-size: 14px;
+}
+
+.ws-picker-btn:hover {
+  color: var(--color-text);
+}
+
+.ws-picker-btn.active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.ws-picker-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 当前工作空间运行状态区 */
+.status-section {
+  margin-bottom: 20px;
+}
+
+.status-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.status-section-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.status-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* 软件状态行 */
+.status-software-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-software {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.status-software:last-child {
+  border-bottom: none;
+}
+
+.status-software-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.status-software-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 状态文案配色 */
+.status-text-pending {
+  color: var(--color-text-muted);
+}
+
+.status-text-running {
+  color: var(--color-primary);
+}
+
+.status-text-success {
+  color: var(--color-success);
+}
+
+.status-text-failed {
+  color: var(--color-error);
+}
+
+.status-text-stopped {
+  color: var(--color-text-muted);
+}
+
+/* 状态灯 */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.pending {
+  background: #6B7280;
+}
+
+.status-dot.running {
+  background: var(--color-primary);
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.success {
+  background: var(--color-success);
+}
+
+.status-dot.failed {
+  background: var(--color-error);
+}
+
+.status-dot.stopped {
+  background: #6B7280;
+}
+
+/* 状态灯脉冲动画 */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-primary);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+/* 日志区 */
+.log-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.log-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 单条日志 */
+.log-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.log-time {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.log-status-icon {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.log-status-icon.success {
+  color: var(--color-success);
+}
+
+.log-status-icon.failed {
+  color: var(--color-error);
+}
+
+.log-software {
+  color: var(--color-secondary);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.log-message {
+  color: var(--color-text);
+  flex: 1;
+  word-break: break-word;
+}
+
+/* 失败日志左侧红色边框 */
+.log-item.failed {
+  border-left: 3px solid var(--color-error);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  padding: 24px;
+}

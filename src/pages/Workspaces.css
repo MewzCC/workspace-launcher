@@ -1,0 +1,262 @@
+/* 工作空间页面 */
+.workspaces-page {
+  padding: 0;
+}
+
+/* 页头：标题与新建按钮 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* 工作空间网格：自适应列宽 */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* 工作空间卡片：纵向弹性布局 */
+.workspace-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ws-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ws-icon {
+  font-size: 28px;
+}
+
+.ws-name {
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* 状态灯：8px 圆点 */
+.ws-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ws-status-dot.stopped {
+  background: #6B7280;
+}
+
+.ws-status-dot.running {
+  background: var(--color-success);
+  animation: pulse-green 1.5s infinite;
+}
+
+/* 运行中绿色脉冲动画 */
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-success);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.ws-desc {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-bottom: 16px;
+  min-height: 20px;
+  /* 描述超长时最多显示两行 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 软件标签区 */
+.ws-software {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  margin-bottom: 16px;
+}
+
+.ws-software-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.ws-software-empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+/* 底部按钮区 */
+.ws-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 删除按钮：hover 时红色提示 */
+.ws-btn-delete:hover:not(:disabled) {
+  color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+/* 图标预设按钮 */
+.icon-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.icon-preset {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.icon-preset:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.icon-preset.active {
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.2);
+}
+
+/* 软件选择列表 */
+.software-picker {
+  margin-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+}
+
+.software-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-card-border);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.software-picker-item:last-child {
+  border-bottom: none;
+}
+
+.software-picker-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.software-picker-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.picker-icon {
+  font-size: 16px;
+}
+
+.picker-name {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+/* 启动顺序与延迟列表 */
+.order-delay-list {
+  margin-top: 12px;
+}
+
+.order-delay-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.order-delay-row:last-child {
+  border-bottom: none;
+}
+
+.od-name {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.od-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* 顺序/延迟输入框：窄宽度 */
+.od-input {
+  width: 60px;
+  padding: 6px 8px;
+}

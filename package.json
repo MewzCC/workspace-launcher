@@ -1,0 +1,60 @@
+{
+  "name": "workspace-launcher",
+  "version": "1.0.0",
+  "description": "智能工作空间启动管理器",
+  "main": "out/main/index.cjs",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder",
+    "dist:win": "electron-vite build && electron-builder --win"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.0",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.3.0"
+  },
+  "//_build_note": "electron-builder 配置：产出 NSIS .exe 安装包到 dist_electron/。npmRebuild=false 跳过原生模块重编译（本机仅 VS2017，依赖预编译 better_sqlite3.node）；asarUnpack 把 better-sqlite3 从 asar 解出以加载 .node。",
+  "build": {
+    "appId": "com.workspace.launcher",
+    "productName": "Workspace Launcher",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Workspace Launcher"
+    }
+  }
+}

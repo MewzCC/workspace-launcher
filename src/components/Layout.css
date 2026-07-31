@@ -1,0 +1,47 @@
+/* 主布局样式：左 Sidebar + 右主区域 */
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* 主区域：自适应剩余宽度，可滚动 */
+.main-view {
+  flex: 1;
+  padding: 32px 40px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ===== 占位页面 ===== */
+.placeholder-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 64px);
+}
+
+.placeholder-card {
+  text-align: center;
+  padding: 64px 48px;
+  max-width: 480px;
+  width: 100%;
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.placeholder-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.placeholder-hint {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}

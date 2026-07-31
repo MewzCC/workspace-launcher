@@ -1,0 +1,112 @@
+// 设置页面：应用信息 / 数据信息 / 危险操作区 / 版权信息
+import React, { useState } from 'react'
+import GlassCard from '../components/ui/GlassCard'
+import GlowButton from '../components/ui/GlowButton'
+import { workspaceApi, softwareApi } from '../lib/ipc'
+import { useStore } from '../store/useStore'
+import './Settings.css'
+
+export function Settings() {
+  // 从 store 读取工作空间、软件列表及刷新动作
+  const workspaces = useStore((s) => s.workspaces)
+  const software = useStore((s) => s.software)
+  const setWorkspaces = useStore((s) => s.setWorkspaces)
+  const setSoftware = useStore((s) => s.setSoftware)
+
+  // 清除操作进行中标记，避免重复点击
+  const [clearing, setClearing] = useState(false)
+
+  // 清除所有数据：二次确认后逐个删除工作空间与软件，并刷新 store
+  const handleClearAll = async () => {
+    const confirmed = window.confirm('确定要清除所有数据吗？此操作不可恢复！')
+    if (!confirmed) return
+
+    setClearing(true)
+    try {
+      // 逐个删除工作空间
+      await Promise.all(
+        workspaces.map((ws) => workspaceApi.remove(ws.id))
+      )
+      // 逐个删除软件
+      await Promise.all(
+        software.map((sw) => softwareApi.remove(sw.id))
+      )
+
+      // 重新拉取列表以刷新 store
+      const [freshWorkspaces, freshSoftware] = await Promise.all([
+        workspaceApi.list(),
+        softwareApi.list()
+      ])
+      setWorkspaces(freshWorkspaces)
+      setSoftware(freshSoftware)
+    } catch (err) {
+      console.error('清除数据失败:', err)
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  return (
+    <div className="settings">
+      <h1>⚙ 设置</h1>
+
+      {/* 应用信息 */}
+      <GlassCard className="settings-section" hover={false}>
+        <h3>应用信息</h3>
+        <div className="info-row">
+          <span className="info-label">名称</span>
+          <span className="info-value">Workspace Launcher</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">版本</span>
+          <span className="info-value">1.0.0</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">技术栈</span>
+          <span className="info-value">Electron + React + SQLite</span>
+        </div>
+      </GlassCard>
+
+      {/* 数据信息 */}
+      <GlassCard className="settings-section" hover={false}>
+        <h3>数据信息</h3>
+        <div className="info-row">
+          <span className="info-label">数据库路径</span>
+          <span className="info-value">存储在用户数据目录</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">工作空间数量</span>
+          <span className="info-value">{workspaces.length}</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">软件数量</span>
+          <span className="info-value">{software.length}</span>
+        </div>
+      </GlassCard>
+
+      {/* 危险操作区 */}
+      <GlassCard className="settings-section" hover={false}>
+        <h3>危险操作</h3>
+        <div className="danger-zone">
+          <p className="danger-desc">
+            清除所有工作空间与软件数据，此操作不可恢复。
+          </p>
+          <GlowButton
+            variant="ghost"
+            size="md"
+            className="danger-btn"
+            disabled={clearing}
+            onClick={handleClearAll}
+          >
+            {clearing ? '清除中...' : '清除所有数据'}
+          </GlowButton>
+        </div>
+      </GlassCard>
+
+      {/* 底部版权信息 */}
+      <p className="copyright">Workspace Launcher © 2026</p>
+    </div>
+  )
+}
+
+export default Settings

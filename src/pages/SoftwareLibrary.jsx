@@ -14,7 +14,10 @@ import {
   List,
   Search,
   Terminal,
-  FileText
+  FileText,
+  LoaderCircle,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
@@ -38,14 +41,21 @@ function SoftwareModal({ initial, onSave, onClose }) {
     args: initial?.args || ''
   })
   const [saving, setSaving] = useState(false)
+  const [validation, setValidation] = useState({ state: 'idle', message: '' })
 
   // 通用字段更新
-  const update = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const update = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }))
+    if (key === 'path' || key === 'args') {
+      setValidation({ state: 'idle', message: '' })
+    }
+  }
 
   // 浏览选择 exe 文件，返回路径填入输入框
   const handleBrowse = async () => {
     const filePath = await dialogApi.openFile()
     if (!filePath) return
+    setValidation({ state: 'idle', message: '' })
     setForm((f) => {
       const next = { ...f, path: filePath }
       // 若名称为空，用文件名（去扩展名）作为默认名称
@@ -59,16 +69,31 @@ function SoftwareModal({ initial, onSave, onClose }) {
 
   // 保存：校验名称必填，调用 onSave 提交
   const handleSave = async () => {
-    if (!form.name.trim()) return
+    if (!form.name.trim() || !form.path.trim()) {
+      setValidation({ state: 'error', message: '请填写软件名称并选择可执行文件。' })
+      return
+    }
     setSaving(true)
+    const pathChanged = !initial || form.path.trim() !== initial.path || form.args.trim() !== (initial.args || '')
+    setValidation({
+      state: pathChanged ? 'testing' : 'idle',
+      message: pathChanged ? '正在请求 Windows 启动程序，验证成功后才会保存…' : ''
+    })
     try {
-      await onSave({
+      const result = await onSave({
         name: form.name.trim(),
         description: form.description.trim(),
         icon: form.icon || '📦',
         path: form.path.trim(),
         args: form.args.trim()
       })
+      if (result?.success === false) {
+        setValidation({ state: 'error', message: result.message })
+      } else if (pathChanged) {
+        setValidation({ state: 'success', message: '启动验证成功，软件已添加。' })
+      }
+    } catch (err) {
+      setValidation({ state: 'error', message: err.message || '启动验证失败' })
     } finally {
       setSaving(false)
     }
@@ -79,7 +104,9 @@ function SoftwareModal({ initial, onSave, onClose }) {
       title={initial ? '编辑软件' : '添加软件'}
       onClose={onClose}
       onSave={handleSave}
-      saveText={saving ? '保存中...' : '保存'}
+      saveText={saving ? '正在验证并启动...' : initial ? '保存' : '验证并添加'}
+      saveDisabled={saving}
+      closeDisabled={saving}
     >
       {/* 名称（必填） */}
       <div className="form-group">
@@ -150,6 +177,17 @@ function SoftwareModal({ initial, onSave, onClose }) {
           onChange={(e) => update('args', e.target.value)}
           placeholder="例如：--fullscreen（可选）"
         />
+      </div>
+      <div className={`launch-validation ${validation.state}`} role="status" aria-live="polite">
+        <span className="launch-validation-icon">
+          {validation.state === 'testing' ? <LoaderCircle size={17} /> :
+            validation.state === 'error' ? <ShieldAlert size={17} /> : <ShieldCheck size={17} />}
+        </span>
+        <span>
+          {validation.message || (initial
+            ? '修改路径或启动参数时，将重新验证程序是否能够启动。'
+            : '添加前会实际启动一次程序；只有启动成功才会写入软件库。')}
+        </span>
       </div>
     </Modal>
   )
@@ -493,15 +531,24 @@ function SoftwareLibrary() {
         setNotice('所选文件均已存在于软件库')
         return
       }
-      const res = await softwareApi.bulkCreate(items)
+      if (items.length > 20) {
+        setNotice('为避免同时打开过多程序，请每次选择不超过 20 个软件进行验证')
+        return
+      }
+      const res = await softwareApi.bulkCreateValidated(items)
       if (res && res.error) {
         setNotice('批量添加失败：' + res.error)
         return
       }
       await refresh()
+      const createdCount = res.created?.length || 0
+      const failed = res.failed || []
       const skipped = filePaths.length - items.length
       const skipText = skipped > 0 ? `（跳过 ${skipped} 个已存在）` : ''
-      setNotice(`已批量添加 ${items.length} 个软件${skipText}`)
+      const failText = failed.length > 0
+        ? `；${failed.length} 个启动失败未添加：${failed.slice(0, 2).map((item) => item.name).join('、')}`
+        : ''
+      setNotice(`验证通过并添加 ${createdCount} 个软件${skipText}${failText}`)
     } catch (e) {
       setNotice('批量添加失败：' + (e.message || '未知错误'))
     } finally {
@@ -552,21 +599,23 @@ function SoftwareLibrary() {
   // 保存（新建 create / 编辑 update），成功后刷新并关闭模态
   const handleSave = async (data) => {
     if (editing) {
-      const res = await softwareApi.update(editing.id, data)
+      const requiresValidation = data.path !== editing.path || data.args !== (editing.args || '')
+      const res = requiresValidation
+        ? await softwareApi.updateValidated(editing.id, data)
+        : await softwareApi.update(editing.id, data)
       if (res && res.error) {
-        window.alert('保存失败：' + res.error)
-        return
+        return { success: false, message: res.error }
       }
     } else {
-      const res = await softwareApi.create(data)
+      const res = await softwareApi.createValidated(data)
       if (res && res.error) {
-        window.alert('保存失败：' + res.error)
-        return
+        return { success: false, message: res.error }
       }
     }
     await refresh()
     setModalOpen(false)
     setEditing(null)
+    return { success: true }
   }
 
   // 关闭模态
@@ -683,7 +732,7 @@ function SoftwareLibrary() {
               </div>
               <GlowButton variant="secondary" onClick={handleBulkAdd} disabled={bulkAdding}>
                 <FolderOpen size={16} />
-                {bulkAdding ? '添加中...' : '批量添加'}
+                {bulkAdding ? '正在验证...' : '批量验证添加'}
               </GlowButton>
               <GlowButton variant="primary" onClick={handleAdd}>
                 <Plus size={16} /> 添加软件

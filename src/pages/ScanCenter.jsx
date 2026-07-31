@@ -196,7 +196,11 @@ function ScanCenter() {
     if (items.length === 0) return
     setAdding(true)
     try {
-      const res = await softwareApi.bulkCreate(items)
+      if (items.length > 20) {
+        setMessage('为避免一次打开过多程序，请每次选择不超过 20 个软件进行启动验证')
+        return
+      }
+      const res = await softwareApi.bulkCreateValidated(items)
       if (res && res.error) {
         setMessage('添加失败：' + res.error)
         return
@@ -204,7 +208,12 @@ function ScanCenter() {
       // 刷新软件库
       const list = await softwareApi.list()
       setSoftware(list)
-      setMessage(`已添加 ${items.length} 个软件`)
+      const createdCount = res.created?.length || 0
+      const failed = res.failed || []
+      const failText = failed.length
+        ? `；${failed.length} 个启动失败未添加：${failed.slice(0, 3).map((item) => item.name).join('、')}`
+        : ''
+      setMessage(`验证通过并添加 ${createdCount} 个软件${failText}`)
       // 清空选中
       setSelected({})
     } catch (e) {
@@ -403,7 +412,7 @@ function ScanCenter() {
               onClick={handleAddSelected}
               disabled={selectedCount === 0 || adding}
             >
-              {adding ? '添加中...' : '添加选中到软件库'}
+              {adding ? '正在逐个验证...' : '验证并添加到软件库'}
             </GlowButton>
           </div>
           <div className="scan-list">

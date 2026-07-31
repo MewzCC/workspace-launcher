@@ -5,6 +5,64 @@
   max-width: 1200px;
 }
 
+.launch-validation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 45px;
+  padding: 11px 12px;
+  margin-top: 4px;
+  color: var(--brand-muted-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 62%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  font-size: 12px;
+  line-height: 1.5;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.launch-validation-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--brand-primary);
+}
+
+.launch-validation.testing {
+  color: var(--brand-foreground);
+  border-color: color-mix(in srgb, var(--brand-primary) 42%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--brand-card));
+}
+
+.launch-validation.testing .launch-validation-icon {
+  animation: launch-validation-spin 800ms linear infinite;
+}
+
+.launch-validation.success {
+  color: var(--brand-success, #16a34a);
+  border-color: color-mix(in srgb, var(--brand-success, #16a34a) 35%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-success, #16a34a) 8%, var(--brand-card));
+}
+
+.launch-validation.error {
+  color: var(--brand-danger, #ef4444);
+  border-color: color-mix(in srgb, var(--brand-danger, #ef4444) 40%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-danger, #ef4444) 8%, var(--brand-card));
+}
+
+.launch-validation.success .launch-validation-icon,
+.launch-validation.error .launch-validation-icon {
+  color: currentColor;
+}
+
+@keyframes launch-validation-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-validation.testing .launch-validation-icon { animation: none; }
+}
+
 .library-tabs {
   position: relative;
   display: grid;

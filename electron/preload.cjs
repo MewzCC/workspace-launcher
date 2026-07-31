@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  version: '1.1.0',
+  version: '1.1.1',
   // 工作空间相关接口
   workspace: {
     list: () => ipcRenderer.invoke('workspace:list'),
@@ -19,13 +19,16 @@ contextBridge.exposeInMainWorld('api', {
     list: () => ipcRenderer.invoke('software:list'),
     get: (id) => ipcRenderer.invoke('software:get', id),
     create: (data) => ipcRenderer.invoke('software:create', data),
+    createValidated: (data) => ipcRenderer.invoke('software:createValidated', data),
     update: (id, data) => ipcRenderer.invoke('software:update', id, data),
+    updateValidated: (id, data) => ipcRenderer.invoke('software:updateValidated', id, data),
     delete: (id) => ipcRenderer.invoke('software:delete', id),
     testLaunch: (id) => ipcRenderer.invoke('software:testLaunch', id),
     // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
     scan: () => ipcRenderer.invoke('software:scan'),
     // 批量创建软件（扫描结果批量添加用）
     bulkCreate: (items) => ipcRenderer.invoke('software:bulkCreate', items),
+    bulkCreateValidated: (items) => ipcRenderer.invoke('software:bulkCreateValidated', items),
     // 获取可用盘符列表 ['C','D','E']
     getDrives: () => ipcRenderer.invoke('software:getDrives'),
     // 扫描指定盘符的 .exe 文件

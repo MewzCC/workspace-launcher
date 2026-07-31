@@ -11,20 +11,22 @@ function Modal({
   onClose,
   onSave,
   saveText = '保存',
-  cancelText = '取消'
+  cancelText = '取消',
+  saveDisabled = false,
+  closeDisabled = false
 }) {
   // ESC 键关闭
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !closeDisabled) onClose()
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [onClose])
+  }, [onClose, closeDisabled])
 
   // 点击遮罩关闭（仅当点击目标为遮罩本身时触发，避免点击面板内部误关闭）
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) onClose()
+    if (e.target === e.currentTarget && !closeDisabled) onClose()
   }
 
   return (
@@ -38,6 +40,7 @@ function Modal({
             onClick={onClose}
             aria-label="关闭"
             type="button"
+            disabled={closeDisabled}
           >
             <X size={18} />
           </button>
@@ -49,10 +52,10 @@ function Modal({
         {/* 底部按钮栏（传入 onSave 时显示） */}
         {onSave && (
           <div className="modal-footer">
-            <GlowButton variant="ghost" size="md" onClick={onClose}>
+            <GlowButton variant="ghost" size="md" onClick={onClose} disabled={closeDisabled}>
               {cancelText}
             </GlowButton>
-            <GlowButton variant="primary" size="md" onClick={onSave}>
+            <GlowButton variant="primary" size="md" onClick={onSave} disabled={saveDisabled}>
               {saveText}
             </GlowButton>
           </div>

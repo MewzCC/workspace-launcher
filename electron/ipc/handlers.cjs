@@ -68,6 +68,46 @@ function registerIpcHandlers() {
   })
   ipcMain.handle('software:scan', async () => wrap(async () => await softwareScanner.scanAll()))
   ipcMain.handle('software:bulkCreate', (_e, items) => wrap(() => softwareDao.bulkCreate(items)))
+  ipcMain.handle('software:createValidated', (_e, data) => {
+    return wrap(async () => {
+      const launch = await processManager.launchExe(data.path, data.args)
+      const software = softwareDao.create(data)
+      return { success: true, software, launch }
+    })
+  })
+  ipcMain.handle('software:updateValidated', (_e, id, data) => {
+    return wrap(async () => {
+      const launch = await processManager.launchExe(data.path, data.args)
+      const software = softwareDao.update(id, data)
+      return { success: true, software, launch }
+    })
+  })
+  ipcMain.handle('software:bulkCreateValidated', (_e, items) => {
+    return wrap(async () => {
+      if (!Array.isArray(items) || items.length === 0) {
+        return { success: true, created: [], failed: [] }
+      }
+      if (items.length > 20) {
+        throw new Error('为避免一次启动过多程序，每次最多验证并添加 20 个软件')
+      }
+
+      const created = []
+      const failed = []
+      for (const item of items) {
+        try {
+          await processManager.launchExe(item.path, item.args)
+          created.push(softwareDao.create(item))
+        } catch (err) {
+          failed.push({
+            name: item.name || item.path,
+            path: item.path,
+            error: err.message
+          })
+        }
+      }
+      return { success: true, created, failed }
+    })
+  })
   // 获取可用盘符列表
   ipcMain.handle('software:getDrives', () => wrap(() => softwareScanner.getAvailableDrives()))
   // 扫描指定盘符的 .exe 文件

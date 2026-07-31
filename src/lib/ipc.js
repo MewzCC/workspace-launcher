@@ -18,13 +18,16 @@ export const softwareApi = {
   list: () => api.software.list(),
   get: (id) => api.software.get(id),
   create: (data) => api.software.create(data),
+  createValidated: (data) => api.software.createValidated(data),
   update: (id, data) => api.software.update(id, data),
+  updateValidated: (id, data) => api.software.updateValidated(id, data),
   remove: (id) => api.software.delete(id),
   testLaunch: (id) => api.software.testLaunch(id),
   // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
   scan: () => api.software.scan(),
   // 批量创建软件
   bulkCreate: (items) => api.software.bulkCreate(items),
+  bulkCreateValidated: (items) => api.software.bulkCreateValidated(items),
   // 获取可用盘符列表
   getDrives: () => api.software.getDrives(),
   // 扫描指定盘符的 .exe 文件

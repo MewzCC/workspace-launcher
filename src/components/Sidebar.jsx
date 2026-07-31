@@ -113,7 +113,7 @@ function Sidebar() {
           </button>
           <div className="version-card">
             <p className="version-label">版本</p>
-            <p className="version-value">v1.1.0</p>
+            <p className="version-value">v1.1.1</p>
           </div>
         </div>
       </aside>

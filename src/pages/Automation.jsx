@@ -267,9 +267,9 @@ function Automation() {
           ) : (
             <>
               {statusMsg && <div className="save-status">{statusMsg}</div>}
+              <BatchScriptBlock workspaceId={selectedId} scripts={batchScripts} linkedScripts={linkedBatchScripts} onSaveStatus={setStatusMsg} />
               <ScriptBlock title="启动前脚本 (Pre-launch)" type="pre" workspaceId={selectedId} script={preScript} onSaveStatus={setStatusMsg} />
               <ScriptBlock title="启动后脚本 (Post-launch)" type="post" workspaceId={selectedId} script={postScript} onSaveStatus={setStatusMsg} />
-              <BatchScriptBlock workspaceId={selectedId} scripts={batchScripts} linkedScripts={linkedBatchScripts} onSaveStatus={setStatusMsg} />
             </>
           )}
         </div>

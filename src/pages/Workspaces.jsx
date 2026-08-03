@@ -9,6 +9,7 @@ import LaunchAnimation from '../components/LaunchAnimation'
 import SoftwareIcon from '../components/SoftwareIcon'
 import { useStore } from '../store/useStore'
 import { workspaceApi, onLaunchProgress } from '../lib/ipc'
+import { useProcessStatuses } from '../hooks/useProcessStatuses'
 import './Workspaces.css'
 
 // 图标预设选项
@@ -23,6 +24,15 @@ function Workspaces() {
   const startLaunch = useStore((s) => s.startLaunch)
   const updateLaunchProgress = useStore((s) => s.updateLaunchProgress)
   const stopLaunch = useStore((s) => s.stopLaunch)
+
+  const workspaceSoftware = useMemo(
+    () => workspaces.flatMap((workspace) => workspace.software || []),
+    [workspaces]
+  )
+  const processStatuses = useProcessStatuses(
+    workspaceSoftware,
+    `${launching?.active || false}:${launching?.progress?.length || 0}`
+  )
 
   // 订阅启动进度：组件挂载期间持续转发到 store
   useEffect(() => {
@@ -217,11 +227,21 @@ function Workspaces() {
       ) : (
         <div className="workspace-grid">
           {workspaces.map((ws) => {
-            // 运行中判断：launching 命中且 active
-            const isRunning =
+            const isLaunching =
               launching?.workspaceId === ws.id && launching?.active
-            // 卡片最多显示 4 个软件，超出显示 +N
             const wsSoftware = ws.software || []
+            const runningCount = wsSoftware.filter(
+              (item) => processStatuses[item.path]
+            ).length
+            const isRunning = runningCount > 0
+            const statusText = isLaunching
+              ? '启动中'
+              : runningCount === 0
+                ? '已停止'
+                : runningCount === wsSoftware.length
+                  ? '运行中'
+                  : `部分运行 ${runningCount}/${wsSoftware.length}`
+            // 卡片最多显示 4 个软件，超出显示 +N
             const shownSoftware = wsSoftware.slice(0, 4)
             const extraCount = wsSoftware.length - shownSoftware.length
             return (
@@ -236,7 +256,7 @@ function Workspaces() {
                         isRunning ? 'running' : 'stopped'
                       }`}
                     ></span>
-                    {isRunning ? '运行中' : '已停止'}
+                    {statusText}
                   </span>
                 </div>
 
@@ -265,10 +285,10 @@ function Workspaces() {
                     variant="primary"
                     size="sm"
                     onClick={() => handleLaunch(ws)}
-                    disabled={isRunning}
+                    disabled={isLaunching}
                   >
                     <Play size={14} />
-                    {isRunning ? '启动中...' : '一键启动'}
+                    {isLaunching ? '启动中...' : '一键启动'}
                   </GlowButton>
                   <GlowButton
                     variant="ghost"

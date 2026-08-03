@@ -23,6 +23,7 @@ export const softwareApi = {
   updateValidated: (id, data) => api.software.updateValidated(id, data),
   remove: (id) => api.software.delete(id),
   testLaunch: (id) => api.software.testLaunch(id),
+  getProcessStatuses: (exePaths) => api.software.getProcessStatuses(exePaths),
   // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
   scan: () => api.software.scan(),
   // 批量创建软件

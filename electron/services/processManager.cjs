@@ -205,10 +205,65 @@ function terminateByExecutablePath(exePath) {
   })
 }
 
+function getExecutableStatuses(exePaths = []) {
+  return new Promise((resolve, reject) => {
+    const targets = [...new Set(
+      (Array.isArray(exePaths) ? exePaths : [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )]
+
+    if (targets.length === 0) {
+      resolve({})
+      return
+    }
+
+    if (process.platform !== 'win32') {
+      resolve(Object.fromEntries(targets.map((target) => [target, false])))
+      return
+    }
+
+    const script = [
+      "$targets = ConvertFrom-Json $env:LAUNCHPAD_PROCESS_PATHS",
+      "$running = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath } | ForEach-Object { $_.ExecutablePath })",
+      "$result = [ordered]@{}",
+      "foreach ($target in $targets) { $result[[string]$target] = @($running | Where-Object { [string]::Equals($_, [string]$target, [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0 }",
+      "$result | ConvertTo-Json -Compress"
+    ].join('; ')
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      {
+        windowsHide: true,
+        timeout: 10000,
+        env: {
+          ...process.env,
+          LAUNCHPAD_PROCESS_PATHS: JSON.stringify(targets)
+        }
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`无法读取进程状态: ${String(stderr || err.message).trim()}`))
+          return
+        }
+
+        try {
+          const parsed = JSON.parse(String(stdout || '{}').trim() || '{}')
+          resolve(Object.fromEntries(targets.map((target) => [target, Boolean(parsed[target])])))
+        } catch (parseError) {
+          reject(new Error(`无法解析进程状态: ${parseError.message}`))
+        }
+      }
+    )
+  })
+}
+
 module.exports = {
   launchExe,
   launchExeDetached,
   launchBatch,
   validateExecutablePath,
-  terminateByExecutablePath
+  terminateByExecutablePath,
+  getExecutableStatuses
 }

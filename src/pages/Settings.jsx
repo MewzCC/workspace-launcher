@@ -139,7 +139,7 @@ export function Settings() {
             </div>
             <Toggle
               checked={Boolean(systemSettings?.startMinimized)}
-              disabled={!systemSettings || !systemSettings.openAtLogin || savingSetting === 'startMinimized'}
+              disabled={!systemSettings || savingSetting === 'startMinimized'}
               onChange={(event) => updateSystemSetting('startMinimized', event.target.checked)}
               ariaLabel="开机后静默驻留托盘"
             />

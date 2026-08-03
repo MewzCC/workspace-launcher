@@ -5,12 +5,13 @@ import React, { useEffect, useMemo } from 'react'
 import GlassCard from '../components/ui/GlassCard'
 import { useStore } from '../store/useStore'
 import { logsApi } from '../lib/ipc'
+import { useProcessStatuses } from '../hooks/useProcessStatuses'
 import './Monitor.css'
 
 // 状态枚举到中文文案的映射
 const STATUS_LABEL = {
   pending: '待启动',
-  running: '启动中',
+  running: '运行中',
   success: '成功',
   failed: '失败',
   stopped: '已停止'
@@ -18,8 +19,10 @@ const STATUS_LABEL = {
 
 // 根据启动进度判断单个软件当前状态
 // launching: store.launching；softwareId: 软件记录 id；activeWorkspaceId: 当前监控的工作空间 id
-function resolveSoftwareStatus(launching, softwareId, activeWorkspaceId) {
-  // 无活跃启动或工作空间不匹配，视为已停止
+function resolveSoftwareStatus(launching, software, activeWorkspaceId, processStatuses) {
+  if (processStatuses[software.path]) return 'running'
+
+  // 实际进程未运行时，仅在启动流程中展示瞬时进度
   if (
     !launching ||
     !launching.active ||
@@ -29,7 +32,7 @@ function resolveSoftwareStatus(launching, softwareId, activeWorkspaceId) {
   }
   // 在进度数组中找该软件的最新一条记录
   const items = (launching.progress || []).filter(
-    (p) => p.softwareId === softwareId
+    (p) => p.softwareId === software.id
   )
   if (items.length === 0) return 'pending'
   return items[items.length - 1].status || 'pending'
@@ -73,6 +76,13 @@ function Monitor() {
   const setLogs = useStore((s) => s.setLogs)
   const setActiveWorkspace = useStore((s) => s.setActiveWorkspace)
 
+  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
+  const monitoredSoftware = activeWorkspace?.software || []
+  const processStatuses = useProcessStatuses(
+    monitoredSoftware,
+    `${launching?.active || false}:${launching?.progress?.length || 0}`
+  )
+
   // 软件 id → name 映射，用于日志展示
   const softwareNameMap = useMemo(() => {
     const map = new Map()
@@ -101,9 +111,6 @@ function Monitor() {
       cancelled = true
     }
   }, [activeWorkspaceId, setLogs])
-
-  // 当前选中的工作空间对象
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
 
   return (
     <div className="monitor-page">
@@ -150,7 +157,12 @@ function Monitor() {
                 <StatusSoftware
                   key={sw.id}
                   software={sw}
-                  status={resolveSoftwareStatus(launching, sw.id, activeWorkspaceId)}
+                  status={resolveSoftwareStatus(
+                    launching,
+                    sw,
+                    activeWorkspaceId,
+                    processStatuses
+                  )}
                 />
               ))}
             </div>

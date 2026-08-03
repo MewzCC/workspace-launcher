@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('api', {
     updateValidated: (id, data) => ipcRenderer.invoke('software:updateValidated', id, data),
     delete: (id) => ipcRenderer.invoke('software:delete', id),
     testLaunch: (id) => ipcRenderer.invoke('software:testLaunch', id),
+    getProcessStatuses: (exePaths) => ipcRenderer.invoke('software:getProcessStatuses', exePaths),
     // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
     scan: () => ipcRenderer.invoke('software:scan'),
     // 批量创建软件（扫描结果批量添加用）

@@ -100,7 +100,7 @@ export function Settings() {
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.version')}</span>
-          <span className="info-value">1.2.0</span>
+          <span className="info-value">1.3.0</span>
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.stack')}</span>

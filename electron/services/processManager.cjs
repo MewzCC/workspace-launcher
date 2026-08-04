@@ -259,11 +259,142 @@ function getExecutableStatuses(exePaths = []) {
   })
 }
 
+const PROTECTED_PROCESS_NAMES = new Set([
+  'system',
+  'registry',
+  'smss.exe',
+  'csrss.exe',
+  'wininit.exe',
+  'services.exe',
+  'lsass.exe',
+  'winlogon.exe'
+])
+
+function isProtectedProcess(item) {
+  const pid = Number(item?.pid)
+  const name = String(item?.name || '').toLowerCase()
+  const exePath = String(item?.path || '').toLowerCase()
+  return (
+    !Number.isInteger(pid) ||
+    pid <= 4 ||
+    PROTECTED_PROCESS_NAMES.has(name) ||
+    Boolean(exePath && exePath === process.execPath.toLowerCase())
+  )
+}
+
+function listProcessesWithPorts() {
+  return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      resolve([])
+      return
+    }
+
+    const script = [
+      "$portMap = @{}",
+      "$addEndpoint = { param($pidValue, $protocol, $address, $port) $key = [string]$pidValue; if (-not $portMap.ContainsKey($key)) { $portMap[$key] = New-Object System.Collections.ArrayList }; $endpoint = [ordered]@{ protocol = $protocol; localAddress = [string]$address; localPort = [int]$port }; [void]$portMap[$key].Add($endpoint) }",
+      "Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | ForEach-Object { & $addEndpoint $_.OwningProcess 'TCP' $_.LocalAddress $_.LocalPort }",
+      "Get-NetUDPEndpoint -ErrorAction SilentlyContinue | ForEach-Object { & $addEndpoint $_.OwningProcess 'UDP' $_.LocalAddress $_.LocalPort }",
+      "$processes = @(Get-CimInstance Win32_Process -ErrorAction Stop | ForEach-Object { $key = [string]$_.ProcessId; $endpoints = @(); if ($portMap.ContainsKey($key)) { $endpoints = @($portMap[$key] | Sort-Object protocol, localPort -Unique) }; [ordered]@{ pid = [int]$_.ProcessId; name = [string]$_.Name; path = [string]$_.ExecutablePath; workingSetBytes = [long]$_.WorkingSetSize; ports = $endpoints } })",
+      "ConvertTo-Json -InputObject $processes -Depth 5 -Compress"
+    ].join('; ')
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      { windowsHide: true, timeout: 15000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`无法读取系统进程: ${String(stderr || err.message).trim()}`))
+          return
+        }
+
+        try {
+          const parsed = JSON.parse(String(stdout || '[]').trim() || '[]')
+          const items = (Array.isArray(parsed) ? parsed : [parsed])
+            .map((item) => ({
+              ...item,
+              pid: Number(item.pid),
+              workingSetBytes: Number(item.workingSetBytes) || 0,
+              ports: Array.isArray(item.ports) ? item.ports : item.ports ? [item.ports] : []
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name) || a.pid - b.pid)
+          resolve(items.map((item) => ({ ...item, protected: isProtectedProcess(item) })))
+        } catch (parseError) {
+          reject(new Error(`无法解析系统进程: ${parseError.message}`))
+        }
+      }
+    )
+  })
+}
+
+function terminateProcessTree(pid) {
+  return new Promise((resolve, reject) => {
+    const processId = Number(pid)
+    if (!Number.isInteger(processId) || processId <= 0) {
+      reject(new Error('PID 无效'))
+      return
+    }
+    if (process.platform !== 'win32') {
+      reject(new Error('当前系统不支持结束 Windows 进程'))
+      return
+    }
+
+    const inspectScript = [
+      "$item = Get-CimInstance Win32_Process -Filter \"ProcessId = $env:LAUNCHPAD_TARGET_PID\" -ErrorAction Stop",
+      "if ($null -eq $item) { throw '进程不存在或已经退出' }",
+      "[ordered]@{ pid = [int]$item.ProcessId; name = [string]$item.Name; path = [string]$item.ExecutablePath } | ConvertTo-Json -Compress"
+    ].join('; ')
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', inspectScript],
+      {
+        windowsHide: true,
+        timeout: 10000,
+        env: { ...process.env, LAUNCHPAD_TARGET_PID: String(processId) }
+      },
+      (inspectError, stdout, stderr) => {
+        if (inspectError) {
+          reject(new Error(String(stderr || '进程不存在或已经退出').trim()))
+          return
+        }
+
+        let item
+        try {
+          item = JSON.parse(String(stdout).trim())
+        } catch {
+          reject(new Error('无法确认目标进程信息'))
+          return
+        }
+        if (isProtectedProcess(item)) {
+          reject(new Error('为保护 Windows 与 LaunchPad，禁止结束该进程'))
+          return
+        }
+
+        execFile(
+          'taskkill.exe',
+          ['/PID', String(processId), '/T', '/F'],
+          { windowsHide: true, timeout: 10000 },
+          (killError) => {
+            if (killError) {
+              reject(new Error(`结束进程失败，可能需要管理员权限（PID ${processId}）`))
+              return
+            }
+            resolve({ success: true, pid: processId, name: item.name })
+          }
+        )
+      }
+    )
+  })
+}
+
 module.exports = {
   launchExe,
   launchExeDetached,
   launchBatch,
   validateExecutablePath,
   terminateByExecutablePath,
-  getExecutableStatuses
+  getExecutableStatuses,
+  listProcessesWithPorts,
+  terminateProcessTree
 }

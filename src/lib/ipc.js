@@ -52,6 +52,11 @@ export const batScriptApi = {
   run: (id) => api.batScript.run(id)
 }
 
+export const processApi = {
+  list: () => api.process.list(),
+  terminate: (pid) => api.process.terminate(pid)
+}
+
 // 脚本 API
 export const scriptApi = {
   listByWorkspace: (workspaceId) => api.script.listByWorkspace(workspaceId),

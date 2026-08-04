@@ -83,6 +83,10 @@ function registerIpcHandlers() {
   ipcMain.handle('software:getProcessStatuses', (_e, exePaths) =>
     wrap(() => processManager.getExecutableStatuses(exePaths))
   )
+  ipcMain.handle('process:list', () => wrap(() => processManager.listProcessesWithPorts()))
+  ipcMain.handle('process:terminate', (_e, pid) =>
+    wrap(() => processManager.terminateProcessTree(pid))
+  )
   ipcMain.handle('software:scan', async () => wrap(async () => await softwareScanner.scanAll()))
   ipcMain.handle('software:bulkCreate', (_e, items) => wrap(() => softwareDao.bulkCreate(items)))
   ipcMain.handle('software:createValidated', (_e, data) => {

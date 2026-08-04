@@ -9,6 +9,7 @@ import Automation from '../pages/Automation'
 import ScanCenter from '../pages/ScanCenter'
 import Monitor from '../pages/Monitor'
 import Settings from '../pages/Settings'
+import ProcessManager from '../pages/ProcessManager'
 import './Layout.css'
 
 // 页面映射：key 对应 store.currentView，value 为页面组件
@@ -19,6 +20,7 @@ const PAGES = {
   automation: Automation,
   scan: ScanCenter,
   monitor: Monitor,
+  processes: ProcessManager,
   settings: Settings,
 }
 

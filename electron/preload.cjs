@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => ipcRenderer.invoke('batScript:delete', id),
     run: (id) => ipcRenderer.invoke('batScript:run', id)
   },
+  process: {
+    list: () => ipcRenderer.invoke('process:list'),
+    terminate: (pid) => ipcRenderer.invoke('process:terminate', pid)
+  },
   // 脚本相关接口
   script: {
     listByWorkspace: (workspaceId) =>

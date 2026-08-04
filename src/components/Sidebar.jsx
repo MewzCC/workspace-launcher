@@ -8,6 +8,7 @@ import {
   Workflow,
   ScanLine,
   Activity,
+  ListTree,
   Settings as SettingsIcon,
   Sun,
   Moon,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { key: 'automation', icon: Workflow, label: '自动化' },
   { key: 'scan', icon: ScanLine, label: '扫描中心' },
   { key: 'monitor', icon: Activity, label: '状态监控' },
+  { key: 'processes', icon: ListTree, label: '进程管理' },
   { key: 'settings', icon: SettingsIcon, label: '设置' }
 ]
 

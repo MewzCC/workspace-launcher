@@ -4,6 +4,7 @@
 const { exec } = require('child_process')
 const processManager = require('./processManager.cjs')
 const { workspaceDao, batScriptDao, scriptDao, logDao, settingsDao } = require('../db/index.cjs')
+const { t } = require('../i18n.cjs')
 
 // 延时工具，返回 Promise，ms 毫秒后 resolve
 function delay(ms) {
@@ -72,8 +73,8 @@ async function launchWorkspace(workspaceId, onProgress) {
     // 1. 查询工作空间（包含软件列表，已按 launch_order 排序）
     const workspace = workspaceDao.get(workspaceId)
     if (!workspace) {
-      report({ phase: 'error', status: 'failed', message: `工作空间不存在: ${workspaceId}` })
-      throw new Error(`工作空间不存在: ${workspaceId}`)
+      report({ phase: 'error', status: 'failed', message: t('engine.notFound', { id: workspaceId }) })
+      throw new Error(t('engine.notFound', { id: workspaceId }))
     }
     const killBeforeLaunch = settingsDao.get('killBeforeLaunch')
 
@@ -83,23 +84,27 @@ async function launchWorkspace(workspaceId, onProgress) {
 
     // 3. 执行 pre 脚本（失败不中断）
     if (preScript) {
-      report({ phase: 'pre_script', status: 'running', message: '执行启动前脚本' })
+      report({ phase: 'pre_script', status: 'running', message: t('engine.preRunning') })
       const result = await executeScript(preScript)
       if (result.success) {
-        report({ phase: 'pre_script', status: 'success', message: '启动前脚本执行成功' })
+        report({ phase: 'pre_script', status: 'success', message: t('engine.preSuccess') })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'success',
-          message: '启动前脚本执行成功'
+          message: t('engine.preSuccess'),
+          message_key: 'engine.preSuccess',
+          message_params: {}
         })
       } else {
-        report({ phase: 'pre_script', status: 'failed', message: result.error })
+        report({ phase: 'pre_script', status: 'failed', message: t('engine.preFailed', { message: result.error }) })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'failed',
-          message: `启动前脚本失败: ${result.error}`
+          message: t('engine.preFailed', { message: result.error }),
+          message_key: 'engine.preFailed',
+          message_params: { message: result.error }
         })
         // 脚本失败不中断后续流程
       }
@@ -132,7 +137,7 @@ async function launchWorkspace(workspaceId, onProgress) {
               softwareId,
               softwareName,
               status: 'running',
-              message: `已结束 ${terminated.killed} 个已有进程，正在重新启动`
+              message: t('engine.killedExisting', { count: terminated.killed })
             })
             await delay(300)
           }
@@ -142,7 +147,7 @@ async function launchWorkspace(workspaceId, onProgress) {
             softwareId,
             softwareName,
             status: 'running',
-            message: `结束已有进程失败，继续尝试启动: ${err.message}`
+            message: t('engine.killFailed', { message: err.message })
           })
         }
       }
@@ -166,7 +171,9 @@ async function launchWorkspace(workspaceId, onProgress) {
           workspace_id: workspaceId,
           software_id: softwareId,
           status: 'success',
-          message: `${softwareName} 启动成功`
+          message: t('engine.launchSuccess', { name: softwareName }),
+          message_key: 'engine.launchSuccess',
+          message_params: { name: softwareName }
         })
       } catch (err) {
         // 单个软件失败不中断后续启动，继续下一个
@@ -181,30 +188,36 @@ async function launchWorkspace(workspaceId, onProgress) {
           workspace_id: workspaceId,
           software_id: softwareId,
           status: 'failed',
-          message: `${softwareName} 启动失败: ${err.message}`
+          message: t('engine.launchFailed', { name: softwareName, message: err.message }),
+          message_key: 'engine.launchFailed',
+          message_params: { name: softwareName, message: err.message }
         })
       }
     }
 
     // 5. 执行 post 脚本（失败不中断）
     if (postScript) {
-      report({ phase: 'post_script', status: 'running', message: '执行启动后脚本' })
+      report({ phase: 'post_script', status: 'running', message: t('engine.postRunning') })
       const result = await executeScript(postScript)
       if (result.success) {
-        report({ phase: 'post_script', status: 'success', message: '启动后脚本执行成功' })
+        report({ phase: 'post_script', status: 'success', message: t('engine.postSuccess') })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'success',
-          message: '启动后脚本执行成功'
+          message: t('engine.postSuccess'),
+          message_key: 'engine.postSuccess',
+          message_params: {}
         })
       } else {
-        report({ phase: 'post_script', status: 'failed', message: result.error })
+        report({ phase: 'post_script', status: 'failed', message: t('engine.postFailed', { message: result.error }) })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'failed',
-          message: `启动后脚本失败: ${result.error}`
+          message: t('engine.postFailed', { message: result.error }),
+          message_key: 'engine.postFailed',
+          message_params: { message: result.error }
         })
       }
     }
@@ -219,7 +232,7 @@ async function launchWorkspace(workspaceId, onProgress) {
       report({
         phase: 'post_script',
         status: 'running',
-        message: `正在启动脚本：${batchScript.name}`
+        message: t('engine.batchRunning', { name: batchScript.name })
       })
 
       try {
@@ -227,25 +240,29 @@ async function launchWorkspace(workspaceId, onProgress) {
         report({
           phase: 'post_script',
           status: 'success',
-          message: `脚本已启动：${batchScript.name}`
+          message: t('engine.batchStarted', { name: batchScript.name })
         })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'success',
-          message: `启动后脚本 ${batchScript.name} 已启动`
+          message: t('engine.batchStartedLog', { name: batchScript.name }),
+          message_key: 'engine.batchStartedLog',
+          message_params: { name: batchScript.name }
         })
       } catch (err) {
         report({
           phase: 'post_script',
           status: 'failed',
-          message: `${batchScript.name}: ${err.message}`
+          message: t('engine.batchFailed', { name: batchScript.name, message: err.message })
         })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'failed',
-          message: `启动后脚本 ${batchScript.name} 启动失败: ${err.message}`
+          message: t('engine.batchFailedLog', { name: batchScript.name, message: err.message }),
+          message_key: 'engine.batchFailedLog',
+          message_params: { name: batchScript.name, message: err.message }
         })
       }
     }

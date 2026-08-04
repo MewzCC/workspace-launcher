@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react'
 import { X } from 'lucide-react'
 import GlowButton from './ui/GlowButton'
+import { useT } from '../hooks/useT'
 import './Modal.css'
 
 function Modal({
@@ -10,11 +11,14 @@ function Modal({
   children,
   onClose,
   onSave,
-  saveText = '保存',
-  cancelText = '取消',
+  saveText,
+  cancelText,
   saveDisabled = false,
   closeDisabled = false
 }) {
+  const t = useT()
+  const resolvedSave = saveText ?? t('common.save')
+  const resolvedCancel = cancelText ?? t('common.cancel')
   // ESC 键关闭
   useEffect(() => {
     const handleEsc = (e) => {
@@ -38,7 +42,7 @@ function Modal({
           <button
             className="modal-close"
             onClick={onClose}
-            aria-label="关闭"
+            aria-label={t('common.close')}
             type="button"
             disabled={closeDisabled}
           >
@@ -53,10 +57,10 @@ function Modal({
         {onSave && (
           <div className="modal-footer">
             <GlowButton variant="ghost" size="md" onClick={onClose} disabled={closeDisabled}>
-              {cancelText}
+              {resolvedCancel}
             </GlowButton>
             <GlowButton variant="primary" size="md" onClick={onSave} disabled={saveDisabled}>
-              {saveText}
+              {resolvedSave}
             </GlowButton>
           </div>
         )}

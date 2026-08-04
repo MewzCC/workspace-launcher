@@ -10,12 +10,14 @@ import SoftwareIcon from '../components/SoftwareIcon'
 import { useStore } from '../store/useStore'
 import { workspaceApi, onLaunchProgress } from '../lib/ipc'
 import { useProcessStatuses } from '../hooks/useProcessStatuses'
+import { useT } from '../hooks/useT'
 import './Workspaces.css'
 
 // 图标预设选项
 const ICON_PRESETS = ['🚀', '💻', '🎨', '📦', '🎮', '📊', '🔍', '⚡', '🧩']
 
 function Workspaces() {
+  const t = useT()
   // store 状态与 actions
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -125,7 +127,7 @@ function Workspaces() {
   const handleSave = async () => {
     if (savingRef.current) return
     if (!form.name.trim()) {
-      window.alert('请输入工作空间名称')
+      window.alert(t('workspaces.nameRequired'))
       return
     }
     savingRef.current = true
@@ -156,7 +158,7 @@ function Workspaces() {
       closeModal()
     } catch (err) {
       console.error('保存工作空间失败:', err)
-      window.alert('保存失败：' + (err?.message || err))
+      window.alert(t('common.savingFailed') + (err?.message || err))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -176,21 +178,21 @@ function Workspaces() {
         softwareId: null,
         softwareName: '',
         status: 'failed',
-        message: '启动失败：' + (err?.message || err)
+        message: t('workspaces.launchFailed') + (err?.message || err)
       })
     }
   }
 
   // 删除工作空间
   const handleDelete = async (workspace) => {
-    if (!window.confirm(`确认删除工作空间「${workspace.name}」吗？`)) return
+    if (!window.confirm(t('workspaces.deleteConfirm', { name: workspace.name }))) return
     try {
       await workspaceApi.remove(workspace.id)
       const list = await workspaceApi.list()
       setWorkspaces(list)
     } catch (err) {
       console.error('删除工作空间失败:', err)
-      window.alert('删除失败：' + (err?.message || err))
+      window.alert(t('workspaces.deleteFailed') + (err?.message || err))
     }
   }
 
@@ -207,12 +209,12 @@ function Workspaces() {
       {/* 页头：标题 + 副标题 + 添加按钮 */}
       <section className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">应用管理</h1>
-          <p className="page-subtitle">管理工作空间，配置软件组合与启动顺序</p>
+          <h1 className="page-title">{t('workspaces.title')}</h1>
+          <p className="page-subtitle">{t('workspaces.subtitle')}</p>
         </div>
         <GlowButton variant="primary" size="md" onClick={openCreate}>
           <Plus size={16} />
-          添加工作空间
+          {t('workspaces.add')}
         </GlowButton>
       </section>
 
@@ -222,7 +224,7 @@ function Workspaces() {
           <div className="empty-icon-wrap">
             <PackageOpen size={40} />
           </div>
-          <p>暂无工作空间，点击右上角创建一个吧</p>
+          <p>{t('workspaces.empty')}</p>
         </GlassCard>
       ) : (
         <div className="workspace-grid">
@@ -235,12 +237,12 @@ function Workspaces() {
             ).length
             const isRunning = runningCount > 0
             const statusText = isLaunching
-              ? '启动中'
+              ? t('workspaces.launching')
               : runningCount === 0
-                ? '已停止'
+                ? t('common.stopped')
                 : runningCount === wsSoftware.length
-                  ? '运行中'
-                  : `部分运行 ${runningCount}/${wsSoftware.length}`
+                  ? t('common.running')
+                  : t('workspaces.partialRunning', { running: runningCount, total: wsSoftware.length })
             // 卡片最多显示 4 个软件，超出显示 +N
             const shownSoftware = wsSoftware.slice(0, 4)
             const extraCount = wsSoftware.length - shownSoftware.length
@@ -261,12 +263,12 @@ function Workspaces() {
                 </div>
 
                 {/* 描述 */}
-                <div className="ws-desc">{ws.description || '暂无描述'}</div>
+                <div className="ws-desc">{ws.description || t('common.noDescription')}</div>
 
                 {/* 软件列表 */}
                 <div className="ws-software">
                   {shownSoftware.length === 0 && (
-                    <span className="ws-software-empty">未配置软件</span>
+                    <span className="ws-software-empty">{t('workspaces.noSoftware')}</span>
                   )}
                   {shownSoftware.map((s) => (
                     <span className="ws-software-item" key={s.id}>
@@ -288,7 +290,7 @@ function Workspaces() {
                     disabled={isLaunching}
                   >
                     <Play size={14} />
-                    {isLaunching ? '启动中...' : '一键启动'}
+                    {isLaunching ? t('common.starting') : t('workspaces.launch')}
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
@@ -296,7 +298,7 @@ function Workspaces() {
                     onClick={() => openEdit(ws)}
                   >
                     <Pencil size={14} />
-                    编辑
+                    {t('common.edit')}
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
@@ -305,7 +307,7 @@ function Workspaces() {
                     onClick={() => handleDelete(ws)}
                   >
                     <Trash2 size={14} />
-                    删除
+                    {t('common.delete')}
                   </GlowButton>
                 </div>
               </GlassCard>
@@ -317,45 +319,45 @@ function Workspaces() {
       {/* 新建/编辑 Modal */}
       {modalOpen && (
         <Modal
-          title={editingId ? '编辑工作空间' : '新建工作空间'}
+          title={editingId ? t('workspaces.editTitle') : t('workspaces.newTitle')}
           onClose={closeModal}
           onSave={handleSave}
-          saveText={saving ? '保存中...' : '保存'}
+          saveText={saving ? t('common.saving') : t('common.save')}
         >
           {/* 名称 */}
           <div className="form-group">
-            <label className="form-label">名称 *</label>
+            <label className="form-label">{t('common.nameRequired')}</label>
             <input
               className="form-input"
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="输入工作空间名称"
+              placeholder={t('workspaces.namePlaceholder')}
             />
           </div>
 
           {/* 描述 */}
           <div className="form-group">
-            <label className="form-label">描述</label>
+            <label className="form-label">{t('common.description')}</label>
             <textarea
               className="form-input"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
               }
-              placeholder="输入工作空间描述"
+              placeholder={t('workspaces.descPlaceholder')}
             />
           </div>
 
           {/* 图标 */}
           <div className="form-group">
-            <label className="form-label">图标</label>
+            <label className="form-label">{t('common.icon')}</label>
             <input
               className="form-input"
               type="text"
               value={form.icon}
               onChange={(e) => setForm({ ...form, icon: e.target.value })}
-              placeholder="输入 emoji"
+              placeholder={t('workspaces.iconPlaceholder')}
             />
             <div className="icon-presets">
               {ICON_PRESETS.map((ic) => (
@@ -375,17 +377,17 @@ function Workspaces() {
 
           {/* 软件选择 */}
           <div className="form-group">
-            <label className="form-label">软件选择</label>
+            <label className="form-label">{t('workspaces.softwareSelection')}</label>
             <div className="workspace-software-search">
               <Search size={15} aria-hidden="true" />
               <input
                 value={softwareSearch}
                 onChange={(event) => setSoftwareSearch(event.target.value)}
-                placeholder="搜索软件名称或路径"
-                aria-label="搜索软件"
+                placeholder={t('workspaces.searchPlaceholder')}
+                aria-label={t('workspaces.searchAria')}
               />
               {softwareSearch && (
-                <button type="button" onClick={() => setSoftwareSearch('')} aria-label="清空搜索">
+                <button type="button" onClick={() => setSoftwareSearch('')} aria-label={t('dashboard.clearSearch')}>
                   <X size={14} />
                 </button>
               )}
@@ -393,7 +395,7 @@ function Workspaces() {
             <div className="software-picker">
               {software.length === 0 && (
                 <div className="software-picker-empty">
-                  暂无可用软件，请先在软件库添加
+                  {t('workspaces.noAvailableSoftware')}
                 </div>
               )}
               {software
@@ -421,7 +423,7 @@ function Workspaces() {
           {/* 启动顺序与延迟 */}
           {selectedSoftware.length > 0 && (
             <div className="form-group">
-              <label className="form-label">启动顺序与延迟</label>
+              <label className="form-label">{t('workspaces.orderDelay')}</label>
               <div className="order-delay-list">
                 {selectedSoftware
                   .slice()
@@ -434,7 +436,7 @@ function Workspaces() {
                         <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="xs" /> {s.name}
                       </span>
                       <label className="od-field">
-                        顺序
+                        {t('workspaces.order')}
                         <input
                           className="form-input od-input"
                           type="number"
@@ -450,7 +452,7 @@ function Workspaces() {
                         />
                       </label>
                       <label className="od-field">
-                        延迟(ms)
+                        {t('workspaces.delayMs')}
                         <input
                           className="form-input od-input"
                           type="number"

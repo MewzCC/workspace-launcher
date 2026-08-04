@@ -10,6 +10,7 @@ const systemPreferences = require('../services/systemPreferences.cjs')
 const trayService = require('../services/trayService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
+const { t } = require('../i18n.cjs')
 
 // 通用错误包装：将处理器的异常转为 {error} 对象
 // 处理器可以是同步或异步函数
@@ -88,11 +89,11 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const software = softwareDao.get(id)
       if (!software) {
-        return { success: false, message: '软件不存在' }
+        return { success: false, message: t('errors.softwareNotExist') }
       }
       try {
         await processManager.launchExe(software.path, software.args)
-        return { success: true, message: `${software.name} 启动成功` }
+        return { success: true, message: t('engine.launchSuccess', { name: software.name }) }
       } catch (err) {
         return { success: false, message: err.message }
       }
@@ -139,7 +140,7 @@ function registerIpcHandlers() {
         return { success: true, created: [], failed: [] }
       }
       if (items.length > 20) {
-        throw new Error('为避免一次启动过多程序，每次最多验证并添加 20 个软件')
+        throw new Error(t('errors.bulkLimit'))
       }
 
       const created = []
@@ -237,9 +238,9 @@ function registerIpcHandlers() {
   ipcMain.handle('batScript:run', (_e, id) => {
     return wrap(async () => {
       const script = batScriptDao.get(id)
-      if (!script) throw new Error('脚本不存在')
+      if (!script) throw new Error(t('errors.scriptNotExist'))
       await processManager.launchBatch(script.path, script.args)
-      return { success: true, message: `${script.name} 已启动` }
+      return { success: true, message: t('engine.batchStarted', { name: script.name }) }
     })
   })
 
@@ -265,7 +266,7 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: filters || [{ name: '可执行文件', extensions: ['exe'] }]
+        filters: filters || [{ name: t('errors.exeFilter'), extensions: ['exe'] }]
       })
       if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
         return null
@@ -278,7 +279,7 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
-        filters: filters || [{ name: '可执行文件', extensions: ['exe'] }]
+        filters: filters || [{ name: t('errors.exeFilter'), extensions: ['exe'] }]
       })
       if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
         return []
@@ -304,7 +305,7 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const url = new URL(rawUrl)
       if (url.protocol !== 'https:' || url.hostname !== 'github.com') {
-        throw new Error('不允许打开该外部链接')
+        throw new Error(t('errors.externalBlocked'))
       }
       await shell.openExternal(url.toString())
       return { success: true }

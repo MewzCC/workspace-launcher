@@ -1,115 +1,108 @@
-// 应用菜单构建：自定义中文菜单
+// 应用菜单构建：多语言菜单
 // 替换 Electron 默认英文菜单（File/Edit/View/Window/Help）
 const { app, Menu, shell, BrowserWindow } = require('electron')
+const { t } = require('./i18n.cjs')
 
-// 构建并应用应用菜单
-function setupAppMenu() {
+// 构建菜单模板
+function buildTemplate() {
   const isMac = process.platform === 'darwin'
-  // 获取当前聚焦窗口（用于开发者工具等操作）
   const focusedWindow = () => BrowserWindow.getFocusedWindow()
 
-  const template = [
+  return [
     // macOS 应用菜单（首个菜单，名称为应用名）
     ...(isMac
       ? [{
           label: app.name,
           submenu: [
-            { role: 'about', label: '关于 ' + app.name },
+            { role: 'about', label: t('menu.about') },
             { type: 'separator' },
-            { role: 'services', label: '服务' },
+            { role: 'services', label: t('menu.services') },
             { type: 'separator' },
-            { role: 'hide', label: '隐藏 ' + app.name },
-            { role: 'hideOthers', label: '隐藏其他' },
-            { role: 'unhide', label: '显示全部' },
+            { role: 'hide', label: t('menu.hide', { name: app.name }) },
+            { role: 'hideOthers', label: t('menu.hideOthers') },
+            { role: 'unhide', label: t('menu.unhide') },
             { type: 'separator' },
-            { role: 'quit', label: '退出 ' + app.name }
+            { role: 'quit', label: t('menu.quit') }
           ]
         }]
       : []),
 
     // 文件菜单
     {
-      label: '文件',
+      label: t('menu.file'),
       submenu: [
         isMac
-          ? { role: 'close', label: '关闭窗口' }
-          : { role: 'quit', label: '退出' }
+          ? { role: 'close', label: t('menu.closeWindow') }
+          : { role: 'quit', label: t('menu.quit') }
       ]
     },
 
     // 编辑菜单
     {
-      label: '编辑',
+      label: t('menu.edit'),
       submenu: [
-        { role: 'undo', label: '撤销' },
-        { role: 'redo', label: '重做' },
+        { role: 'undo', label: t('menu.undo') },
+        { role: 'redo', label: t('menu.redo') },
         { type: 'separator' },
-        { role: 'cut', label: '剪切' },
-        { role: 'copy', label: '复制' },
-        { role: 'paste', label: '粘贴' },
+        { role: 'cut', label: t('menu.cut') },
+        { role: 'copy', label: t('menu.copy') },
+        { role: 'paste', label: t('menu.paste') },
         ...(isMac
           ? [
-              { role: 'pasteAndMatchStyle', label: '粘贴并匹配样式' },
-              { role: 'delete', label: '删除' },
-              { role: 'selectAll', label: '全选' },
+              { role: 'pasteAndMatchStyle', label: t('menu.pasteAndMatchStyle') },
+              { role: 'delete', label: t('menu.delete') },
+              { role: 'selectAll', label: t('menu.selectAll') },
               { type: 'separator' },
               {
-                label: '语音',
+                label: t('menu.speech'),
                 submenu: [
-                  { role: 'startSpeaking', label: '开始朗读' },
-                  { role: 'stopSpeaking', label: '停止朗读' }
+                  { role: 'startSpeaking', label: t('menu.startSpeaking') },
+                  { role: 'stopSpeaking', label: t('menu.stopSpeaking') }
                 ]
               }
             ]
           : [
-              { role: 'delete', label: '删除' },
+              { role: 'delete', label: t('menu.delete') },
               { type: 'separator' },
-              { role: 'selectAll', label: '全选' }
+              { role: 'selectAll', label: t('menu.selectAll') }
             ])
       ]
     },
 
     // 视图菜单
     {
-      label: '视图',
+      label: t('menu.view'),
       submenu: [
-        { role: 'reload', label: '重新加载' },
-        { role: 'forceReload', label: '强制重新加载' },
-        { role: 'toggleDevTools', label: '开发者工具' },
+        { role: 'reload', label: t('menu.reload') },
+        { role: 'forceReload', label: t('menu.forceReload') },
+        { role: 'toggleDevTools', label: t('menu.devTools') },
         { type: 'separator' },
-        { role: 'resetZoom', label: '重置缩放' },
-        { role: 'zoomIn', label: '放大' },
-        { role: 'zoomOut', label: '缩小' },
+        { role: 'resetZoom', label: t('menu.resetZoom') },
+        { role: 'zoomIn', label: t('menu.zoomIn') },
+        { role: 'zoomOut', label: t('menu.zoomOut') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: '全屏' }
+        { role: 'togglefullscreen', label: t('menu.fullscreen') }
       ]
     },
 
     // 窗口菜单
     {
-      label: '窗口',
+      label: t('menu.window'),
       submenu: [
-        { role: 'minimize', label: '最小化' },
-        { role: 'zoom', label: '缩放' },
+        { role: 'minimize', label: t('menu.minimize') },
+        { role: 'zoom', label: t('menu.zoom') },
         ...(isMac
-          ? [
-              { type: 'separator' },
-              { role: 'front', label: '前置全部窗口' },
-              { type: 'separator' },
-              { role: 'window', label: '窗口' }
-            ]
-          : [
-              { role: 'close', label: '关闭' }
-            ])
+          ? [{ type: 'separator' }, { role: 'front', label: t('menu.front') }, { type: 'separator' }, { role: 'window', label: t('menu.window') }]
+          : [{ role: 'close', label: t('menu.close') }])
       ]
     },
 
     // 帮助菜单
     {
-      label: '帮助',
+      label: t('menu.help'),
       submenu: [
         {
-          label: '关于 LaunchPad',
+          label: t('menu.about'),
           click: () => {
             const win = focusedWindow()
             if (win) {
@@ -118,7 +111,7 @@ function setupAppMenu() {
           }
         },
         {
-          label: '在 GitHub 上查看',
+          label: t('menu.viewGithub'),
           click: () => {
             shell.openExternal('https://github.com/MewzCC/workspace-launcher').catch(() => {})
           }
@@ -126,9 +119,16 @@ function setupAppMenu() {
       ]
     }
   ]
+}
 
-  const menu = Menu.buildFromTemplate(template)
+function setupAppMenu() {
+  const menu = Menu.buildFromTemplate(buildTemplate())
   Menu.setApplicationMenu(menu)
 }
 
-module.exports = { setupAppMenu }
+// 重建应用菜单（语言切换后调用）
+function refreshAppMenu() {
+  setupAppMenu()
+}
+
+module.exports = { setupAppMenu, refreshAppMenu }

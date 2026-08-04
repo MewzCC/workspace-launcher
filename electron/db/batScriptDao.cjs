@@ -1,4 +1,5 @@
 const { getDb } = require('./database.cjs')
+const { t } = require('../i18n.cjs')
 
 let stmts = null
 
@@ -44,9 +45,9 @@ function getStmts() {
 function normalize(data) {
   const name = String(data?.name || '').trim()
   const scriptPath = String(data?.path || '').trim()
-  if (!name) throw new Error('请输入脚本名称')
+  if (!name) throw new Error(t('errors.scriptNameRequired'))
   if (!/\.(bat|cmd)$/i.test(scriptPath)) {
-    throw new Error('仅支持 .bat 或 .cmd 脚本')
+    throw new Error(t('errors.batOnly'))
   }
   return {
     name,

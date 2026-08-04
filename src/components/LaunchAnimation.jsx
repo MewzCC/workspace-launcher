@@ -4,6 +4,7 @@ import React, { useMemo, useRef } from 'react'
 import GlassCard from './ui/GlassCard'
 import GlowButton from './ui/GlowButton'
 import SoftwareIcon from './SoftwareIcon'
+import { useT } from '../hooks/useT'
 import './LaunchAnimation.css'
 
 // 时间戳格式化为 HH:MM:SS（IPC 不提供时间，按到达顺序在客户端记录）
@@ -15,6 +16,7 @@ function formatTime(ts) {
 }
 
 function LaunchAnimation({ launching, workspace, onClose }) {
+  const t = useT()
   const progress = launching?.progress || []
   const softwareList = workspace?.software || []
 
@@ -72,11 +74,11 @@ function LaunchAnimation({ launching, workspace, onClose }) {
         <div className="launch-header">
           <div className="launch-title">
             <span className="launch-icon">{workspace?.icon || '🚀'}</span>
-            <span>{workspace?.name || '工作空间'}</span>
+            <span>{workspace?.name || t('launch.title')}</span>
           </div>
           {isDone && (
             <GlowButton variant="ghost" size="sm" onClick={onClose}>
-              关闭
+              {t('launch.close')}
             </GlowButton>
           )}
         </div>
@@ -115,21 +117,21 @@ function LaunchAnimation({ launching, workspace, onClose }) {
             />
           </svg>
           <div className="progress-text">
-            {isDone ? (isError ? '失败' : '完成') : `${percent}%`}
+            {isDone ? (isError ? t('launch.failed') : t('launch.done')) : `${percent}%`}
           </div>
         </div>
 
         {/* 完成态提示 */}
         {isDone && (
           <div className={`launch-complete ${isError ? 'is-error' : ''}`}>
-            {isError ? '❌ 启动失败' : '✅ 启动完成'}
+            {isError ? t('launch.launchFailed') : t('launch.launchCompleted')}
           </div>
         )}
 
         {/* 软件状态灯列表 */}
         <div className="status-list">
           {softwareList.length === 0 && (
-            <div className="status-empty">该工作空间未配置软件</div>
+            <div className="status-empty">{t('launch.noSoftware')}</div>
           )}
           {softwareList.map((s) => {
             const status = statusMap[s.id] || 'pending'
@@ -140,10 +142,10 @@ function LaunchAnimation({ launching, workspace, onClose }) {
                   <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="xs" /> {s.name}
                 </span>
                 <span className={`status-label status-label--${status}`}>
-                  {status === 'pending' && '等待中'}
-                  {status === 'running' && '启动中'}
-                  {status === 'success' && '成功'}
-                  {status === 'failed' && '失败'}
+                  {status === 'pending' && t('launch.waiting')}
+                  {status === 'running' && t('launch.starting')}
+                  {status === 'success' && t('launch.success')}
+                  {status === 'failed' && t('launch.failed')}
                 </span>
               </div>
             )
@@ -152,7 +154,7 @@ function LaunchAnimation({ launching, workspace, onClose }) {
 
         {/* 实时日志流 */}
         <div className="log-stream">
-          {logs.length === 0 && <div className="log-line">等待启动日志...</div>}
+          {logs.length === 0 && <div className="log-line">{t('launch.waitingLog')}</div>}
           {logs.map((log, i) => (
             <div className={`log-line ${log.status || ''}`} key={i}>
               <span className="log-time">[{formatTime(log.time)}]</span>{' '}

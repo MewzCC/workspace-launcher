@@ -12,8 +12,8 @@ function getStmts() {
   stmts = {
     // 插入日志
     insert: db.prepare(`
-      INSERT INTO launch_logs (workspace_id, software_id, status, message)
-      VALUES (@workspace_id, @software_id, @status, @message)
+      INSERT INTO launch_logs (workspace_id, software_id, status, message, message_key, message_params)
+      VALUES (@workspace_id, @software_id, @status, @message, @message_key, @message_params)
     `),
     // 按工作空间查询日志（时间倒序，limit 条）
     listByWorkspace: db.prepare(`
@@ -44,7 +44,11 @@ function normalize(data) {
     workspace_id: data.workspace_id ?? null,
     software_id: data.software_id ?? null,
     status: data.status,
-    message: data.message ?? ''
+    message: data.message ?? '',
+    message_key: data.message_key ?? null,
+    message_params: typeof data.message_params === 'string'
+      ? data.message_params
+      : (data.message_params ? JSON.stringify(data.message_params) : null)
   }
 }
 
@@ -57,19 +61,32 @@ function create(data) {
   return info.lastInsertRowid
 }
 
+// 将 list 结果中的 message_params JSON 反序列化为对象，供渲染层按当前语言翻译
+function hydrate(row) {
+  if (!row) return row
+  if (row.message_params && typeof row.message_params === 'string') {
+    try {
+      row.message_params = JSON.parse(row.message_params)
+    } catch (_) {
+      row.message_params = null
+    }
+  }
+  return row
+}
+
 // 按工作空间查询日志（时间倒序）
 function listByWorkspace(workspaceId, limit = 100) {
-  return getStmts().listByWorkspace.all(workspaceId, limit)
+  return getStmts().listByWorkspace.all(workspaceId, limit).map(hydrate)
 }
 
 // 查询最近 limit 条日志（时间倒序）
 function listRecent(limit = 50) {
-  return getStmts().listRecent.all(limit)
+  return getStmts().listRecent.all(limit).map(hydrate)
 }
 
 // 查询所有日志（时间倒序，limit 条）
 function listAll(limit = 200) {
-  return getStmts().listAll.all(limit)
+  return getStmts().listAll.all(limit).map(hydrate)
 }
 
 module.exports = {

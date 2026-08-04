@@ -7,6 +7,7 @@ import Modal from '../components/Modal'
 import SoftwareIcon from '../components/SoftwareIcon'
 import { workspaceApi, onLaunchProgress } from '../lib/ipc'
 import { useStore } from '../store/useStore'
+import { useT } from '../hooks/useT'
 import './Dashboard.css'
 
 // 根据当前小时返回对应问候语
@@ -26,6 +27,7 @@ function formatTime(date) {
 }
 
 export function Dashboard() {
+  const t = useT()
   // 从 store 读取工作空间列表、启动状态及相关动作
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -104,7 +106,7 @@ export function Dashboard() {
       setQuickEditing(null)
     } catch (err) {
       console.error('快速编辑工作空间失败:', err)
-      window.alert('保存失败：' + (err?.message || err))
+      window.alert(t('common.savingFailed') + (err?.message || err))
     } finally {
       setSavingQuickEdit(false)
     }
@@ -116,15 +118,15 @@ export function Dashboard() {
       <section className="page-header greeting">
         <div className="page-header-left">
           <h1 className="page-title greeting-title">{greeting}</h1>
-          <p className="page-subtitle">准备进入你的工作状态</p>
+          <p className="page-subtitle">{t('dashboard.subtitle')}</p>
         </div>
         <div className="clock">{formatTime(now)}</div>
       </section>
 
       {/* 区块标题 */}
       <div className="section-title">
-        快速启动
-        <span className="count">{workspaces.length} 个工作空间</span>
+        {t('dashboard.quickLaunch')}
+        <span className="count">{t('dashboard.workspaceCount', { count: workspaces.length })}</span>
       </div>
 
       {/* 快速启动卡片网格，或无工作空间时的空状态 */}
@@ -133,13 +135,13 @@ export function Dashboard() {
           <div className="empty-icon-wrap">
             <Play size={40} />
           </div>
-          <p>还没有工作空间，去应用管理页面创建一个吧</p>
+          <p>{t('dashboard.empty')}</p>
           <GlowButton
             variant="primary"
             size="md"
             onClick={() => setCurrentView('workspaces')}
           >
-            前往应用管理
+            {t('dashboard.goManage')}
             <ArrowRight size={16} />
           </GlowButton>
         </GlassCard>
@@ -159,31 +161,31 @@ export function Dashboard() {
 
       {quickEditing && (
         <Modal
-          title={`快速编辑 · ${quickEditing.name}`}
+          title={t('dashboard.quickEditTitle', { name: quickEditing.name })}
           onClose={() => setQuickEditing(null)}
           onSave={saveQuickEdit}
-          saveText={savingQuickEdit ? '保存中...' : '保存应用'}
+          saveText={savingQuickEdit ? t('common.saving') : t('dashboard.save')}
         >
           <p className="quick-edit-hint">
-            这里只调整工作空间包含的应用，名称、图标、启动顺序和延迟保持不变。
+            {t('dashboard.quickEditHint')}
           </p>
           <div className="quick-edit-search">
             <Search size={16} aria-hidden="true" />
             <input
               value={quickSearch}
               onChange={(event) => setQuickSearch(event.target.value)}
-              placeholder="搜索应用名称或路径"
-              aria-label="搜索可选应用"
+              placeholder={t('dashboard.searchPlaceholder')}
+              aria-label={t('dashboard.searchAria')}
             />
             {quickSearch && (
-              <button type="button" onClick={() => setQuickSearch('')} aria-label="清空搜索">
+              <button type="button" onClick={() => setQuickSearch('')} aria-label={t('dashboard.clearSearch')}>
                 <X size={14} />
               </button>
             )}
           </div>
           <div className="quick-edit-software">
             {software.length === 0 ? (
-              <div className="quick-edit-empty">软件库暂无应用，请先添加软件。</div>
+              <div className="quick-edit-empty">{t('dashboard.emptyLibrary')}</div>
             ) : (
               software
                 .filter((item) => {
@@ -224,6 +226,7 @@ export function Dashboard() {
 
 // 快速启动卡片：工作空间图标与名称 + 软件列表 + 启动按钮
 function QuickCard({ workspace, launching, onLaunch, onEdit }) {
+  const t = useT()
   const software = workspace.software || []
   // 仅展示前 3 个软件，超出部分以 +N 形式提示
   const visible = software.slice(0, 3)
@@ -254,12 +257,12 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
               type="button"
               className="software-item software-more"
               onClick={() => onEdit(workspace)}
-              aria-label={`还有 ${extraCount} 个应用，点击快速编辑`}
+              aria-label={t('dashboard.extraAppsAria', { count: extraCount })}
             >
               +{extraCount}
             </button>
             <div className="software-more-tooltip" role="tooltip">
-              <span className="software-more-title">其余应用</span>
+              <span className="software-more-title">{t('dashboard.otherApps')}</span>
               {software.slice(3).map((item) => (
                 <span className="software-more-entry" key={item.id}>
                   <SoftwareIcon
@@ -270,12 +273,12 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
                   {item.name}
                 </span>
               ))}
-              <span className="software-more-action">点击可快速编辑</span>
+              <span className="software-more-action">{t('dashboard.clickToEdit')}</span>
             </div>
           </div>
         )}
         {software.length === 0 && (
-          <div className="software-item software-empty">暂未添加软件</div>
+          <div className="software-item software-empty">{t('dashboard.noSoftware')}</div>
         )}
       </div>
 
@@ -287,7 +290,7 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
           onClick={() => onEdit(workspace)}
         >
           <Pencil size={14} />
-          快速编辑
+          {t('dashboard.quickEdit')}
         </GlowButton>
         <GlowButton
           variant="primary"
@@ -296,7 +299,7 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
           onClick={() => onLaunch(workspace.id)}
         >
           <Play size={14} />
-          {isLaunching ? '启动中...' : '启动'}
+          {isLaunching ? t('common.starting') : t('dashboard.launch')}
         </GlowButton>
       </div>
     </GlassCard>

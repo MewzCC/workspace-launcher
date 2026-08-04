@@ -89,6 +89,10 @@ contextBridge.exposeInMainWorld('api', {
   theme: {
     set: (theme) => ipcRenderer.invoke('theme:set', theme)
   },
+  // 语言同步：通知主进程切换托盘/菜单等原生 UI 语言
+  language: {
+    set: (language) => ipcRenderer.invoke('language:set', language)
+  },
   // 订阅工作空间启动进度事件
   // 返回取消订阅函数，调用以移除监听器
   onLaunchProgress: (callback) => {

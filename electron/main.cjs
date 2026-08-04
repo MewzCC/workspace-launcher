@@ -1,8 +1,9 @@
 const { app, BrowserWindow, nativeTheme, ipcMain } = require('electron')
 const path = require('path')
-const { setupAppMenu } = require('./menu.cjs')
+const { setupAppMenu, refreshAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
+const { t } = require('./i18n.cjs')
 
 let mainWindow = null
 let isQuitting = false
@@ -69,7 +70,7 @@ function createWindow({ startHidden = false } = {}) {
       win.hide()
       if (!trayHintShown) {
         trayHintShown = true
-        trayService.notify('LaunchPad 仍在运行', '窗口已收起到系统托盘，可继续一键启动工作空间。')
+        trayService.notify(t('tray.hintTitle'), t('tray.hintBody'))
       }
     }
   })
@@ -104,6 +105,15 @@ if (!gotSingleInstanceLock) {
 
     ipcMain.handle('theme:set', (_e, theme) => {
       applyNativeTheme(theme)
+      return { success: true }
+    })
+
+    ipcMain.handle('language:set', (_e, language) => {
+      const { settingsDao } = require('./db/index.cjs')
+      settingsDao.set('language', String(language))
+      // 语言切换后刷新原生菜单与托盘菜单
+      refreshAppMenu()
+      trayService.refreshTrayMenu()
       return { success: true }
     })
 

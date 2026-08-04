@@ -4,9 +4,11 @@ import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import { useStore } from '../store/useStore'
 import { batScriptApi, scriptApi } from '../lib/ipc'
+import { useT } from '../hooks/useT'
 import './Automation.css'
 
 function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
+  const t = useT()
   const [language, setLanguage] = useState('cmd')
   const [delayMs, setDelayMs] = useState(0)
   const [content, setContent] = useState('')
@@ -27,9 +29,9 @@ function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
         delay_ms: Number(delayMs) || 0
       })
       if (result?.error) throw new Error(result.error)
-      onSaveStatus(`${title} 保存成功`)
+      onSaveStatus(t('automation.saved', { title }))
     } catch (err) {
-      onSaveStatus(`${title} 保存失败：${err.message}`)
+      onSaveStatus(t('automation.saveFailed', { title, message: err.message }))
     }
   }
 
@@ -37,11 +39,11 @@ function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
     <GlassCard hover={false} className="script-block">
       <div className="script-block-header">
         <div className="script-block-title">{title}</div>
-        <GlowButton variant="primary" size="sm" onClick={handleSave}>保存</GlowButton>
+        <GlowButton variant="primary" size="sm" onClick={handleSave}>{t('automation.save')}</GlowButton>
       </div>
 
       <div className="script-form-group">
-        <label className="script-form-label">脚本语言</label>
+        <label className="script-form-label">{t('automation.scriptLang')}</label>
         <div className="lang-selector">
           <label className="lang-option">
             <input type="radio" name={`lang-${type}-${workspaceId}`} checked={language === 'cmd'} onChange={() => setLanguage('cmd')} />
@@ -55,12 +57,12 @@ function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
       </div>
 
       <div className="script-form-group">
-        <label className="script-form-label">延迟（毫秒）</label>
+        <label className="script-form-label">{t('automation.delayMs')}</label>
         <input type="number" className="delay-input" min="0" step="100" value={delayMs} onChange={(e) => setDelayMs(e.target.value)} />
       </div>
 
       <div className="script-form-group">
-        <label className="script-form-label">脚本内容</label>
+        <label className="script-form-label">{t('automation.content')}</label>
         <textarea className="script-textarea" placeholder="docker start mysql" value={content} onChange={(e) => setContent(e.target.value)} />
       </div>
     </GlassCard>
@@ -68,6 +70,7 @@ function ScriptBlock({ title, type, workspaceId, script, onSaveStatus }) {
 }
 
 function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus }) {
+  const t = useT()
   const [selected, setSelected] = useState([])
   const [query, setQuery] = useState('')
 
@@ -140,9 +143,9 @@ function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus })
         delay_ms: script.delay_ms ?? 0,
         launch_order: script.launch_order ?? index
       })))
-      onSaveStatus(`启动后脚本已保存，共 ${items.length} 个`)
+      onSaveStatus(t('automation.batchSaved', { count: items.length }))
     } catch (err) {
-      onSaveStatus(`启动后脚本保存失败：${err.message}`)
+      onSaveStatus(t('automation.batchSaveFailed', { message: err.message }))
     }
   }
 
@@ -150,22 +153,22 @@ function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus })
     <GlassCard hover={false} className="batch-automation-card">
       <div className="script-block-header batch-card-heading">
         <div>
-          <div className="batch-card-title"><Terminal size={19} />启动后运行 BAT 脚本</div>
-          <p>工作空间内的软件全部启动后，按顺序运行软件库中已添加的脚本。</p>
+          <div className="batch-card-title"><Terminal size={19} />{t('automation.batchTitle')}</div>
+          <p>{t('automation.batchDesc')}</p>
         </div>
-        <GlowButton variant="primary" size="sm" onClick={handleSave}>保存配置</GlowButton>
+        <GlowButton variant="primary" size="sm" onClick={handleSave}>{t('automation.saveConfig')}</GlowButton>
       </div>
 
       {scripts.length === 0 ? (
         <div className="batch-empty-state">
           <Library size={24} />
-          <div><strong>脚本库还是空的</strong><span>请先前往“软件库 → BAT 脚本”添加 .bat 或 .cmd 文件。</span></div>
+          <div><strong>{t('automation.emptyLibraryTitle')}</strong><span>{t('automation.emptyLibraryHint')}</span></div>
         </div>
       ) : (
         <>
           <div className="batch-picker-header">
-            <div className="batch-search"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索脚本名称或路径" /></div>
-            <span>已选择 {selected.length} / {scripts.length}</span>
+            <div className="batch-search"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('automation.searchPlaceholder')} /></div>
+            <span>{t('automation.selected', { selected: selected.length, total: scripts.length })}</span>
           </div>
           <div className="batch-script-picker">
             {filteredScripts.map((script) => {
@@ -182,15 +185,15 @@ function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus })
 
           {orderedSelected.length > 0 && (
             <div className="batch-run-plan">
-              <div className="batch-run-plan-title">运行顺序与延迟</div>
+              <div className="batch-run-plan-title">{t('automation.runOrder')}</div>
               {orderedSelected.map((item, index) => (
                 <div className="batch-run-row" key={item.id}>
                   <span className="batch-order">{index + 1}</span>
-                  <div className="batch-run-name"><strong>{item.script.name}</strong><small>{item.script.args || '无启动参数'}</small></div>
-                  <label className="batch-delay"><span>启动前延迟</span><input type="number" min="0" step="100" value={item.delay_ms} onChange={(e) => updateDelay(item.id, e.target.value)} /><em>ms</em></label>
+                  <div className="batch-run-name"><strong>{item.script.name}</strong><small>{item.script.args || t('automation.noArgs')}</small></div>
+                  <label className="batch-delay"><span>{t('automation.preDelay')}</span><input type="number" min="0" step="100" value={item.delay_ms} onChange={(e) => updateDelay(item.id, e.target.value)} /><em>ms</em></label>
                   <div className="batch-order-actions">
-                    <button type="button" disabled={index === 0} onClick={() => moveScript(item.id, -1)} aria-label="上移"><ChevronUp size={16} /></button>
-                    <button type="button" disabled={index === orderedSelected.length - 1} onClick={() => moveScript(item.id, 1)} aria-label="下移"><ChevronDown size={16} /></button>
+                    <button type="button" disabled={index === 0} onClick={() => moveScript(item.id, -1)} aria-label={t('automation.moveUp')}><ChevronUp size={16} /></button>
+                    <button type="button" disabled={index === orderedSelected.length - 1} onClick={() => moveScript(item.id, 1)} aria-label={t('automation.moveDown')}><ChevronDown size={16} /></button>
                   </div>
                 </div>
               ))}
@@ -203,6 +206,7 @@ function BatchScriptBlock({ workspaceId, scripts, linkedScripts, onSaveStatus })
 }
 
 function Automation() {
+  const t = useT()
   const workspaces = useStore((state) => state.workspaces)
   const [selectedId, setSelectedId] = useState(null)
   const [scripts, setScripts] = useState([])
@@ -227,7 +231,7 @@ function Automation() {
       setBatchScripts(libraryList?.error ? [] : libraryList || [])
       setLinkedBatchScripts(linkedList?.error ? [] : linkedList || [])
     }).catch((err) => {
-      if (!cancelled) setStatusMsg(`加载自动化配置失败：${err.message}`)
+      if (!cancelled) setStatusMsg(t('automation.loadFailed', { message: err.message }))
     })
     return () => { cancelled = true }
   }, [selectedId])
@@ -245,14 +249,14 @@ function Automation() {
   return (
     <div className="automation-page">
       <section className="page-header">
-        <div className="page-header-left"><h1 className="page-title">自动化</h1><p className="page-subtitle">为工作空间配置启动前后脚本与自动运行流程</p></div>
+        <div className="page-header-left"><h1 className="page-title">{t('automation.title')}</h1><p className="page-subtitle">{t('automation.subtitle')}</p></div>
       </section>
 
       <div className="automation-body">
         <GlassCard hover={false} className="ws-selector">
-          <h3>工作空间</h3>
+          <h3>{t('automation.workspace')}</h3>
           <div className="ws-selector-list">
-            {workspaces.length === 0 && <div className="ws-selector-empty">暂无工作空间</div>}
+            {workspaces.length === 0 && <div className="ws-selector-empty">{t('automation.noWorkspace')}</div>}
             {workspaces.map((workspace) => (
               <button key={workspace.id} type="button" className={`ws-selector-item ${selectedId === workspace.id ? 'active' : ''}`} onClick={() => setSelectedId(workspace.id)}>
                 <span className="ws-selector-icon">{workspace.icon || '🚀'}</span><span className="ws-selector-name">{workspace.name}</span>
@@ -263,13 +267,13 @@ function Automation() {
 
         <div className="script-editor">
           {selectedWorkspace == null ? (
-            <GlassCard hover={false} className="empty-state">请从左侧选择一个工作空间</GlassCard>
+            <GlassCard hover={false} className="empty-state">{t('automation.selectWorkspace')}</GlassCard>
           ) : (
             <>
               {statusMsg && <div className="save-status">{statusMsg}</div>}
               <BatchScriptBlock workspaceId={selectedId} scripts={batchScripts} linkedScripts={linkedBatchScripts} onSaveStatus={setStatusMsg} />
-              <ScriptBlock title="启动前脚本 (Pre-launch)" type="pre" workspaceId={selectedId} script={preScript} onSaveStatus={setStatusMsg} />
-              <ScriptBlock title="启动后脚本 (Post-launch)" type="post" workspaceId={selectedId} script={postScript} onSaveStatus={setStatusMsg} />
+              <ScriptBlock title={t('automation.preTitle')} type="pre" workspaceId={selectedId} script={preScript} onSaveStatus={setStatusMsg} />
+              <ScriptBlock title={t('automation.postTitle')} type="post" workspaceId={selectedId} script={postScript} onSaveStatus={setStatusMsg} />
             </>
           )}
         </div>

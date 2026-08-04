@@ -2,6 +2,7 @@ const { app } = require('electron')
 const { execFileSync } = require('child_process')
 const path = require('path')
 const { settingsDao } = require('../db/index.cjs')
+const { t } = require('../i18n.cjs')
 
 const WINDOWS_RUN_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
 const LOGIN_ITEM_NAME = 'LaunchPad'
@@ -75,10 +76,10 @@ function writeWindowsLoginCommand(openAtLogin, startMinimized) {
 
 function applyLoginItem(openAtLogin, startMinimized) {
   if (process.platform !== 'win32') {
-    throw new Error('当前版本仅支持在 Windows 中设置开机启动')
+    throw new Error(t('errors.loginWinOnly'))
   }
   if (!app.isPackaged) {
-    throw new Error('开机启动只能在安装版或便携版 LaunchPad 中设置')
+    throw new Error(t('errors.loginPackagedOnly'))
   }
   let electronError = null
   try {
@@ -101,7 +102,7 @@ function applyLoginItem(openAtLogin, startMinimized) {
     ? isExpectedLoginCommand(readWindowsLoginCommand(), startMinimized)
     : readWindowsLoginCommand() == null
   if (!verified) {
-    throw new Error(electronError?.message || 'Windows 启动项写入后校验失败')
+    throw new Error(electronError?.message || t('errors.loginVerifyFailed'))
   }
 }
 

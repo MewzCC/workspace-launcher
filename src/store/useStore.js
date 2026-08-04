@@ -1,7 +1,14 @@
 // 全局状态管理：使用 zustand 创建应用 store
-// 包含主题、当前视图、侧边栏状态、工作空间/软件/日志数据、启动进度等状态
+// 包含主题、语言、当前视图、侧边栏状态、工作空间/软件/日志数据、启动进度等状态
 import { create } from 'zustand'
-import { themeApi } from '../lib/ipc'
+import { themeApi, languageApi } from '../lib/ipc'
+import {
+  translate,
+  MESSAGES,
+  DEFAULT_LANGUAGE,
+  getInitialLanguage,
+  LANGUAGE_STORAGE_KEY
+} from '../i18n'
 
 function createInitialScanSession() {
   return {
@@ -52,10 +59,27 @@ function applyTheme(theme) {
   }
 }
 
+// 应用语言：持久化本地存储并同步主进程，同时更新 <html> lang 属性
+function applyLanguage(language) {
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+    document.documentElement.lang = language.split('-')[0] || 'zh-CN'
+  } catch (e) {
+    /* 忽略存储异常 */
+  }
+  try {
+    languageApi.set(language)
+  } catch (e) {
+    /* preload 可能未就绪，忽略 */
+  }
+}
+
 export const useStore = create((set, get) => ({
   // ===== State =====
   // 主题：'dark' | 'light'
   theme: getInitialTheme(),
+  // 界面语言：'zh-CN' | 'en-US' | 'ja-JP'
+  language: getInitialLanguage(),
   // 当前页面 key，默认首页
   currentView: 'dashboard',
   // 侧边栏是否折叠（桌面端）
@@ -87,6 +111,16 @@ export const useStore = create((set, get) => ({
     applyTheme(theme)
     set({ theme })
   },
+
+  // 切换界面语言
+  setLanguage: (language) => {
+    const next = MESSAGES[language] ? language : DEFAULT_LANGUAGE
+    applyLanguage(next)
+    set({ language: next })
+  },
+
+  // 当前界面语言对应的翻译函数
+  t: (key, params) => translate(get().language, key, params),
 
   // 切换当前页面，同时关闭移动端抽屉
   setCurrentView: (view) => set({ currentView: view, mobileNavOpen: false }),

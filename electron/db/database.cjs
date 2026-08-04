@@ -80,9 +80,37 @@ const CREATE_TABLES_SQL = `
     software_id INTEGER,
     status TEXT NOT NULL,
     message TEXT DEFAULT '',
+    message_key TEXT,
+    message_params TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
 `
+
+// 轻量迁移：为已存在的旧表补充新增列
+// 旧数据库通过 CREATE TABLE IF NOT EXISTS 不会自动加列，需逐列检查后 ALTER TABLE ADD COLUMN
+const MIGRATIONS = [
+  {
+    table: 'launch_logs',
+    columns: [
+      { name: 'message_key', definition: 'TEXT' },
+      { name: 'message_params', definition: 'TEXT' }
+    ]
+  }
+]
+
+function applyMigrations(database) {
+  for (const migration of MIGRATIONS) {
+    const cols = database.prepare(`PRAGMA table_info(${migration.table})`).all()
+    const existing = new Set(cols.map((c) => c.name))
+    for (const column of migration.columns) {
+      if (!existing.has(column.name)) {
+        database.exec(
+          `ALTER TABLE ${migration.table} ADD COLUMN ${column.name} ${column.definition}`
+        )
+      }
+    }
+  }
+}
 
 // 获取数据库连接（懒初始化）
 // 首次调用时创建 Database 实例，开启 WAL 模式和外键，执行建表 SQL
@@ -99,6 +127,8 @@ function getDb() {
 
   // 执行建表
   db.exec(CREATE_TABLES_SQL)
+  // 执行增量迁移（补齐旧表新增列）
+  applyMigrations(db)
 
   return db
 }

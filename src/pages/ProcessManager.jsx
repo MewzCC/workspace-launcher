@@ -17,6 +17,7 @@ import {
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import { processApi } from '../lib/ipc'
+import { useT } from '../hooks/useT'
 import './ProcessManager.css'
 
 const PAGE_SIZE = 30
@@ -29,6 +30,7 @@ function formatMemory(bytes) {
 }
 
 function ProcessManagerPage() {
+  const t = useT()
   const [processes, setProcesses] = useState([])
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -76,7 +78,7 @@ function ProcessManagerPage() {
       )
     } catch (err) {
       if (requestId === requestIdRef.current) {
-        setError(err?.message || '无法读取系统进程')
+        setError(err?.message || t('processes.loadFailed'))
       }
     } finally {
       if (!quiet && requestId === requestIdRef.current) setLoading(false)
@@ -116,10 +118,10 @@ function ProcessManagerPage() {
 
   const handleTerminate = async (item) => {
     const portText = item.ports?.length
-      ? `\n监听端口：${item.ports.map((port) => `${port.protocol} ${port.localPort}`).join('、')}`
+      ? t('processes.killPorts', { ports: item.ports.map((port) => `${port.protocol} ${port.localPort}`).join('、') })
       : ''
     const confirmed = window.confirm(
-      `确认结束「${item.name}」及其子进程吗？\nPID：${item.pid}${portText}\n\n未保存的数据可能会丢失。`
+      t('processes.killConfirm', { name: item.name, pid: item.pid, ports: portText })
     )
     if (!confirmed) return
 
@@ -129,7 +131,7 @@ function ProcessManagerPage() {
       if (result?.error) throw new Error(result.error)
       await loadProcesses({ quiet: true, force: true })
     } catch (err) {
-      window.alert(`结束进程失败：${err?.message || err}`)
+      window.alert(`${t('processes.killFailed')}${err?.message || err}`)
     } finally {
       setTerminatingPid(null)
     }
@@ -139,9 +141,9 @@ function ProcessManagerPage() {
     <div className="process-page">
       <section className="page-header process-header">
         <div className="page-header-left">
-          <div className="process-eyebrow"><Activity size={13} /> SYSTEM PROCESS CONTROL</div>
-          <h1 className="page-title">进程管理</h1>
-          <p className="page-subtitle">按应用名称、PID 或监听端口定位并关闭相关进程</p>
+          <div className="process-eyebrow"><Activity size={13} /> {t('processes.eyebrow')}</div>
+          <h1 className="page-title">{t('processes.title')}</h1>
+          <p className="page-subtitle">{t('processes.subtitle')}</p>
         </div>
         <GlowButton
           variant="ghost"
@@ -150,22 +152,22 @@ function ProcessManagerPage() {
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? 'process-spin' : ''} />
-          刷新进程
+          {t('processes.refresh')}
         </GlowButton>
       </section>
 
-      <section className="process-stats" aria-label="进程概况">
+      <section className="process-stats" aria-label={t('processes.statsAria')}>
         <button type="button" className={!portOnly ? 'active' : ''} onClick={() => { setPortOnly(false); setPage(1) }}>
           <span className="process-stat-icon indigo"><AppWindow size={18} /></span>
-          <span><strong>{summary.processCount || 0}</strong><small>系统进程</small></span>
+          <span><strong>{summary.processCount || 0}</strong><small>{t('processes.processCount')}</small></span>
         </button>
         <button type="button" className={portOnly ? 'active' : ''} onClick={() => { setPortOnly(true); setPage(1) }}>
           <span className="process-stat-icon cyan"><Network size={18} /></span>
-          <span><strong>{summary.listeningPortCount || 0}</strong><small>{summary.portProcessCount || 0} 个进程正在监听</small></span>
+          <span><strong>{summary.listeningPortCount || 0}</strong><small>{t('processes.listening', { count: summary.portProcessCount || 0 })}</small></span>
         </button>
         <div className="process-stat-static">
           <span className="process-stat-icon amber"><MemoryStick size={18} /></span>
-          <span><strong>{formatMemory(summary.totalMemory)}</strong><small>已统计工作集</small></span>
+          <span><strong>{formatMemory(summary.totalMemory)}</strong><small>{t('processes.totalMemory')}</small></span>
         </div>
       </section>
 
@@ -176,18 +178,18 @@ function ProcessManagerPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索应用名称、PID 或端口…"
-              aria-label="搜索进程"
+              placeholder={t('processes.searchPlaceholder')}
+              aria-label={t('processes.searchAria')}
             />
             {query && (
-              <button type="button" onClick={() => setQuery('')} aria-label="清空搜索">
+              <button type="button" onClick={() => setQuery('')} aria-label={t('common.clear')}>
                 <X size={16} />
               </button>
             )}
           </div>
           <div className="process-result-meta">
-            {lastUpdated && <span>更新于 {lastUpdated}</span>}
-            <strong>{pagination.total} 个结果</strong>
+            {lastUpdated && <span>{t('processes.updatedAt', { time: lastUpdated })}</span>}
+            <strong>{t('processes.results', { count: pagination.total })}</strong>
           </div>
         </div>
 
@@ -195,25 +197,25 @@ function ProcessManagerPage() {
           <div className="process-message error">
             <CircleStop size={20} />
             <span>{error}</span>
-            <button type="button" onClick={() => loadProcesses()}>重新加载</button>
+            <button type="button" onClick={() => loadProcesses()}>{t('processes.reload')}</button>
           </div>
         ) : loading && processes.length === 0 ? (
           <div className="process-message">
             <LoaderCircle size={22} className="process-spin" />
-            正在读取 Windows 进程与监听端口…
+            {t('processes.loading')}
           </div>
         ) : processes.length === 0 ? (
-          <div className="process-message">没有找到匹配的进程</div>
+          <div className="process-message">{t('processes.noMatch')}</div>
         ) : (
           <div className="process-table-wrap">
             <table className="process-table">
               <thead>
                 <tr>
-                  <th>应用</th>
+                  <th>{t('processes.colApp')}</th>
                   <th><Hash size={13} /> PID</th>
-                  <th>监听端口</th>
-                  <th>内存</th>
-                  <th><span className="sr-only">操作</span></th>
+                  <th>{t('processes.colPorts')}</th>
+                  <th>{t('processes.colMemory')}</th>
+                  <th><span className="sr-only">{t('processes.colAction')}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -223,9 +225,9 @@ function ProcessManagerPage() {
                       <div className="process-app-cell">
                         <span className="process-avatar">{String(item.name || '?').charAt(0).toUpperCase()}</span>
                         <span className="process-app-copy">
-                          <strong>{item.name || '未知进程'}</strong>
-                          <small title={item.path || '系统进程或路径不可见'}>
-                            {item.path || '系统进程或路径不可见'}
+                          <strong>{item.name || t('processes.unknownName')}</strong>
+                          <small title={item.path || t('processes.systemPath')}>
+                            {item.path || t('processes.systemPath')}
                           </small>
                         </span>
                       </div>
@@ -252,8 +254,8 @@ function ProcessManagerPage() {
                     <td><span className="process-memory">{formatMemory(item.workingSetBytes)}</span></td>
                     <td className="process-action-cell">
                       {item.protected ? (
-                        <span className="process-protected" title="Windows 核心进程或 LaunchPad 自身受到保护">
-                          <ShieldCheck size={15} /> 已保护
+                        <span className="process-protected" title={t('processes.protectedTitle')}>
+                          <ShieldCheck size={15} /> {t('processes.protected')}
                         </span>
                       ) : (
                         <button
@@ -261,12 +263,12 @@ function ProcessManagerPage() {
                           className="process-kill"
                           disabled={terminatingPid === item.pid}
                           onClick={() => handleTerminate(item)}
-                          title="结束该进程及其子进程"
+                          title={t('processes.killTitle')}
                         >
                           {terminatingPid === item.pid
                             ? <LoaderCircle size={15} className="process-spin" />
                             : <CircleStop size={15} />}
-                          结束
+                          {t('processes.kill')}
                         </button>
                       )}
                     </td>
@@ -278,16 +280,16 @@ function ProcessManagerPage() {
         )}
 
         {!error && (
-          <div className="process-pagination" aria-label="进程列表分页">
+          <div className="process-pagination" aria-label={t('processes.pageAria')}>
             <span className="process-page-summary">
-              第 {page} / {pagination.totalPages} 页 · 每页 {PAGE_SIZE} 条
+              {t('processes.pageSummary', { page, total: pagination.totalPages, size: PAGE_SIZE })}
             </span>
             <div className="process-page-controls">
               <button
                 type="button"
                 onClick={() => setPage((value) => Math.max(1, value - 1))}
                 disabled={page <= 1 || loading}
-                aria-label="上一页"
+                aria-label={t('processes.prevAria')}
               >
                 <ChevronLeft size={15} />
               </button>
@@ -309,7 +311,7 @@ function ProcessManagerPage() {
                 type="button"
                 onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))}
                 disabled={page >= pagination.totalPages || loading}
-                aria-label="下一页"
+                aria-label={t('processes.nextAria')}
               >
                 <ChevronRight size={15} />
               </button>

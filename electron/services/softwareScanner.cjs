@@ -6,9 +6,10 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execFile } = require('child_process')
+const { t } = require('../i18n.cjs')
 
 function createAbortError() {
-  const error = new Error('扫描已取消')
+  const error = new Error(t('errors.scanCancelled'))
   error.name = 'AbortError'
   return error
 }

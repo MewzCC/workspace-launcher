@@ -6,17 +6,10 @@ import GlassCard from '../components/ui/GlassCard'
 import { useStore } from '../store/useStore'
 import { logsApi } from '../lib/ipc'
 import { useProcessStatuses } from '../hooks/useProcessStatuses'
+import { useT } from '../hooks/useT'
 import './Monitor.css'
 
-// 状态枚举到中文文案的映射
-const STATUS_LABEL = {
-  pending: '待启动',
-  running: '运行中',
-  success: '成功',
-  failed: '失败',
-  stopped: '已停止'
-}
-
+// 状态枚举到文案的映射由 useT 动态提供
 // 根据启动进度判断单个软件当前状态
 // launching: store.launching；softwareId: 软件记录 id；activeWorkspaceId: 当前监控的工作空间 id
 function resolveSoftwareStatus(launching, software, activeWorkspaceId, processStatuses) {
@@ -40,21 +33,38 @@ function resolveSoftwareStatus(launching, software, activeWorkspaceId, processSt
 
 // 单个软件状态行：状态灯 + 软件名 + 状态文案
 function StatusSoftware({ software, status }) {
+  const t = useT()
+  const labelMap = {
+    pending: t('monitor.status.pending'),
+    running: t('monitor.status.running'),
+    success: t('monitor.status.success'),
+    failed: t('monitor.status.failed'),
+    stopped: t('monitor.status.stopped')
+  }
   return (
     <div className="status-software">
       <span className={`status-dot ${status}`} />
       <span className="status-software-name">{software.name}</span>
       <span className={`status-software-label status-text-${status}`}>
-        {STATUS_LABEL[status] || status}
+        {labelMap[status] || status}
       </span>
     </div>
   )
 }
 
 // 单条日志行：时间 + 状态图标 + 软件名 + 消息
+// 优先按 message_key + message_params 用当前语言翻译；无 key 时回退到持久化原文
 function LogItem({ log, softwareName }) {
+  const t = useT()
   const isFailed = log.status === 'failed'
   const isSuccess = log.status === 'success'
+  let message = log.message || ''
+  if (log.message_key) {
+    const translated = t(log.message_key, log.message_params || {})
+    if (translated && translated !== log.message_key) {
+      message = translated
+    }
+  }
   return (
     <div className={`log-item ${isFailed ? 'failed' : ''}`}>
       <span className="log-time">{log.timestamp || ''}</span>
@@ -62,12 +72,13 @@ function LogItem({ log, softwareName }) {
         {isSuccess ? '✓' : isFailed ? '✗' : '•'}
       </span>
       <span className="log-software">{softwareName || '-'}</span>
-      <span className="log-message">{log.message || ''}</span>
+      <span className="log-message">{message}</span>
     </div>
   )
 }
 
 function Monitor() {
+  const t = useT()
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
   const logs = useStore((s) => s.logs)
@@ -117,8 +128,8 @@ function Monitor() {
       {/* 页面标题 */}
       <section className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">状态监控</h1>
-          <p className="page-subtitle">查看工作空间运行状态与启动日志</p>
+          <h1 className="page-title">{t('monitor.title')}</h1>
+          <p className="page-subtitle">{t('monitor.subtitle')}</p>
         </div>
       </section>
 
@@ -129,7 +140,7 @@ function Monitor() {
           className={`ws-picker-btn ${activeWorkspaceId == null ? 'active' : ''}`}
           onClick={() => setActiveWorkspace(null)}
         >
-          全部
+          {t('monitor.all')}
         </button>
         {workspaces.map((w) => (
           <button
@@ -167,18 +178,18 @@ function Monitor() {
               ))}
             </div>
           ) : (
-            <div className="empty-state">该工作空间未配置软件</div>
+            <div className="empty-state">{t('monitor.noSoftware')}</div>
           )}
         </GlassCard>
       ) : (
         <GlassCard hover={false} className="status-section">
-          <div className="status-section-title">未选择工作空间，显示全局最近日志</div>
+          <div className="status-section-title">{t('monitor.noSelection')}</div>
         </GlassCard>
       )}
 
       {/* 日志区 */}
       <GlassCard hover={false} className="log-section">
-        <div className="log-section-title">启动日志</div>
+        <div className="log-section-title">{t('monitor.logs')}</div>
         {logs && logs.length > 0 ? (
           <div className="log-list">
             {logs.map((log) => (
@@ -192,7 +203,7 @@ function Monitor() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">暂无日志</div>
+          <div className="empty-state">{t('monitor.noLogs')}</div>
         )}
       </GlassCard>
     </div>

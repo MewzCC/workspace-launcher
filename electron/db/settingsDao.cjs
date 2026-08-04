@@ -4,7 +4,8 @@ const DEFAULTS = {
   closeToTray: true,
   openAtLogin: false,
   startMinimized: true,
-  killBeforeLaunch: false
+  killBeforeLaunch: false,
+  language: 'zh-CN'
 }
 
 let stmts = null

@@ -6,9 +6,11 @@ import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import { workspaceApi, softwareApi, externalApi, systemApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
+import { useT } from '../hooks/useT'
 import './Settings.css'
 
 export function Settings() {
+  const t = useT()
   const repositoryUrl = 'https://github.com/MewzCC/workspace-launcher'
   // 从 store 读取工作空间、软件列表及刷新动作
   const workspaces = useStore((s) => s.workspaces)
@@ -42,9 +44,9 @@ export function Settings() {
       const result = await setters[key](value)
       if (result?.error) throw new Error(result.error)
       setSystemSettings(result)
-      setSystemMessage('设置已保存')
+      setSystemMessage(t('settings.saved'))
     } catch (error) {
-      setSystemMessage(error.message || '设置保存失败')
+      setSystemMessage(error.message || t('settings.saveFailed'))
     } finally {
       setSavingSetting('')
     }
@@ -52,7 +54,7 @@ export function Settings() {
 
   // 清除所有数据：二次确认后逐个删除工作空间与软件，并刷新 store
   const handleClearAll = async () => {
-    const confirmed = window.confirm('确定要清除所有数据吗？此操作不可恢复！')
+    const confirmed = window.confirm(t('settings.clearConfirm'))
     if (!confirmed) return
 
     setClearing(true)
@@ -84,24 +86,24 @@ export function Settings() {
     <div className="settings">
       <section className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">设置</h1>
-          <p className="page-subtitle">管理系统托盘、开机启动、进程策略与本地数据</p>
+          <h1 className="page-title">{t('settings.title')}</h1>
+          <p className="page-subtitle">{t('settings.subtitle')}</p>
         </div>
       </section>
 
       {/* 应用信息 */}
       <GlassCard className="settings-section" hover={false}>
-        <h3>应用信息</h3>
+        <h3>{t('settings.appInfo')}</h3>
         <div className="info-row">
-          <span className="info-label">名称</span>
+          <span className="info-label">{t('settings.name')}</span>
           <span className="info-value">LaunchPad</span>
         </div>
         <div className="info-row">
-          <span className="info-label">版本</span>
+          <span className="info-label">{t('settings.version')}</span>
           <span className="info-value">1.2.0</span>
         </div>
         <div className="info-row">
-          <span className="info-label">技术栈</span>
+          <span className="info-label">{t('settings.stack')}</span>
           <span className="info-value">Electron + React + SQLite</span>
         </div>
       </GlassCard>
@@ -110,66 +112,66 @@ export function Settings() {
         <div className="system-settings-heading">
           <span className="system-settings-icon" aria-hidden="true"><Rocket size={22} /></span>
           <div>
-            <h3>系统与启动</h3>
-            <p>让 LaunchPad 随时驻留，并控制工作空间启动前的进程行为。</p>
+            <h3>{t('settings.systemStartup')}</h3>
+            <p>{t('settings.systemStartupDesc')}</p>
           </div>
-          <span className="tray-live-badge"><span /> 托盘运行中</span>
+          <span className="tray-live-badge"><span /> {t('settings.trayRunning')}</span>
         </div>
 
         <div className="system-setting-list">
           <div className="system-setting-row">
             <span className="system-setting-symbol"><Power size={18} /></span>
             <div className="system-setting-copy">
-              <strong>开机自动启动</strong>
-              <span>{systemSettings?.packaged === false ? '请在安装版或便携版中启用此功能' : '登录 Windows 后自动启动 LaunchPad'}</span>
+              <strong>{t('settings.openAtLogin')}</strong>
+              <span>{systemSettings?.packaged === false ? t('settings.openAtLoginDescPackaged') : t('settings.openAtLoginDesc')}</span>
             </div>
             <Toggle
               checked={Boolean(systemSettings?.openAtLogin)}
               disabled={!systemSettings || savingSetting === 'openAtLogin' || systemSettings.packaged === false}
               onChange={(event) => updateSystemSetting('openAtLogin', event.target.checked)}
-              ariaLabel="开机自动启动"
+              ariaLabel={t('settings.openAtLogin')}
             />
           </div>
 
           <div className="system-setting-row">
             <span className="system-setting-symbol"><AppWindow size={18} /></span>
             <div className="system-setting-copy">
-              <strong>开机后静默驻留托盘</strong>
-              <span>通过开机启动进入时不显示主窗口，需要时从托盘唤起</span>
+              <strong>{t('settings.startMinimized')}</strong>
+              <span>{t('settings.startMinimizedDesc')}</span>
             </div>
             <Toggle
               checked={Boolean(systemSettings?.startMinimized)}
               disabled={!systemSettings || savingSetting === 'startMinimized'}
               onChange={(event) => updateSystemSetting('startMinimized', event.target.checked)}
-              ariaLabel="开机后静默驻留托盘"
+              ariaLabel={t('settings.startMinimized')}
             />
           </div>
 
           <div className="system-setting-row">
             <span className="system-setting-symbol"><Rocket size={18} /></span>
             <div className="system-setting-copy">
-              <strong>关闭窗口时驻留托盘</strong>
-              <span>点击关闭按钮仅隐藏窗口，托盘仍可快速启动工作空间</span>
+              <strong>{t('settings.closeToTray')}</strong>
+              <span>{t('settings.closeToTrayDesc')}</span>
             </div>
             <Toggle
               checked={Boolean(systemSettings?.closeToTray)}
               disabled={!systemSettings || savingSetting === 'closeToTray'}
               onChange={(event) => updateSystemSetting('closeToTray', event.target.checked)}
-              ariaLabel="关闭窗口时驻留托盘"
+              ariaLabel={t('settings.closeToTray')}
             />
           </div>
 
           <div className="system-setting-row process-policy-row">
             <span className="system-setting-symbol"><RefreshCcw size={18} /></span>
             <div className="system-setting-copy">
-              <strong>启动前结束已有进程</strong>
-              <span>按完整 EXE 路径结束工作空间中已经运行的软件，再重新启动</span>
+              <strong>{t('settings.killBeforeLaunch')}</strong>
+              <span>{t('settings.killBeforeLaunchDesc')}</span>
             </div>
             <Toggle
               checked={Boolean(systemSettings?.killBeforeLaunch)}
               disabled={!systemSettings || savingSetting === 'killBeforeLaunch'}
               onChange={(event) => updateSystemSetting('killBeforeLaunch', event.target.checked)}
-              ariaLabel="启动前结束已有进程"
+              ariaLabel={t('settings.killBeforeLaunch')}
             />
           </div>
         </div>
@@ -182,9 +184,9 @@ export function Settings() {
             <Code2 size={24} />
           </span>
           <div>
-            <h3>开源仓库</h3>
+            <h3>{t('settings.repo')}</h3>
             <p className="repository-desc">
-              查看源代码、下载最新版本，或提交功能建议与问题反馈。
+              {t('settings.repoDesc')}
             </p>
             <code className="repository-path">MewzCC/workspace-launcher</code>
           </div>
@@ -195,34 +197,34 @@ export function Settings() {
           onClick={() => externalApi.open(repositoryUrl)}
         >
           <Star size={15} />
-          在 GitHub 查看
+          {t('settings.github')}
           <ExternalLink size={14} />
         </GlowButton>
       </GlassCard>
 
       {/* 数据信息 */}
       <GlassCard className="settings-section" hover={false}>
-        <h3>数据信息</h3>
+        <h3>{t('settings.dataInfo')}</h3>
         <div className="info-row">
-          <span className="info-label">数据库路径</span>
-          <span className="info-value">存储在用户数据目录</span>
+          <span className="info-label">{t('settings.dbPath')}</span>
+          <span className="info-value">{t('settings.dbPathDesc')}</span>
         </div>
         <div className="info-row">
-          <span className="info-label">工作空间数量</span>
+          <span className="info-label">{t('settings.wsCount')}</span>
           <span className="info-value">{workspaces.length}</span>
         </div>
         <div className="info-row">
-          <span className="info-label">软件数量</span>
+          <span className="info-label">{t('settings.swCount')}</span>
           <span className="info-value">{software.length}</span>
         </div>
       </GlassCard>
 
       {/* 危险操作区 */}
       <GlassCard className="settings-section" hover={false}>
-        <h3>危险操作</h3>
+        <h3>{t('settings.danger')}</h3>
         <div className="danger-zone">
           <p className="danger-desc">
-            清除所有工作空间与软件数据，此操作不可恢复。
+            {t('settings.dangerDesc')}
           </p>
           <GlowButton
             variant="ghost"
@@ -231,7 +233,7 @@ export function Settings() {
             disabled={clearing}
             onClick={handleClearAll}
           >
-            {clearing ? '清除中...' : '清除所有数据'}
+            {clearing ? t('settings.clearing') : t('settings.clearAll')}
           </GlowButton>
         </div>
       </GlassCard>

@@ -25,6 +25,7 @@ import Modal from '../components/Modal'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
 import { softwareApi, batScriptApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
+import { useT } from '../hooks/useT'
 import './SoftwareLibrary.css'
 
 // 预设 emoji 图标列表
@@ -32,6 +33,7 @@ const PRESET_ICONS = ['📦', '🌐', '💻', '🐳', '⌨', '🎵', '🎮', '�
 
 // 内联模态：添加/编辑软件表单（复用共享 Modal）
 function SoftwareModal({ initial, onSave, onClose }) {
+  const t = useT()
   // 表单状态：编辑时预填，新建时默认值
   const [form, setForm] = useState({
     name: initial?.name || '',
@@ -70,14 +72,14 @@ function SoftwareModal({ initial, onSave, onClose }) {
   // 保存：校验名称必填，调用 onSave 提交
   const handleSave = async () => {
     if (!form.name.trim() || !form.path.trim()) {
-      setValidation({ state: 'error', message: '请填写软件名称并选择可执行文件。' })
+      setValidation({ state: 'error', message: t('software.requiredFields') })
       return
     }
     setSaving(true)
     const pathChanged = !initial || form.path.trim() !== initial.path || form.args.trim() !== (initial.args || '')
     setValidation({
       state: pathChanged ? 'testing' : 'idle',
-      message: pathChanged ? '正在请求 Windows 启动程序，验证成功后才会保存…' : ''
+      message: pathChanged ? t('software.testingMsg') : ''
     })
     try {
       const result = await onSave({
@@ -90,10 +92,10 @@ function SoftwareModal({ initial, onSave, onClose }) {
       if (result?.success === false) {
         setValidation({ state: 'error', message: result.message })
       } else if (pathChanged) {
-        setValidation({ state: 'success', message: '启动验证成功，软件已添加。' })
+        setValidation({ state: 'success', message: t('software.validatedMsg') })
       }
     } catch (err) {
-      setValidation({ state: 'error', message: err.message || '启动验证失败' })
+      setValidation({ state: 'error', message: err.message || t('software.validateFailed') })
     } finally {
       setSaving(false)
     }
@@ -101,37 +103,37 @@ function SoftwareModal({ initial, onSave, onClose }) {
 
   return (
     <Modal
-      title={initial ? '编辑软件' : '添加软件'}
+      title={initial ? t('software.editTitle') : t('software.addTitle')}
       onClose={onClose}
       onSave={handleSave}
-      saveText={saving ? '正在验证并启动...' : initial ? '保存' : '验证并添加'}
+      saveText={saving ? t('software.savingValidating') : initial ? t('common.save') : t('software.saveAndValidate')}
       saveDisabled={saving}
       closeDisabled={saving}
     >
       {/* 名称（必填） */}
       <div className="form-group">
-        <label className="form-label">名称 *</label>
+        <label className="form-label">{t('common.nameRequired')}</label>
         <input
           className="form-input"
           value={form.name}
           onChange={(e) => update('name', e.target.value)}
-          placeholder="例如：VS Code"
+          placeholder={t('software.namePlaceholder')}
           autoFocus
         />
       </div>
       {/* 描述 */}
       <div className="form-group">
-        <label className="form-label">描述</label>
+        <label className="form-label">{t('common.description')}</label>
         <input
           className="form-input"
           value={form.description}
           onChange={(e) => update('description', e.target.value)}
-          placeholder="简要描述（可选）"
+          placeholder={t('software.descPlaceholder')}
         />
       </div>
       {/* 图标选择：预设 emoji + 自定义输入 */}
       <div className="form-group">
-        <label className="form-label">图标</label>
+        <label className="form-label">{t('common.icon')}</label>
         <div className="emoji-picker">
           {PRESET_ICONS.map((ic) => (
             <button
@@ -148,34 +150,34 @@ function SoftwareModal({ initial, onSave, onClose }) {
             value={form.icon}
             onChange={(e) => update('icon', e.target.value)}
             maxLength={4}
-            title="自定义 emoji"
+            title={t('software.customEmoji')}
           />
         </div>
       </div>
       {/* 可执行文件路径 + 浏览按钮 */}
       <div className="form-group">
-        <label className="form-label">可执行文件路径</label>
+        <label className="form-label">{t('software.exePath')}</label>
         <div className="path-row">
           <input
             className="form-input"
             value={form.path}
             onChange={(e) => update('path', e.target.value)}
-            placeholder="C:\Program Files\app\app.exe"
+            placeholder={t('software.exePathPlaceholder')}
           />
           <GlowButton type="button" variant="ghost" size="sm" onClick={handleBrowse}>
             <FolderOpen size={14} />
-            浏览
+            {t('common.browse')}
           </GlowButton>
         </div>
       </div>
       {/* 启动参数 */}
       <div className="form-group">
-        <label className="form-label">启动参数</label>
+        <label className="form-label">{t('common.launchArgs')}</label>
         <input
           className="form-input"
           value={form.args}
           onChange={(e) => update('args', e.target.value)}
-          placeholder="例如：--fullscreen（可选）"
+          placeholder={t('software.argsPlaceholder')}
         />
       </div>
       <div className={`launch-validation ${validation.state}`} role="status" aria-live="polite">
@@ -185,8 +187,8 @@ function SoftwareModal({ initial, onSave, onClose }) {
         </span>
         <span>
           {validation.message || (initial
-            ? '修改路径或启动参数时，将重新验证程序是否能够启动。'
-            : '添加前会实际启动一次程序；只有启动成功才会写入软件库。')}
+            ? t('software.editHint')
+            : t('software.addHint'))}
         </span>
       </div>
     </Modal>
@@ -195,6 +197,7 @@ function SoftwareModal({ initial, onSave, onClose }) {
 
 // 单个软件卡片
 function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
+  const t = useT()
   // 测试启动状态：testing/success/fail/undefined
   const status = testStatus[item.id]
   const testIcon =
@@ -202,9 +205,9 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
     status === 'success' ? <Check size={14} /> :
     status === 'fail' ? <X size={14} /> : <Play size={14} />
   const testText =
-    status === 'testing' ? '启动中...' :
-    status === 'success' ? '已启动' :
-    status === 'fail' ? '失败' : '测试启动'
+    status === 'testing' ? t('common.starting') :
+    status === 'success' ? t('common.started') :
+    status === 'fail' ? t('common.failed') : t('software.test')
   const testClass =
     status === 'success' ? 'btn-test-success' :
     status === 'fail' ? 'btn-test-fail' : ''
@@ -217,20 +220,20 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
         </span>
         <span className="sw-name">{item.name}</span>
       </div>
-      <div className="sw-desc">{item.description || '暂无描述'}</div>
-      <div className="sw-path" title={item.path}>{item.path || '未设置路径'}</div>
+      <div className="sw-desc">{item.description || t('common.noDescription')}</div>
+      <div className="sw-path" title={item.path}>{item.path || t('common.noPath')}</div>
       <div className="sw-status">
         <span className="sw-status-dot available"></span>
-        <span>可用</span>
+        <span>{t('common.available')}</span>
       </div>
       <div className="sw-actions">
         <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
           <Pencil size={14} />
-          编辑
+          {t('common.edit')}
         </GlowButton>
         <GlowButton variant="ghost" size="sm" className="btn-danger" onClick={() => onDelete(item)}>
           <Trash2 size={14} />
-          删除
+          {t('common.delete')}
         </GlowButton>
         <GlowButton
           variant="secondary"
@@ -248,15 +251,16 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
 }
 
 function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
+  const t = useT()
   const status = testStatus[item.id]
   const testIcon =
     status === 'testing' ? null :
     status === 'success' ? <Check size={14} /> :
     status === 'fail' ? <X size={14} /> : <Play size={14} />
   const testText =
-    status === 'testing' ? '启动中...' :
-    status === 'success' ? '已启动' :
-    status === 'fail' ? '失败' : '测试启动'
+    status === 'testing' ? t('common.starting') :
+    status === 'success' ? t('common.started') :
+    status === 'fail' ? t('common.failed') : t('software.test')
   const testClass =
     status === 'success' ? 'btn-test-success' :
     status === 'fail' ? 'btn-test-fail' : ''
@@ -270,21 +274,21 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
         <div className="software-row-copy">
           <span className="software-row-name">{item.name}</span>
           <span className="software-row-path" title={item.path}>
-            {item.path || '未设置路径'}
+            {item.path || t('common.noPath')}
           </span>
         </div>
       </div>
       <div className="software-row-description">
-        {item.description || '暂无描述'}
+        {item.description || t('common.noDescription')}
       </div>
       <div className="software-row-status">
         <span className="sw-status-dot available"></span>
-        可用
+        {t('common.available')}
       </div>
       <div className="software-row-actions">
         <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
           <Pencil size={14} />
-          编辑
+          {t('common.edit')}
         </GlowButton>
         <GlowButton
           variant="secondary"
@@ -300,8 +304,8 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
           type="button"
           className="software-row-delete"
           onClick={() => onDelete(item)}
-          aria-label={`删除 ${item.name}`}
-          title="删除"
+          aria-label={t('software.deleteAria', { name: item.name })}
+          title={t('common.delete')}
         >
           <Trash2 size={15} />
         </button>
@@ -311,6 +315,7 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
 }
 
 function BatScriptModal({ initial, onSave, onClose }) {
+  const t = useT()
   const [form, setForm] = useState({
     name: initial?.name || '',
     description: initial?.description || '',
@@ -323,7 +328,7 @@ function BatScriptModal({ initial, onSave, onClose }) {
 
   const handleBrowse = async () => {
     const filePath = await dialogApi.openFile([
-      { name: 'Windows 批处理脚本', extensions: ['bat', 'cmd'] }
+      { name: t('software.batFileFilter'), extensions: ['bat', 'cmd'] }
     ])
     if (!filePath) return
     setForm((current) => ({
@@ -350,56 +355,56 @@ function BatScriptModal({ initial, onSave, onClose }) {
 
   return (
     <Modal
-      title={initial ? '编辑 BAT 脚本' : '添加 BAT 脚本'}
+      title={initial ? t('software.batEditTitle') : t('software.batTitle')}
       onClose={onClose}
       onSave={handleSave}
-      saveText={saving ? '保存中...' : '保存脚本'}
+      saveText={saving ? t('common.saving') : t('software.saveScript')}
     >
       <div className="bat-modal-note">
         <Terminal size={16} />
-        仅支持本地 .bat 与 .cmd 文件。执行时会打开 Windows 命令窗口。
+        {t('software.batNote')}
       </div>
       <div className="form-group">
-        <label className="form-label">名称 *</label>
+        <label className="form-label">{t('common.nameRequired')}</label>
         <input
           className="form-input"
           value={form.name}
           onChange={(event) => update('name', event.target.value)}
-          placeholder="例如：启动开发环境"
+          placeholder={t('software.batNamePlaceholder')}
           autoFocus
         />
       </div>
       <div className="form-group">
-        <label className="form-label">描述</label>
+        <label className="form-label">{t('common.description')}</label>
         <input
           className="form-input"
           value={form.description}
           onChange={(event) => update('description', event.target.value)}
-          placeholder="说明这个脚本会做什么（可选）"
+          placeholder={t('software.batDescPlaceholder')}
         />
       </div>
       <div className="form-group">
-        <label className="form-label">脚本路径 *</label>
+        <label className="form-label">{t('software.batPath')}</label>
         <div className="path-row">
           <input
             className="form-input"
             value={form.path}
             onChange={(event) => update('path', event.target.value)}
-            placeholder="D:\\Scripts\\start-dev.bat"
+            placeholder={t('software.batPathPlaceholder')}
           />
           <GlowButton type="button" variant="ghost" size="sm" onClick={handleBrowse}>
             <FolderOpen size={14} />
-            浏览
+            {t('common.browse')}
           </GlowButton>
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">启动参数</label>
+        <label className="form-label">{t('common.launchArgs')}</label>
         <input
           className="form-input"
           value={form.args}
           onChange={(event) => update('args', event.target.value)}
-          placeholder="例如：--dev 3000（可选）"
+          placeholder={t('software.batArgsPlaceholder')}
         />
       </div>
     </Modal>
@@ -407,6 +412,7 @@ function BatScriptModal({ initial, onSave, onClose }) {
 }
 
 function BatScriptCard({ item, runStatus, onEdit, onDelete, onRun }) {
+  const t = useT()
   const status = runStatus[item.id]
   return (
     <GlassCard className="bat-script-card" hover>
@@ -417,18 +423,18 @@ function BatScriptCard({ item, runStatus, onEdit, onDelete, onRun }) {
           <span className="bat-script-type">BAT / CMD</span>
         </div>
       </div>
-      <p className="bat-script-desc">{item.description || '暂无描述'}</p>
+      <p className="bat-script-desc">{item.description || t('common.noDescription')}</p>
       <div className="bat-script-path" title={item.path}>{item.path}</div>
-      {item.args && <div className="bat-script-args">参数：{item.args}</div>}
+      {item.args && <div className="bat-script-args">{t('software.batArgs', { args: item.args })}</div>}
       <div className="bat-script-actions">
         <GlowButton variant="primary" size="sm" disabled={status === 'running'} onClick={() => onRun(item)}>
           <Play size={14} />
-          {status === 'running' ? '启动中...' : status === 'success' ? '已启动' : status === 'fail' ? '启动失败' : '运行脚本'}
+          {status === 'running' ? t('common.starting') : status === 'success' ? t('common.started') : status === 'fail' ? t('software.runFailed') : t('software.runScript')}
         </GlowButton>
         <GlowButton variant="ghost" size="sm" onClick={() => onEdit(item)}>
-          <Pencil size={14} /> 编辑
+          <Pencil size={14} /> {t('common.edit')}
         </GlowButton>
-        <button type="button" className="software-row-delete" onClick={() => onDelete(item)} aria-label={`删除 ${item.name}`}>
+        <button type="button" className="software-row-delete" onClick={() => onDelete(item)} aria-label={t('software.deleteAria', { name: item.name })}>
           <Trash2 size={15} />
         </button>
       </div>
@@ -437,6 +443,7 @@ function BatScriptCard({ item, runStatus, onEdit, onDelete, onRun }) {
 }
 
 function SoftwareLibrary() {
+  const t = useT()
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
   const [activeTab, setActiveTab] = useState('software')
@@ -528,29 +535,29 @@ function SoftwareLibrary() {
           }
         })
       if (items.length === 0) {
-        setNotice('所选文件均已存在于软件库')
+        setNotice(t('software.bulkAllExisting'))
         return
       }
       if (items.length > 20) {
-        setNotice('为避免同时打开过多程序，请每次选择不超过 20 个软件进行验证')
+        setNotice(t('software.bulkTooMany'))
         return
       }
       const res = await softwareApi.bulkCreateValidated(items)
       if (res && res.error) {
-        setNotice('批量添加失败：' + res.error)
+        setNotice(t('software.bulkFailed') + res.error)
         return
       }
       await refresh()
       const createdCount = res.created?.length || 0
       const failed = res.failed || []
       const skipped = filePaths.length - items.length
-      const skipText = skipped > 0 ? `（跳过 ${skipped} 个已存在）` : ''
+      const skipText = skipped > 0 ? t('software.bulkSkipped', { count: skipped }) : ''
       const failText = failed.length > 0
-        ? `；${failed.length} 个启动失败未添加：${failed.slice(0, 2).map((item) => item.name).join('、')}`
+        ? t('software.bulkFailedList', { count: failed.length, names: failed.slice(0, 2).map((item) => item.name).join('、') })
         : ''
-      setNotice(`验证通过并添加 ${createdCount} 个软件${skipText}${failText}`)
+      setNotice(t('software.bulkResult', { count: createdCount }) + skipText + failText)
     } catch (e) {
-      setNotice('批量添加失败：' + (e.message || '未知错误'))
+      setNotice(t('software.bulkFailed') + (e.message || t('common.unknownError')))
     } finally {
       setBulkAdding(false)
     }
@@ -564,10 +571,10 @@ function SoftwareLibrary() {
 
   // 删除：确认后调用 remove 并刷新
   const handleDelete = async (item) => {
-    if (!window.confirm(`确定删除「${item.name}」吗？`)) return
+    if (!window.confirm(t('software.deleteConfirm', { name: item.name }))) return
     const res = await softwareApi.remove(item.id)
     if (res && res.error) {
-      window.alert('删除失败：' + res.error)
+      window.alert(t('software.deleteFailed') + res.error)
       return
     }
     await refresh()
@@ -639,7 +646,7 @@ function SoftwareLibrary() {
       ? await batScriptApi.update(editingBat.id, data)
       : await batScriptApi.create(data)
     if (result?.error) {
-      window.alert('保存失败：' + result.error)
+      window.alert(t('common.savingFailed') + result.error)
       return
     }
     await refreshBatScripts()
@@ -648,10 +655,10 @@ function SoftwareLibrary() {
   }
 
   const deleteBat = async (item) => {
-    if (!window.confirm(`确定删除脚本「${item.name}」吗？`)) return
+    if (!window.confirm(t('software.batDeleteConfirm', { name: item.name }))) return
     const result = await batScriptApi.remove(item.id)
     if (result?.error) {
-      window.alert('删除失败：' + result.error)
+      window.alert(t('software.deleteFailed') + result.error)
       return
     }
     await refreshBatScripts()
@@ -702,51 +709,51 @@ function SoftwareLibrary() {
     <div className="software-page">
       <section className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">软件库</h1>
-          <p className="page-subtitle">管理可启动的应用程序，配置路径与启动参数</p>
+          <h1 className="page-title">{t('software.title')}</h1>
+          <p className="page-subtitle">{t('software.subtitle')}</p>
         </div>
         <div className="page-actions">
           {activeTab === 'software' ? (
             <>
-              <div className="view-switcher" role="group" aria-label="软件库展示方式">
+              <div className="view-switcher" role="group" aria-label={t('software.viewSwitchAria')}>
                 <button
                   type="button"
                   className={`view-switcher-btn ${viewMode === 'grid' ? 'active' : ''}`}
                   onClick={() => changeViewMode('grid')}
                   aria-pressed={viewMode === 'grid'}
-                  title="卡片视图"
+                  title={t('software.viewGridTitle')}
                 >
                   <LayoutGrid size={16} />
-                  <span>卡片</span>
+                  <span>{t('software.viewGrid')}</span>
                 </button>
                 <button
                   type="button"
                   className={`view-switcher-btn ${viewMode === 'list' ? 'active' : ''}`}
                   onClick={() => changeViewMode('list')}
                   aria-pressed={viewMode === 'list'}
-                  title="列表视图"
+                  title={t('software.viewListTitle')}
                 >
                   <List size={17} />
-                  <span>列表</span>
+                  <span>{t('software.viewList')}</span>
                 </button>
               </div>
               <GlowButton variant="secondary" onClick={handleBulkAdd} disabled={bulkAdding}>
                 <FolderOpen size={16} />
-                {bulkAdding ? '正在验证...' : '批量验证添加'}
+                {bulkAdding ? t('software.bulkAdding') : t('software.bulkAdd')}
               </GlowButton>
               <GlowButton variant="primary" onClick={handleAdd}>
-                <Plus size={16} /> 添加软件
+                <Plus size={16} /> {t('software.add')}
               </GlowButton>
             </>
           ) : (
             <GlowButton variant="primary" onClick={openAddBat}>
-              <Plus size={16} /> 添加 BAT 脚本
+              <Plus size={16} /> {t('software.addBat')}
             </GlowButton>
           )}
         </div>
       </section>
 
-      <div className={`library-tabs ${activeTab === 'bat' ? 'show-bat' : ''}`} role="tablist" aria-label="软件库类型">
+      <div className={`library-tabs ${activeTab === 'bat' ? 'show-bat' : ''}`} role="tablist" aria-label={t('software.tabsAria')}>
         <span className="library-tab-slider" aria-hidden="true" />
         <button
           type="button"
@@ -756,7 +763,7 @@ function SoftwareLibrary() {
           aria-selected={activeTab === 'software'}
         >
           <Package size={17} />
-          应用程序
+          {t('software.tabApps')}
           <span className="library-tab-count">{software.length}</span>
         </button>
         <button
@@ -767,7 +774,7 @@ function SoftwareLibrary() {
           aria-selected={activeTab === 'bat'}
         >
           <Terminal size={17} />
-          BAT 脚本
+          {t('software.tabBat')}
           <span className="library-tab-count">{batScripts.length}</span>
         </button>
       </div>
@@ -777,16 +784,16 @@ function SoftwareLibrary() {
         <input
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder={activeTab === 'software' ? '搜索软件名称、路径、描述或参数' : '搜索脚本名称、路径、描述或参数'}
-          aria-label={activeTab === 'software' ? '搜索软件' : '搜索 BAT 脚本'}
+          placeholder={activeTab === 'software' ? t('software.searchPlaceholder') : t('software.searchBatPlaceholder')}
+          aria-label={activeTab === 'software' ? t('software.searchAria') : t('software.searchBatAria')}
         />
         {searchQuery && (
-          <button type="button" onClick={() => setSearchQuery('')} aria-label="清空搜索">
+          <button type="button" onClick={() => setSearchQuery('')} aria-label={t('common.clear')}>
             <X size={15} />
           </button>
         )}
         <span className="library-search-result">
-          {activeTab === 'software' ? filteredSoftware.length : filteredBatScripts.length} 个结果
+          {t('software.results', { count: activeTab === 'software' ? filteredSoftware.length : filteredBatScripts.length })}
         </span>
       </div>
 
@@ -802,7 +809,7 @@ function SoftwareLibrary() {
           <div className="empty-icon-wrap">
             <Package size={40} />
           </div>
-          <p>还没有添加软件，点击右上角添加，或去扫描中心自动发现</p>
+          <p>{t('software.empty')}</p>
         </GlassCard>
       ) : (
         <div className={viewMode === 'list' ? 'software-list-view' : 'software-grid'}>
@@ -828,7 +835,7 @@ function SoftwareLibrary() {
             )
           ))}
           {filteredSoftware.length === 0 && (
-            <div className="library-no-results">没有找到匹配的软件</div>
+            <div className="library-no-results">{t('software.noResults')}</div>
           )}
         </div>
       ))}
@@ -836,7 +843,7 @@ function SoftwareLibrary() {
       {activeTab === 'bat' && (batScripts.length === 0 ? (
         <GlassCard hover={false} className="empty-state">
           <div className="empty-icon-wrap"><FileText size={40} /></div>
-          <p>还没有 BAT 脚本，点击右上角添加本地 .bat 或 .cmd 文件</p>
+          <p>{t('software.emptyBat')}</p>
         </GlassCard>
       ) : (
         <div className="bat-script-grid">
@@ -851,7 +858,7 @@ function SoftwareLibrary() {
             />
           ))}
           {filteredBatScripts.length === 0 && (
-            <div className="library-no-results">没有找到匹配的 BAT 脚本</div>
+            <div className="library-no-results">{t('software.noBatResults')}</div>
           )}
         </div>
       ))}

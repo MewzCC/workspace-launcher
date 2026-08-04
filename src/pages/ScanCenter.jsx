@@ -10,10 +10,12 @@ import GlowButton from '../components/ui/GlowButton'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
 import { softwareApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
+import { useT } from '../hooks/useT'
 import './ScanCenter.css'
 
 // 扫描结果单行：显示图标（真实图标或 emoji 回退）
 function ScanResultItem({ r, added, checked, onToggle }) {
+  const t = useT()
   return (
     <div className={`scan-item ${added ? 'added' : ''}`}>
       <input
@@ -29,10 +31,10 @@ function ScanResultItem({ r, added, checked, onToggle }) {
       </div>
       {r.source && (
         <span className={`scan-item-source ${r.source}`}>
-          {r.source === 'everything' ? 'Everything' : 'Windows 应用'}
+          {r.source === 'everything' ? 'Everything' : t('scan.windowsApp')}
         </span>
       )}
-      {added && <span className="scan-item-badge">已添加</span>}
+      {added && <span className="scan-item-badge">{t('scan.addedBadge')}</span>}
     </div>
   )
 }
@@ -43,6 +45,7 @@ const MODE_DRIVE = 'drive'
 const MODE_DIRECTORY = 'directory'
 
 function ScanCenter() {
+  const t = useT()
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
   const scanSession = useStore((s) => s.scanSession)
@@ -193,11 +196,11 @@ function ScanCenter() {
   // 执行扫描：根据模式调用不同接口
   const handleScan = async () => {
     if (mode === MODE_DRIVE && !selectedDrive) {
-      setMessage('请先选择盘符')
+      setMessage(t('scan.selectDrive'))
       return
     }
     if (mode === MODE_DIRECTORY && !dirPath) {
-      setMessage('请先选择目录')
+      setMessage(t('scan.selectDir'))
       return
     }
 
@@ -214,16 +217,16 @@ function ScanCenter() {
         list = await softwareApi.scanDirectory(dirPath, { maxDepth })
       }
       if (list?.cancelled) {
-        setMessage('扫描已取消，原有结果已保留')
+        setMessage(t('scan.cancelled'))
       } else if (list?.error) {
-        setMessage('扫描失败：' + list.error)
+        setMessage(t('scan.scanFailed') + list.error)
       } else {
         setResults(Array.isArray(list) ? list : [])
         setSelected({})
         setHasScanned(true)
       }
     } catch (e) {
-      setMessage('扫描失败：' + (e.message || '未知错误'))
+      setMessage(t('scan.scanFailed') + (e.message || t('common.unknownError')))
     } finally {
       setScanning(false)
       setCancelRequested(false)
@@ -233,13 +236,13 @@ function ScanCenter() {
   const handleCancelScan = async () => {
     if (!scanning || cancelRequested) return
     setCancelRequested(true)
-    setMessage('正在取消扫描…')
+    setMessage(t('scan.cancelling'))
     try {
       const response = await softwareApi.cancelScan()
       if (response?.error) throw new Error(response.error)
     } catch (error) {
       setCancelRequested(false)
-      setMessage('取消扫描失败：' + (error.message || '未知错误'))
+      setMessage(t('scan.cancelFailed') + (error.message || t('common.unknownError')))
     }
   }
 
@@ -296,12 +299,12 @@ function ScanCenter() {
     setAdding(true)
     try {
       if (items.length > 20) {
-        setMessage('为避免一次打开过多程序，请每次选择不超过 20 个软件进行启动验证')
+        setMessage(t('scan.tooMany'))
         return
       }
       const res = await softwareApi.bulkCreateValidated(items)
       if (res && res.error) {
-        setMessage('添加失败：' + res.error)
+        setMessage(t('scan.addFailed') + res.error)
         return
       }
       // 刷新软件库
@@ -310,13 +313,13 @@ function ScanCenter() {
       const createdCount = res.created?.length || 0
       const failed = res.failed || []
       const failText = failed.length
-        ? `；${failed.length} 个启动失败未添加：${failed.slice(0, 3).map((item) => item.name).join('、')}`
+        ? t('scan.addedFailedList', { count: failed.length, names: failed.slice(0, 3).map((item) => item.name).join('、') })
         : ''
-      setMessage(`验证通过并添加 ${createdCount} 个软件${failText}`)
+      setMessage(t('scan.addedResult', { count: createdCount, failed: failText }))
       // 清空选中
       setSelected({})
     } catch (e) {
-      setMessage('添加失败：' + (e.message || '未知错误'))
+      setMessage(t('scan.addFailed') + (e.message || t('common.unknownError')))
     } finally {
       setAdding(false)
     }
@@ -332,8 +335,8 @@ function ScanCenter() {
     <div className="scan-page">
       <section className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">扫描中心</h1>
-          <p className="page-subtitle">自动发现已安装的应用程序，批量添加到软件库</p>
+          <h1 className="page-title">{t('scan.title')}</h1>
+          <p className="page-subtitle">{t('scan.subtitle')}</p>
         </div>
         <div className="page-actions">
           {(hasScanned || results.length > 0 || searchQuery) && (
@@ -343,7 +346,7 @@ function ScanCenter() {
               disabled={scanning || adding}
             >
               <Trash2 size={16} aria-hidden="true" />
-              清空结果
+              {t('scan.clearResults')}
             </GlowButton>
           )}
           {scanning ? (
@@ -354,11 +357,11 @@ function ScanCenter() {
               disabled={cancelRequested}
             >
               <CircleStop size={16} aria-hidden="true" />
-              {cancelRequested ? '正在取消...' : '取消扫描'}
+              {cancelRequested ? t('scan.cancelling') : t('scan.cancel')}
             </GlowButton>
           ) : (
             <GlowButton variant="primary" onClick={handleScan}>
-              {hasScanned ? '重新扫描' : '开始扫描'}
+              {hasScanned ? t('scan.rescan') : t('scan.start')}
             </GlowButton>
           )}
         </div>
@@ -371,41 +374,40 @@ function ScanCenter() {
           onClick={() => switchMode(MODE_STANDARD)}
           type="button"
         >
-          标准扫描
+          {t('scan.standard')}
         </button>
         <button
           className={`mode-tab ${mode === MODE_DRIVE ? 'active' : ''}`}
           onClick={() => switchMode(MODE_DRIVE)}
           type="button"
         >
-          盘符扫描
+          {t('scan.drive')}
         </button>
         <button
           className={`mode-tab ${mode === MODE_DIRECTORY ? 'active' : ''}`}
           onClick={() => switchMode(MODE_DIRECTORY)}
           type="button"
         >
-          目录扫描
+          {t('scan.directory')}
         </button>
       </div>
 
-      {/* 模式说明与参数 */}
-      <div className="mode-panel">
-        {mode === MODE_STAND}
+      {/* 模式说明与参数 如果是标准模式不显示*/}  
+      <div className="mode-panel" style={{ display: mode === MODE_STANDARD ? 'none' : 'block' }}>
         {mode === MODE_DRIVE && (
           <>
             <div className="mode-desc">
-              递归扫描所选盘符下所有 .exe 文件，适合 D:/E: 等数据盘上的绿色软件。
+              {t('scan.driveDesc')}
             </div>
             <div className="mode-form">
               <div className="form-group">
-                <label className="form-label">盘符</label>
+                <label className="form-label">{t('scan.driveLabel')}</label>
                 <select
                   className="form-select"
                   value={selectedDrive}
                   onChange={(e) => setSelectedDrive(e.target.value)}
                 >
-                  {drives.length === 0 && <option value="">未检测到盘符</option>}
+                  {drives.length === 0 && <option value="">{t('scan.noDrives')}</option>}
                   {drives.map((d) => (
                     <option key={d} value={d}>
                       {d}:\
@@ -414,7 +416,7 @@ function ScanCenter() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">最大深度（{maxDepth < 0 ? '不限' : maxDepth}）</label>
+                <label className="form-label">{t('scan.maxDepth', { depth: maxDepth < 0 ? t('scan.unlimited') : maxDepth })}</label>
                 <input
                   type="range"
                   min={1}
@@ -427,7 +429,7 @@ function ScanCenter() {
                   }}
                 />
                 <span className="form-hint">
-                  {maxDepth < 0 ? '不限深度（扫描较慢）' : `仅扫描 ${maxDepth} 层目录`}
+                  {maxDepth < 0 ? t('scan.unlimitedDepth') : t('scan.depthHint', { depth: maxDepth })}
                 </span>
               </div>
             </div>
@@ -436,17 +438,17 @@ function ScanCenter() {
         {mode === MODE_DIRECTORY && (
           <>
             <div className="mode-desc">
-              扫描指定目录及其子目录下的 .exe 文件，可精确控制扫描范围。
+              {t('scan.directoryDesc')}
             </div>
             <div className="mode-form">
               <div className="form-group full">
-                <label className="form-label">目录路径</label>
+                <label className="form-label">{t('scan.dirPath')}</label>
                 <div className="path-row">
                   <input
                     className="form-input"
                     value={dirPath}
                     onChange={(e) => setDirPath(e.target.value)}
-                    placeholder="例如：D:\Tools"
+                    placeholder={t('scan.dirPlaceholder')}
                   />
                   <GlowButton
                     type="button"
@@ -454,12 +456,12 @@ function ScanCenter() {
                     size="sm"
                     onClick={handlePickDirectory}
                   >
-                    选择目录
+                    {t('scan.pickDirectory')}
                   </GlowButton>
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">最大深度（{maxDepth < 0 ? '不限' : maxDepth}）</label>
+                <label className="form-label">{t('scan.maxDepth', { depth: maxDepth < 0 ? t('scan.unlimited') : maxDepth })}</label>
                 <input
                   type="range"
                   min={1}
@@ -472,7 +474,7 @@ function ScanCenter() {
                   }}
                 />
                 <span className="form-hint">
-                  {maxDepth < 0 ? '不限深度（扫描较慢）' : `仅扫描 ${maxDepth} 层目录`}
+                  {maxDepth < 0 ? t('scan.unlimitedDepth') : t('scan.depthHint', { depth: maxDepth })}
                 </span>
               </div>
             </div>
@@ -485,20 +487,20 @@ function ScanCenter() {
         <input
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="直接输入应用名称，搜索整机应用索引"
-          aria-label="搜索整机应用"
+          placeholder={t('scan.searchPlaceholder')}
+          aria-label={t('scan.searchAria')}
         />
         {normalizedQuery.length >= 2 && (
           <span className={`scan-search-engine ${indexSearching ? 'searching' : ''}`}>
             {indexSearching
-              ? '索引搜索中…'
+              ? t('scan.indexSearching')
               : everythingAvailable
-                ? 'Everything + Windows 应用'
-                : 'Windows 应用索引'}
+                ? t('scan.everythingWindows')
+                : t('scan.windowsIndex')}
           </span>
         )}
         {searchQuery && (
-          <button type="button" onClick={() => setSearchQuery('')} aria-label="清空搜索">
+          <button type="button" onClick={() => setSearchQuery('')} aria-label={t('common.clear')}>
             <X size={15} />
           </button>
         )}
@@ -508,7 +510,7 @@ function ScanCenter() {
       {scanning && (
         <div className="scanning">
           <span className="scanner-icon">🔍</span>
-          <span>{cancelRequested ? '正在停止扫描...' : '正在扫描电脑...'}</span>
+          <span>{cancelRequested ? t('scan.stopping') : t('scan.scanningText')}</span>
         </div>
       )}
 
@@ -525,19 +527,20 @@ function ScanCenter() {
                 checked={allSelected}
                 onChange={toggleSelectAll}
               />
-              <span>全选</span>
+              <span>{t('scan.selectAll')}</span>
             </label>
             <div className="result-summary">
               {normalizedQuery
-                ? `找到 ${filteredResults.length} 个应用`
-                : `显示 ${results.length} 个扫描结果`}，已选 {selectedCount} 个
+                ? t('scan.found', { count: filteredResults.length })
+                : t('scan.showResults', { count: results.length })}
+              {t('scan.selectedSuffix', { count: selectedCount })}
             </div>
             <GlowButton
               variant="secondary"
               onClick={handleAddSelected}
               disabled={selectedCount === 0 || adding}
             >
-              {adding ? '正在逐个验证...' : '验证并添加到软件库'}
+              {adding ? t('scan.verifying') : t('scan.verifyAdd')}
             </GlowButton>
           </div>
           <div className="scan-list">
@@ -557,7 +560,7 @@ function ScanCenter() {
             })}
             {filteredResults.length === 0 && (
               <div className="scan-no-results">
-                {indexSearching ? '正在查询整机文件索引…' : '没有找到匹配的应用'}
+                {indexSearching ? t('scan.searchingIndex') : t('scan.noMatch')}
               </div>
             )}
           </div>
@@ -570,8 +573,8 @@ function ScanCenter() {
           <div className="empty-icon">🔍</div>
           <p>
             {hasScanned
-              ? '未发现任何应用程序'
-              : '直接输入应用名称搜索，或选择扫描模式发现更多程序'}
+              ? t('scan.noApps')
+              : t('scan.helpText')}
           </p>
         </GlassCard>
       )}

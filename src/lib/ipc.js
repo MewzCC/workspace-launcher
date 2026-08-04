@@ -95,5 +95,10 @@ export const themeApi = {
   set: (theme) => api.theme.set(theme)
 }
 
+// 语言同步 API：通知主进程切换托盘/菜单等原生 UI 语言
+export const languageApi = {
+  set: (language) => api.language.set(language)
+}
+
 // 订阅工作空间启动进度，返回取消订阅函数
 export const onLaunchProgress = (callback) => api.onLaunchProgress(callback)

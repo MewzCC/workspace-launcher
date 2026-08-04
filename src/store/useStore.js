@@ -3,6 +3,27 @@
 import { create } from 'zustand'
 import { themeApi } from '../lib/ipc'
 
+function createInitialScanSession() {
+  return {
+    mode: 'standard',
+    drives: [],
+    selectedDrive: '',
+    dirPath: '',
+    maxDepth: 4,
+    scanning: false,
+    cancelRequested: false,
+    hasScanned: false,
+    results: [],
+    selected: {},
+    adding: false,
+    message: '',
+    searchQuery: '',
+    indexedResults: [],
+    indexSearching: false,
+    everythingAvailable: false
+  }
+}
+
 // 主题初始化：读取本地存储，与 index.html 内联脚本保持一致，避免 SSR 闪烁
 function getInitialTheme() {
   try {
@@ -51,6 +72,8 @@ export const useStore = create((set, get) => ({
   launching: null,
   // 当前监控的工作空间 id
   activeWorkspaceId: null,
+  // 扫描中心会话：切换页面时保留结果、筛选条件与扫描状态
+  scanSession: createInitialScanSession(),
 
   // ===== Actions =====
   // 切换主题（明暗）
@@ -81,6 +104,15 @@ export const useStore = create((set, get) => ({
   setSoftware: (list) => set({ software: list || [] }),
   // 设置日志列表
   setLogs: (list) => set({ logs: list || [] }),
+
+  updateScanSession: (patch) =>
+    set((state) => ({
+      scanSession: {
+        ...state.scanSession,
+        ...(typeof patch === 'function' ? patch(state.scanSession) : patch)
+      }
+    })),
+  resetScanSession: () => set({ scanSession: createInitialScanSession() }),
 
   // 开始启动工作空间：初始化 launching 对象
   startLaunch: (workspaceId) =>

@@ -8,6 +8,12 @@ let mainWindow = null
 let isQuitting = false
 let trayHintShown = false
 
+function getAppIconPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.ico')
+    : path.join(app.getAppPath(), 'build', 'icon.ico')
+}
+
 function applyNativeTheme(theme) {
   nativeTheme.themeSource = theme === 'light' ? 'light' : 'dark'
 }
@@ -42,6 +48,7 @@ function createWindow({ startHidden = false } = {}) {
     minWidth: 960,
     minHeight: 600,
     backgroundColor: '#f6f7fb',
+    icon: getAppIconPath(),
     show: false,
     webPreferences: {
       contextIsolation: true,

@@ -1,7 +1,10 @@
 # Dependencies
 node_modules/
 screenshots/
-build/
+build/*
+!build/icon.ico
+!build/icon.png
+!build/tray-icon.png
 
 # Build output
 out/
@@ -41,6 +44,8 @@ Desktop.ini
 # Electron
 *.tsbuildinfo
 .cache/
+__pycache__/
+*.pyc
 
 # Database
 *.db

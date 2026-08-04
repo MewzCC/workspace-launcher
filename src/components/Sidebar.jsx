@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react'
 import { useStore } from '../store/useStore'
+import launchpadIcon from '../assets/launchpad-icon.png'
 import './Sidebar.css'
 
 // 导航项配置：key 与 store.currentView 对应，icon 为 Lucide 组件
@@ -67,7 +68,7 @@ function Sidebar() {
         {/* 顶部 Logo 区 */}
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">
-            <Rocket size={18} />
+            <img src={launchpadIcon} alt="" />
           </div>
           <span className="sidebar-logo-text">LaunchPad</span>
           {/* 移动端关闭按钮 */}

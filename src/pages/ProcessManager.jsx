@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   AppWindow,
   CircleStop,
+  ChevronLeft,
+  ChevronRight,
   Hash,
   LoaderCircle,
   MemoryStick,
@@ -17,7 +19,7 @@ import GlowButton from '../components/ui/GlowButton'
 import { processApi } from '../lib/ipc'
 import './ProcessManager.css'
 
-const MAX_VISIBLE_ROWS = 300
+const PAGE_SIZE = 30
 
 function formatMemory(bytes) {
   const value = Number(bytes) || 0
@@ -29,59 +31,88 @@ function formatMemory(bytes) {
 function ProcessManagerPage() {
   const [processes, setProcesses] = useState([])
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [portOnly, setPortOnly] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
+  const [summary, setSummary] = useState({
+    processCount: 0,
+    portProcessCount: 0,
+    listeningPortCount: 0,
+    totalMemory: 0
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
   const [terminatingPid, setTerminatingPid] = useState(null)
+  const requestIdRef = useRef(0)
 
-  const loadProcesses = useCallback(async ({ quiet = false } = {}) => {
-    if (!quiet) setLoading(true)
-    try {
-      const result = await processApi.list()
-      if (result?.error) throw new Error(result.error)
-      setProcesses(Array.isArray(result) ? result : [])
-      setError('')
-      setLastUpdated(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
-    } catch (err) {
-      setError(err?.message || '无法读取系统进程')
-    } finally {
-      if (!quiet) setLoading(false)
+  const loadProcesses = useCallback(async ({ quiet = false, force = false } = {}) => {
+    const requestId = ++requestIdRef.current
+    if (!quiet) {
+      setLoading(true)
+      setProcesses([])
     }
-  }, [])
+    try {
+      const result = await processApi.list({
+        page,
+        pageSize: PAGE_SIZE,
+        query: debouncedQuery,
+        portOnly,
+        force
+      })
+      if (result?.error) throw new Error(result.error)
+      if (requestId !== requestIdRef.current) return
+      setProcesses(Array.isArray(result?.items) ? result.items : [])
+      setPage(result?.page || 1)
+      setPagination({
+        total: Number(result?.total) || 0,
+        totalPages: Math.max(1, Number(result?.totalPages) || 1)
+      })
+      setSummary(result?.summary || {})
+      setError('')
+      setLastUpdated(
+        new Date(result?.updatedAt || Date.now()).toLocaleTimeString('zh-CN', { hour12: false })
+      )
+    } catch (err) {
+      if (requestId === requestIdRef.current) {
+        setError(err?.message || '无法读取系统进程')
+      }
+    } finally {
+      if (!quiet && requestId === requestIdRef.current) setLoading(false)
+    }
+  }, [debouncedQuery, page, portOnly])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query.trim())
+      setPage(1)
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [query])
 
   useEffect(() => {
     loadProcesses()
-    const timer = window.setInterval(() => loadProcesses({ quiet: true }), 10000)
+    const timer = window.setInterval(
+      () => loadProcesses({ quiet: true, force: true }),
+      15000
+    )
     return () => window.clearInterval(timer)
   }, [loadProcesses])
 
-  const filteredProcesses = useMemo(() => {
-    const keyword = query.trim().toLowerCase()
-    return processes.filter((item) => {
-      if (portOnly && !item.ports?.length) return false
-      if (!keyword) return true
-      const ports = (item.ports || []).flatMap((port) => [
-        String(port.localPort),
-        `${port.protocol}:${port.localPort}`,
-        `${port.localAddress}:${port.localPort}`
-      ])
-      return [String(item.pid), item.name, item.path, ...ports]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword))
+  const pageNumbers = useMemo(() => {
+    const totalPages = pagination.totalPages
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1)
+    const numbers = [...new Set([1, page - 1, page, page + 1, totalPages])]
+      .filter((value) => value >= 1 && value <= totalPages)
+      .sort((a, b) => a - b)
+    const result = []
+    numbers.forEach((value, index) => {
+      if (index > 0 && value - numbers[index - 1] > 1) result.push(`ellipsis-${value}`)
+      result.push(value)
     })
-  }, [processes, portOnly, query])
-
-  const visibleProcesses = filteredProcesses.slice(0, MAX_VISIBLE_ROWS)
-  const portProcessCount = processes.filter((item) => item.ports?.length).length
-  const listeningPortCount = processes.reduce(
-    (total, item) => total + (item.ports?.length || 0),
-    0
-  )
-  const totalMemory = processes.reduce(
-    (total, item) => total + (Number(item.workingSetBytes) || 0),
-    0
-  )
+    return result
+  }, [page, pagination.totalPages])
 
   const handleTerminate = async (item) => {
     const portText = item.ports?.length
@@ -96,7 +127,7 @@ function ProcessManagerPage() {
     try {
       const result = await processApi.terminate(item.pid)
       if (result?.error) throw new Error(result.error)
-      await loadProcesses({ quiet: true })
+      await loadProcesses({ quiet: true, force: true })
     } catch (err) {
       window.alert(`结束进程失败：${err?.message || err}`)
     } finally {
@@ -110,12 +141,12 @@ function ProcessManagerPage() {
         <div className="page-header-left">
           <div className="process-eyebrow"><Activity size={13} /> SYSTEM PROCESS CONTROL</div>
           <h1 className="page-title">进程管理</h1>
-          <p className="page-subtitle">按应用名称、PID、路径或监听端口定位并关闭相关进程</p>
+          <p className="page-subtitle">按应用名称、PID 或监听端口定位并关闭相关进程</p>
         </div>
         <GlowButton
           variant="ghost"
           size="md"
-          onClick={() => loadProcesses()}
+          onClick={() => loadProcesses({ force: true })}
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? 'process-spin' : ''} />
@@ -124,17 +155,17 @@ function ProcessManagerPage() {
       </section>
 
       <section className="process-stats" aria-label="进程概况">
-        <button type="button" className={!portOnly ? 'active' : ''} onClick={() => setPortOnly(false)}>
+        <button type="button" className={!portOnly ? 'active' : ''} onClick={() => { setPortOnly(false); setPage(1) }}>
           <span className="process-stat-icon indigo"><AppWindow size={18} /></span>
-          <span><strong>{processes.length}</strong><small>系统进程</small></span>
+          <span><strong>{summary.processCount || 0}</strong><small>系统进程</small></span>
         </button>
-        <button type="button" className={portOnly ? 'active' : ''} onClick={() => setPortOnly(true)}>
+        <button type="button" className={portOnly ? 'active' : ''} onClick={() => { setPortOnly(true); setPage(1) }}>
           <span className="process-stat-icon cyan"><Network size={18} /></span>
-          <span><strong>{listeningPortCount}</strong><small>{portProcessCount} 个进程正在监听</small></span>
+          <span><strong>{summary.listeningPortCount || 0}</strong><small>{summary.portProcessCount || 0} 个进程正在监听</small></span>
         </button>
         <div className="process-stat-static">
           <span className="process-stat-icon amber"><MemoryStick size={18} /></span>
-          <span><strong>{formatMemory(totalMemory)}</strong><small>已统计工作集</small></span>
+          <span><strong>{formatMemory(summary.totalMemory)}</strong><small>已统计工作集</small></span>
         </div>
       </section>
 
@@ -145,7 +176,7 @@ function ProcessManagerPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索应用名称、PID、端口或完整路径…"
+              placeholder="搜索应用名称、PID 或端口…"
               aria-label="搜索进程"
             />
             {query && (
@@ -156,7 +187,7 @@ function ProcessManagerPage() {
           </div>
           <div className="process-result-meta">
             {lastUpdated && <span>更新于 {lastUpdated}</span>}
-            <strong>{filteredProcesses.length} 个结果</strong>
+            <strong>{pagination.total} 个结果</strong>
           </div>
         </div>
 
@@ -171,7 +202,7 @@ function ProcessManagerPage() {
             <LoaderCircle size={22} className="process-spin" />
             正在读取 Windows 进程与监听端口…
           </div>
-        ) : visibleProcesses.length === 0 ? (
+        ) : processes.length === 0 ? (
           <div className="process-message">没有找到匹配的进程</div>
         ) : (
           <div className="process-table-wrap">
@@ -186,7 +217,7 @@ function ProcessManagerPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleProcesses.map((item) => (
+                {processes.map((item) => (
                   <tr key={item.pid}>
                     <td>
                       <div className="process-app-cell">
@@ -246,9 +277,43 @@ function ProcessManagerPage() {
           </div>
         )}
 
-        {filteredProcesses.length > MAX_VISIBLE_ROWS && (
-          <div className="process-limit-note">
-            当前显示前 {MAX_VISIBLE_ROWS} 项，请输入应用名、PID 或端口缩小范围。
+        {!error && (
+          <div className="process-pagination" aria-label="进程列表分页">
+            <span className="process-page-summary">
+              第 {page} / {pagination.totalPages} 页 · 每页 {PAGE_SIZE} 条
+            </span>
+            <div className="process-page-controls">
+              <button
+                type="button"
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                disabled={page <= 1 || loading}
+                aria-label="上一页"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              {pagination.totalPages > 1 && pageNumbers.map((value) => typeof value === 'number' ? (
+                <button
+                  key={value}
+                  type="button"
+                  className={value === page ? 'active' : ''}
+                  onClick={() => setPage(value)}
+                  disabled={loading}
+                  aria-current={value === page ? 'page' : undefined}
+                >
+                  {value}
+                </button>
+              ) : (
+                <span key={value}>…</span>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))}
+                disabled={page >= pagination.totalPages || loading}
+                aria-label="下一页"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
         )}
       </GlassCard>

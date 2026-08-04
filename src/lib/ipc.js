@@ -26,6 +26,8 @@ export const softwareApi = {
   getProcessStatuses: (exePaths) => api.software.getProcessStatuses(exePaths),
   // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
   scan: () => api.software.scan(),
+  cancelScan: () => api.software.cancelScan(),
+  searchInstalled: (query) => api.software.searchInstalled(query),
   // 批量创建软件
   bulkCreate: (items) => api.software.bulkCreate(items),
   bulkCreateValidated: (items) => api.software.bulkCreateValidated(items),
@@ -53,7 +55,7 @@ export const batScriptApi = {
 }
 
 export const processApi = {
-  list: () => api.process.list(),
+  list: (options) => api.process.list(options),
   terminate: (pid) => api.process.terminate(pid)
 }
 

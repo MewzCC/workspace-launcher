@@ -25,6 +25,24 @@ async function wrap(fn) {
 // 图标缓存：filePath(小写) -> dataURL
 // 进程内缓存，避免重复提取（app.getFileIcon 对同一文件会走系统缓存，但仍可省去 IPC + 编码开销）
 const iconCache = new Map()
+let activeSoftwareScan = null
+
+async function runSoftwareScan(task) {
+  if (activeSoftwareScan) activeSoftwareScan.controller.abort()
+  const controller = new AbortController()
+  const token = Symbol('software-scan')
+  activeSoftwareScan = { controller, token }
+  try {
+    return await task(controller.signal)
+  } catch (error) {
+    if (error?.name === 'AbortError' || controller.signal.aborted) {
+      return { cancelled: true }
+    }
+    throw error
+  } finally {
+    if (activeSoftwareScan?.token === token) activeSoftwareScan = null
+  }
+}
 
 // 注册所有 IPC 处理器（在 app ready 时调用一次）
 function registerIpcHandlers() {
@@ -83,11 +101,23 @@ function registerIpcHandlers() {
   ipcMain.handle('software:getProcessStatuses', (_e, exePaths) =>
     wrap(() => processManager.getExecutableStatuses(exePaths))
   )
-  ipcMain.handle('process:list', () => wrap(() => processManager.listProcessesWithPorts()))
+  ipcMain.handle('process:list', (_e, options) =>
+    wrap(() => processManager.listProcessPage(options))
+  )
   ipcMain.handle('process:terminate', (_e, pid) =>
     wrap(() => processManager.terminateProcessTree(pid))
   )
-  ipcMain.handle('software:scan', async () => wrap(async () => await softwareScanner.scanAll()))
+  ipcMain.handle('software:scan', async () =>
+    wrap(() => runSoftwareScan((signal) => softwareScanner.scanAll(null, { signal })))
+  )
+  ipcMain.handle('software:cancelScan', () => wrap(() => {
+    if (!activeSoftwareScan) return { success: true, active: false }
+    activeSoftwareScan.controller.abort()
+    return { success: true, active: true }
+  }))
+  ipcMain.handle('software:searchInstalled', (_e, query) =>
+    wrap(() => softwareScanner.searchInstalledApplications(query))
+  )
   ipcMain.handle('software:bulkCreate', (_e, items) => wrap(() => softwareDao.bulkCreate(items)))
   ipcMain.handle('software:createValidated', (_e, data) => {
     return wrap(async () => {
@@ -134,12 +164,16 @@ function registerIpcHandlers() {
   // 扫描指定盘符的 .exe 文件
   // 参数: driveLetter(如 'D'), options(可选 {maxDepth})
   ipcMain.handle('software:scanDrive', (_e, driveLetter, options) =>
-    wrap(() => softwareScanner.scanDrive(driveLetter, null, options || {}))
+    wrap(() => runSoftwareScan((signal) =>
+      softwareScanner.scanDrive(driveLetter, null, { ...(options || {}), signal })
+    ))
   )
   // 扫描指定目录的 .exe 文件
   // 参数: dirPath(如 'D:\\Tools'), options(可选 {maxDepth})
   ipcMain.handle('software:scanDirectory', (_e, dirPath, options) =>
-    wrap(() => softwareScanner.scanExeFiles(dirPath, null, options || {}))
+    wrap(() => runSoftwareScan((signal) =>
+      softwareScanner.scanExeFiles(dirPath, null, { ...(options || {}), signal })
+    ))
   )
   // 提取文件图标：返回 data URL（PNG base64）
   // 对 .exe 直接提取图标；对 .lnk 自动解析为目标文件的图标

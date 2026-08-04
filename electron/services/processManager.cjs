@@ -327,6 +327,76 @@ function listProcessesWithPorts() {
   })
 }
 
+const PROCESS_CACHE_TTL_MS = 8000
+let processSnapshot = { items: [], updatedAt: 0, pending: null }
+
+async function getProcessSnapshot(force = false) {
+  const cacheFresh =
+    processSnapshot.items.length > 0 &&
+    Date.now() - processSnapshot.updatedAt < PROCESS_CACHE_TTL_MS
+  if (!force && cacheFresh) return processSnapshot
+  if (processSnapshot.pending) return processSnapshot.pending
+
+  processSnapshot.pending = listProcessesWithPorts()
+    .then((items) => {
+      processSnapshot = { items, updatedAt: Date.now(), pending: null }
+      return processSnapshot
+    })
+    .catch((error) => {
+      processSnapshot.pending = null
+      throw error
+    })
+  return processSnapshot.pending
+}
+
+async function listProcessPage(options = {}) {
+  const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1)
+  const pageSize = Math.min(100, Math.max(10, Number.parseInt(options.pageSize, 10) || 30))
+  const keyword = String(options.query || '').trim().toLowerCase()
+  const portOnly = Boolean(options.portOnly)
+  const snapshot = await getProcessSnapshot(Boolean(options.force))
+
+  const filtered = snapshot.items.filter((item) => {
+    if (portOnly && !item.ports?.length) return false
+    if (!keyword) return true
+    const portValues = (item.ports || []).flatMap((port) => [
+      String(port.localPort),
+      `${port.protocol}:${port.localPort}`,
+      `${port.localAddress}:${port.localPort}`
+    ])
+    return [String(item.pid), item.name, ...portValues]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(keyword))
+  })
+
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const page = Math.min(requestedPage, totalPages)
+  const start = (page - 1) * pageSize
+  const summary = {
+    processCount: snapshot.items.length,
+    portProcessCount: snapshot.items.filter((item) => item.ports?.length).length,
+    listeningPortCount: snapshot.items.reduce(
+      (sum, item) => sum + (item.ports?.length || 0),
+      0
+    ),
+    totalMemory: snapshot.items.reduce(
+      (sum, item) => sum + (Number(item.workingSetBytes) || 0),
+      0
+    )
+  }
+
+  return {
+    items: filtered.slice(start, start + pageSize),
+    page,
+    pageSize,
+    total,
+    totalPages,
+    summary,
+    updatedAt: snapshot.updatedAt
+  }
+}
+
 function terminateProcessTree(pid) {
   return new Promise((resolve, reject) => {
     const processId = Number(pid)
@@ -396,5 +466,6 @@ module.exports = {
   terminateByExecutablePath,
   getExecutableStatuses,
   listProcessesWithPorts,
+  listProcessPage,
   terminateProcessTree
 }

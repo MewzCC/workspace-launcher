@@ -1,5 +1,10 @@
 .process-page {
   max-width: 1280px;
+  height: calc(100vh - 64px);
+  min-height: 536px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .process-page .sr-only {
@@ -15,6 +20,7 @@
 }
 
 .process-header {
+  flex: 0 0 auto;
   margin-bottom: 22px;
 }
 
@@ -31,6 +37,7 @@
 }
 
 .process-stats {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -97,11 +104,16 @@
 }
 
 .process-console {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
 }
 
 .process-toolbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -166,9 +178,12 @@
 }
 
 .process-table-wrap {
-  max-height: calc(100vh - 330px);
-  min-height: 280px;
-  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .process-table {
@@ -351,31 +366,100 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 320px;
+  flex: 1 1 auto;
+  min-height: 0;
   color: var(--brand-muted-foreground);
 }
 
 .process-message.error { color: var(--brand-state-error); }
 .process-message button { color: currentColor; background: transparent; border: 0; text-decoration: underline; cursor: pointer; }
 
-.process-limit-note {
-  padding: 9px 16px;
+.process-pagination {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  padding: 8px 16px;
   color: var(--brand-muted-foreground);
-  text-align: center;
-  background: color-mix(in srgb, var(--brand-muted) 55%, transparent);
+  background: color-mix(in srgb, var(--brand-card-solid) 82%, transparent);
   border-top: 1px solid var(--brand-border);
+  font-size: 11px;
+}
+
+.process-page-summary {
+  font-family: var(--brand-font-mono);
+  white-space: nowrap;
+}
+
+.process-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.process-page-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--brand-muted-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 58%, transparent);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--brand-font-mono);
   font-size: 10px;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.process-page-controls button:hover:not(:disabled) {
+  color: var(--brand-foreground);
+  border-color: var(--brand-border);
+  transform: translateY(-1px);
+}
+
+.process-page-controls button.active {
+  color: var(--brand-primary-foreground);
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  box-shadow: 0 5px 15px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+}
+
+.process-page-controls button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.process-page-controls span {
+  min-width: 18px;
+  text-align: center;
 }
 
 .process-spin { animation: process-spin 800ms linear infinite; }
 @keyframes process-spin { to { transform: rotate(360deg); } }
 
+@media (max-width: 1024px) {
+  .process-page { height: calc(100vh - 104px); }
+}
+
 @media (max-width: 900px) {
+  .process-page { min-height: 496px; }
   .process-stats { grid-template-columns: 1fr; }
   .process-toolbar { align-items: stretch; flex-direction: column; }
   .process-result-meta { justify-content: space-between; }
-  .process-table { min-width: 840px; }
-  .process-table-wrap { max-height: none; }
+  .process-table th:nth-child(1) { width: 38%; }
+  .process-table th:nth-child(3) { width: 24%; }
+  .process-table th:nth-child(4) { width: 13%; }
+  .process-table th:nth-child(5) { width: 15%; }
+  .process-app-copy small { display: none; }
+  .process-pagination { min-height: 46px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

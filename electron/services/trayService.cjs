@@ -1,4 +1,5 @@
-const { Menu, Tray, nativeImage } = require('electron')
+const { app, Menu, Tray, nativeImage } = require('electron')
+const path = require('path')
 const { workspaceDao } = require('../db/index.cjs')
 const workspaceEngine = require('./workspaceEngine.cjs')
 const systemPreferences = require('./systemPreferences.cjs')
@@ -74,9 +75,14 @@ function refreshTrayMenu() {
 function createTray(nextCallbacks) {
   if (tray && !tray.isDestroyed()) return tray
   callbacks = nextCallbacks
-  const icon = nativeImage
-    .createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
-    .resize({ width: 16, height: 16 })
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'tray-icon.png')
+    : path.join(app.getAppPath(), 'build', 'tray-icon.png')
+  let icon = nativeImage.createFromPath(iconPath)
+  if (icon.isEmpty()) {
+    icon = nativeImage.createFromDataURL(`data:image/png;base64,${TRAY_ICON_BASE64}`)
+  }
+  icon = icon.resize({ width: 16, height: 16 })
   tray = new Tray(icon)
   tray.setToolTip('LaunchPad · 一键启动工作空间')
   tray.on('click', callbacks.toggleWindow)

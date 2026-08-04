@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('api', {
     getProcessStatuses: (exePaths) => ipcRenderer.invoke('software:getProcessStatuses', exePaths),
     // 标准扫描：开始菜单 + Program Files 的 .lnk 快捷方式
     scan: () => ipcRenderer.invoke('software:scan'),
+    cancelScan: () => ipcRenderer.invoke('software:cancelScan'),
+    searchInstalled: (query) => ipcRenderer.invoke('software:searchInstalled', query),
     // 批量创建软件（扫描结果批量添加用）
     bulkCreate: (items) => ipcRenderer.invoke('software:bulkCreate', items),
     bulkCreateValidated: (items) => ipcRenderer.invoke('software:bulkCreateValidated', items),
@@ -53,7 +55,7 @@ contextBridge.exposeInMainWorld('api', {
     run: (id) => ipcRenderer.invoke('batScript:run', id)
   },
   process: {
-    list: () => ipcRenderer.invoke('process:list'),
+    list: (options) => ipcRenderer.invoke('process:list', options),
     terminate: (pid) => ipcRenderer.invoke('process:terminate', pid)
   },
   // 脚本相关接口

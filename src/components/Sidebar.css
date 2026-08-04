@@ -29,12 +29,18 @@
   width: 32px;
   height: 32px;
   border-radius: var(--brand-radius-md);
-  background: var(--brand-primary);
-  color: var(--brand-primary-foreground);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.sidebar-logo-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .sidebar-logo-text {

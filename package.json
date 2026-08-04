@@ -44,6 +44,7 @@
   "build": {
     "appId": "com.workspace.launcher",
     "productName": "LaunchPad",
+    "afterPack": "scripts/afterPack.cjs",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -52,11 +53,31 @@
       "out/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "vendor/everything",
+        "to": "tools/everything",
+        "filter": [
+          "es.exe",
+          "LICENSE.txt",
+          "README.md"
+        ]
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "build/tray-icon.png",
+        "to": "tray-icon.png"
+      }
+    ],
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**/*"
     ],
     "npmRebuild": false,
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -79,6 +100,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "LaunchPad",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "artifactName": "LaunchPad-Setup-${version}-${arch}.${ext}"
     },
     "portable": {

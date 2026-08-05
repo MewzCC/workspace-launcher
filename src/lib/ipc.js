@@ -59,6 +59,11 @@ export const processApi = {
   terminate: (pid) => api.process.terminate(pid)
 }
 
+// 性能监视 API：返回 CPU / 内存 / 磁盘 / GPU 快照
+export const perfApi = {
+  snapshot: () => api.perf.snapshot()
+}
+
 // 脚本 API
 export const scriptApi = {
   listByWorkspace: (workspaceId) => api.script.listByWorkspace(workspaceId),

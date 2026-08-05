@@ -1,0 +1,469 @@
+/* 性能监视器页面样式：对齐设计稿品牌令牌（玻璃拟态 + 靛蓝霓虹） */
+
+.perf-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 类别切换标签（复用扫描中心的 pill 风格） */
+.perf-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.perf-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.perf-tab:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-foreground) 6%, transparent);
+}
+
+.perf-tab.active {
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+/* 滚动内容区：顶部留出悬浮上移空间，避免卡片 hover 时上边界被容器裁切 */
+.perf-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.perf-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 180px;
+  color: var(--brand-muted-foreground);
+}
+
+.perf-message.error { color: var(--brand-state-error); }
+
+/* ===== 概览：环形卡片网格 ===== */
+.perf-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.perf-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 16px 18px;
+}
+
+.perf-card h3 {
+  margin: 0;
+  color: var(--brand-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 环形图容器 + 中心叠加文案 */
+.perf-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perf-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.perf-ring-center strong {
+  font-family: var(--brand-font-mono);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--brand-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-ring-center span {
+  margin-top: 4px;
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.perf-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+}
+
+.perf-card-foot .dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.perf-card-foot .perf-gpu-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 概览卡片可点击跳转详情 */
+.perf-card-clickable {
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.perf-card-clickable:hover h3 {
+  color: var(--brand-primary);
+}
+
+/* GPU 型号标签 */
+.perf-gpu-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.perf-gpu-model {
+  padding: 6px 10px;
+  color: var(--brand-secondary);
+  background: color-mix(in srgb, var(--brand-secondary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-secondary) 24%, transparent);
+  border-radius: var(--brand-radius-md);
+  font-size: 11px;
+}
+
+/* ===== 详情：环形 + 状态块 + 历史折线 ===== */
+.perf-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.perf-detail-main {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) 1fr;
+  gap: 14px;
+}
+
+.perf-gauges {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.perf-gauge-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 16px;
+}
+
+.perf-gauge-card h4 {
+  margin: 0;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.perf-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.perf-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 96px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--brand-muted) 70%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.perf-chip small {
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+}
+
+.perf-chip strong {
+  color: var(--brand-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 磁盘明细行 */
+.perf-drive-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.perf-drive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.perf-drive-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.perf-drive-copy strong {
+  display: block;
+  color: var(--brand-foreground);
+  font-size: 13px;
+}
+
+.perf-drive-copy small {
+  display: block;
+  margin-top: 3px;
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+  font-family: var(--brand-font-mono);
+}
+
+/* 历史折线 */
+.perf-history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.perf-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.perf-history-card h4 {
+  margin: 0;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.perf-history {
+  position: relative;
+  height: 170px;
+}
+
+/* 历史图表指标切换 */
+.perf-metric-picker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.perf-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.perf-metric:hover {
+  color: var(--brand-foreground);
+}
+
+.perf-metric.active {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-foreground) 8%, transparent);
+  border-color: var(--brand-border);
+}
+
+.perf-metric-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.perf-history-overlay {
+  position: absolute;
+  right: 14px;
+  top: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+}
+
+/* ===== 多显卡详情 ===== */
+.perf-gpu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.perf-gpu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.perf-gpu-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.perf-gpu-card-name {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--brand-foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.perf-gpu-card-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  color: var(--brand-secondary);
+  background: color-mix(in srgb, var(--brand-secondary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-secondary) 24%, transparent);
+  border-radius: var(--brand-radius-md);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.perf-gpu-card-gauges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+.perf-gpu-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.perf-gpu-gauge-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.perf-gpu-gauge-meta small {
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+}
+
+.perf-gpu-gauge-meta strong {
+  color: var(--brand-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-gpu-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perf-chip-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  color: var(--brand-muted-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 70%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  font-size: 10px;
+}
+
+.perf-chip-mini.muted { opacity: 0.65; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 1180px) {
+  .perf-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .perf-detail-main { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .perf-overview { grid-template-columns: 1fr; }
+  .perf-gauges { flex-direction: column; }
+}

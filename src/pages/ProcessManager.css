@@ -24,6 +24,51 @@
   margin-bottom: 22px;
 }
 
+.process-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 进程列表 / 性能监视 视图切换 */
+.process-view-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.process-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--brand-radius-md);
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--brand-transition);
+  white-space: nowrap;
+}
+
+.process-view-switch button:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-foreground) 6%, transparent);
+}
+
+.process-view-switch button.active {
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
 .process-eyebrow {
   display: inline-flex;
   align-items: center;

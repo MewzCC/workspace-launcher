@@ -6,6 +6,7 @@ const db = require('../db/index.cjs')
 const softwareScanner = require('../services/softwareScanner.cjs')
 const workspaceEngine = require('../services/workspaceEngine.cjs')
 const processManager = require('../services/processManager.cjs')
+const perfMonitor = require('../services/perfMonitor.cjs')
 const systemPreferences = require('../services/systemPreferences.cjs')
 const trayService = require('../services/trayService.cjs')
 
@@ -108,6 +109,8 @@ function registerIpcHandlers() {
   ipcMain.handle('process:terminate', (_e, pid) =>
     wrap(() => processManager.terminateProcessTree(pid))
   )
+  // 性能监视：返回 CPU / 内存 / 磁盘 / GPU 快照（渲染层仅在性能页可见时轮询）
+  ipcMain.handle('perf:snapshot', () => wrap(() => perfMonitor.getSnapshot()))
   ipcMain.handle('software:scan', async () =>
     wrap(() => runSoftwareScan((signal) => softwareScanner.scanAll(null, { signal })))
   )

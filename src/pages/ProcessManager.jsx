@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
+import PerformanceMonitor from './PerformanceMonitor'
 import { processApi } from '../lib/ipc'
 import { useT } from '../hooks/useT'
 import './ProcessManager.css'
@@ -47,6 +48,8 @@ function ProcessManagerPage() {
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
   const [terminatingPid, setTerminatingPid] = useState(null)
+  // 'list' = 进程列表，'perf' = 性能监视
+  const [mode, setMode] = useState('list')
   const requestIdRef = useRef(0)
 
   const loadProcesses = useCallback(async ({ quiet = false, force = false } = {}) => {
@@ -94,13 +97,15 @@ function ProcessManagerPage() {
   }, [query])
 
   useEffect(() => {
+    // 性能监视页打开时暂停进程轮询，避免后台开销
+    if (mode !== 'list') return
     loadProcesses()
     const timer = window.setInterval(
       () => loadProcesses({ quiet: true, force: true }),
       15000
     )
     return () => window.clearInterval(timer)
-  }, [loadProcesses])
+  }, [loadProcesses, mode])
 
   const pageNumbers = useMemo(() => {
     const totalPages = pagination.totalPages
@@ -143,20 +148,46 @@ function ProcessManagerPage() {
         <div className="page-header-left">
           <div className="process-eyebrow"><Activity size={13} /> {t('processes.eyebrow')}</div>
           <h1 className="page-title">{t('processes.title')}</h1>
-          <p className="page-subtitle">{t('processes.subtitle')}</p>
+          <p className="page-subtitle">{mode === 'perf' ? t('perf.subtitle') : t('processes.subtitle')}</p>
         </div>
-        <GlowButton
-          variant="ghost"
-          size="md"
-          onClick={() => loadProcesses({ force: true })}
-          disabled={loading}
-        >
-          <RefreshCw size={16} className={loading ? 'process-spin' : ''} />
-          {t('processes.refresh')}
-        </GlowButton>
+        <div className="process-header-actions">
+          {mode === 'list' && (
+            <GlowButton
+              variant="ghost"
+              size="md"
+              onClick={() => loadProcesses({ force: true })}
+              disabled={loading}
+            >
+              <RefreshCw size={16} className={loading ? 'process-spin' : ''} />
+              {t('processes.refresh')}
+            </GlowButton>
+          )}
+          <div className="process-view-switch" role="group" aria-label={t('processes.viewSwitchAria')}>
+            <button
+              type="button"
+              className={mode === 'list' ? 'active' : ''}
+              onClick={() => setMode('list')}
+            >
+              <AppWindow size={14} />
+              <span>{t('processes.viewProcesses')}</span>
+            </button>
+            <button
+              type="button"
+              className={mode === 'perf' ? 'active' : ''}
+              onClick={() => setMode('perf')}
+            >
+              <Activity size={14} />
+              <span>{t('processes.viewPerformance')}</span>
+            </button>
+          </div>
+        </div>
       </section>
 
-      <section className="process-stats" aria-label={t('processes.statsAria')}>
+      {mode === 'perf' ? (
+        <PerformanceMonitor />
+      ) : (
+        <>
+          <section className="process-stats" aria-label={t('processes.statsAria')}>
         <button type="button" className={!portOnly ? 'active' : ''} onClick={() => { setPortOnly(false); setPage(1) }}>
           <span className="process-stat-icon indigo"><AppWindow size={18} /></span>
           <span><strong>{summary.processCount || 0}</strong><small>{t('processes.processCount')}</small></span>
@@ -319,6 +350,8 @@ function ProcessManagerPage() {
           </div>
         )}
       </GlassCard>
+        </>
+      )}
     </div>
   )
 }

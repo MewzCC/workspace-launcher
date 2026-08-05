@@ -58,6 +58,9 @@ contextBridge.exposeInMainWorld('api', {
     list: (options) => ipcRenderer.invoke('process:list', options),
     terminate: (pid) => ipcRenderer.invoke('process:terminate', pid)
   },
+  perf: {
+    snapshot: () => ipcRenderer.invoke('perf:snapshot')
+  },
   // 脚本相关接口
   script: {
     listByWorkspace: (workspaceId) =>

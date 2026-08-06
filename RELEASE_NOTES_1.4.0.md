@@ -25,4 +25,11 @@ LaunchPad v1.4.0 带来了实时系统性能监控、全局快捷键与全面升
 
 > 适用于 Windows 10/11 x64。当前安装包未使用商业代码签名证书，Windows SmartScreen 可能提示未知发布者，请仅从本项目 GitHub Releases 下载。
 
+## 🔐 SHA-256
+
+```text
+6ca97dcb9f998598d0071b12880cee6ec084a734625401f60f76de43cb3d08f5  LaunchPad-Setup-1.4.0-x64.exe
+fc7d801004c6a12f9111ff8992a1df4925b57005b24b02da54e12ce8156bb578  LaunchPad-Portable-1.4.0-x64.exe
+```
+
 完整变更请查看 [CHANGELOG.md](https://github.com/MewzCC/workspace-launcher/blob/main/CHANGELOG.md)。

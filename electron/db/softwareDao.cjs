@@ -29,6 +29,8 @@ function getStmts() {
           icon = @icon
       WHERE id = @id
     `),
+    // 显式删除工作空间关联，兼容早期数据库曾关闭外键约束时留下的数据
+    removeWorkspaceRelations: db.prepare('DELETE FROM workspace_software WHERE software_id = ?'),
     // 删除软件
     remove: db.prepare('DELETE FROM software WHERE id = ?')
   }
@@ -73,8 +75,13 @@ function update(id, data) {
 // 删除软件
 // 返回是否成功
 function remove(id) {
-  const info = getStmts().remove.run(id)
-  return info.changes > 0
+  const s = getStmts()
+  const db = getDb()
+  return db.transaction(() => {
+    s.removeWorkspaceRelations.run(id)
+    const info = s.remove.run(id)
+    return info.changes > 0
+  })()
 }
 
 // 批量插入软件（扫描结果添加用）

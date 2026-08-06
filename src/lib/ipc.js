@@ -3,14 +3,26 @@
 // 各 React 组件通过具名导入使用对应 API
 const api = window.api
 
+async function unwrap(result) {
+  const value = await result
+  if (value && typeof value === 'object' && value.error) {
+    throw new Error(value.error)
+  }
+  return value
+}
+
 // 工作空间 API
 export const workspaceApi = {
-  list: () => api.workspace.list(),
-  get: (id) => api.workspace.get(id),
-  create: (data) => api.workspace.create(data),
-  update: (id, data) => api.workspace.update(id, data),
-  remove: (id) => api.workspace.delete(id),
-  launch: (id) => api.workspace.launch(id)
+  list: () => unwrap(api.workspace.list()),
+  get: (id) => unwrap(api.workspace.get(id)),
+  create: (data) => unwrap(api.workspace.create(data)),
+  update: (id, data) => unwrap(api.workspace.update(id, data)),
+  remove: (id) => unwrap(api.workspace.delete(id)),
+  launch: (id, options) => unwrap(api.workspace.launch(id, options))
+}
+
+export const shortcutApi = {
+  status: () => unwrap(api.shortcut.status())
 }
 
 // 软件 API
@@ -61,7 +73,8 @@ export const processApi = {
 
 // 性能监视 API：返回 CPU / 内存 / 磁盘 / GPU 快照
 export const perfApi = {
-  snapshot: () => api.perf.snapshot()
+  snapshot: () => api.perf.snapshot(),
+  topProcesses: () => api.perf.topProcesses()
 }
 
 // 脚本 API

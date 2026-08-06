@@ -29,7 +29,7 @@ export default {
   },
   nav: {
     dashboard: 'ダッシュボード',
-    workspaces: 'ワークスペース',
+    workspaces: 'スペース管理',
     software: 'ソフトウェアライブラリ',
     automation: '自動化',
     scan: 'スキャンセンター',
@@ -50,10 +50,10 @@ export default {
     subtitle: 'あなたのワークフローを始めましょう',
     quickLaunch: 'クイック起動',
     workspaceCount: '{count} 個のワークスペース',
-    empty: 'ワークスペースがまだありません。ワークスペースページで作成してください。',
-    goManage: 'ワークスペースへ',
+    empty: 'ワークスペースがまだありません。スペース管理で作成してください。',
+    goManage: 'スペース管理へ',
     quickEditTitle: 'クイック編集 · {name}',
-    quickEditHint: '含めるアプリのみ調整します。名前・アイコン・起動順・遅延は変更されません。',
+    quickEditHint: '含めるアプリとクイック起動ショートカットを調整します。名前・アイコン・起動順・遅延は変更されません。',
     searchPlaceholder: 'アプリ名またはパスを検索',
     searchAria: '選択可能なアプリを検索',
     clearSearch: '検索クリア',
@@ -64,11 +64,13 @@ export default {
     noSoftware: 'ソフトウェア未追加',
     quickEdit: 'クイック編集',
     launch: '起動',
-    save: 'アプリを保存'
+    relaunch: '再実行',
+    relaunchConfirm: '「{name}」のアプリはすべて実行中です。終了してワークスペースを再実行しますか？',
+    save: '設定を保存'
   },
   workspaces: {
-    title: 'ワークスペース',
-    subtitle: 'ワークスペースを管理し、アプリの組み合わせと起動順を設定',
+    title: 'スペース管理',
+    subtitle: 'ワークスペース、アプリ構成、起動順、グローバルショートカットを管理',
     add: 'ワークスペースを追加',
     empty: 'ワークスペースがまだありません。右上から作成してください。',
     launching: '起動中',
@@ -90,7 +92,14 @@ export default {
     delayMs: '遅延(ms)',
     deleteConfirm: 'ワークスペース「{name}」を削除しますか？',
     deleteFailed: '削除失敗: ',
-    launchFailed: '起動失敗: '
+    launchFailed: '起動失敗: ',
+    shortcut: 'グローバルショートカット',
+    shortcutPlaceholder: 'クリックしてキーを押してください',
+    shortcutHint: 'グローバルで有効で、押すとこのワークスペースを起動します。修飾キー（Ctrl/Alt/Shift/Win）を1つ以上含めてください。例: Ctrl+Alt+W',
+    shortcutRecording: '記録中：修飾キーと文字・数字・ファンクションキーを同時に押してください。Esc で終了します。',
+    shortcutInvalid: '修飾キー（Ctrl/Alt/Shift/Win）を1つ以上含めてください',
+    shortcutConflict: 'このショートカットは「{name}」に割り当て済みです',
+    shortcutClear: 'クリア'
   },
   software: {
     title: 'ソフトウェアライブラリ',
@@ -316,6 +325,13 @@ export default {
     gpuFan: 'ファン回転数',
     noGpu: '利用可能な GPU データがありません',
     history: '使用率履歴',
+    topProcesses: 'プロセス使用量ランキング',
+    rankUpdated: '更新: {time}',
+    rankLoading: 'プロセスデータを読み込み中…',
+    rankEmpty: 'プロセスデータがありません',
+    rankPage: '{page}/{total} ページ',
+    rankAll: 'すべて',
+    rankGpuFilter: 'GPU で絞り込み',
     na: '不明'
   },
   settings: {

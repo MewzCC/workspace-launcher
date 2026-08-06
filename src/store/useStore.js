@@ -162,10 +162,22 @@ export const useStore = create((set, get) => ({
   // 更新启动进度：追加进度项，更新阶段；阶段为 done 时标记为非活跃
   updateLaunchProgress: (progress) =>
     set((state) => {
-      if (!state.launching) return state
+      if (!state.launching || (
+        progress?.workspaceId && progress.workspaceId !== state.launching.workspaceId
+      )) {
+        if (!progress?.workspaceId) return state
+        return {
+          launching: {
+            workspaceId: progress.workspaceId,
+            progress: [progress],
+            phase: progress.phase || 'pre_script',
+            active: progress.phase !== 'done' && progress.phase !== 'error'
+          }
+        }
+      }
       const newProgress = [...state.launching.progress, progress]
       const newPhase = progress.phase || state.launching.phase
-      const active = progress.phase !== 'done'
+      const active = progress.phase !== 'done' && progress.phase !== 'error'
       return {
         launching: {
           ...state.launching,

@@ -21,6 +21,13 @@ const MESSAGES = {
       hintTitle: 'LaunchPad 仍在运行',
       hintBody: '窗口已收起到系统托盘，可继续一键启动工作空间。'
     },
+    shortcut: {
+      restartTitle: '重新运行工作空间',
+      restartMessage: '「{name}」中的应用均在运行',
+      restartDetail: '继续后会先结束这些应用，再重新启动整个工作空间。',
+      restart: '重新运行',
+      cancel: '取消'
+    },
     menu: {
       file: '文件',
       edit: '编辑',
@@ -90,7 +97,10 @@ const MESSAGES = {
       externalBlocked: '不允许打开该外部链接',
       scriptNameRequired: '请输入脚本名称',
       exeFilter: '可执行文件',
-      scanCancelled: '扫描已取消'
+      scanCancelled: '扫描已取消',
+      shortcutDuplicate: '该快捷键已分配给空间「{name}」',
+      shortcutOccupied: '该快捷键已被 Windows 或其他程序占用，请换一个组合',
+      shortcutInvalid: '该快捷键组合无效，请至少包含一个修饰键'
     },
     engine: {
       preRunning: '执行启动前脚本',
@@ -128,6 +138,13 @@ const MESSAGES = {
       loginFailedTitle: 'Failed to set start-at-login',
       hintTitle: 'LaunchPad is still running',
       hintBody: 'The window was hidden to the system tray. Launch workspaces anytime from there.'
+    },
+    shortcut: {
+      restartTitle: 'Relaunch workspace',
+      restartMessage: 'All apps in "{name}" are running',
+      restartDetail: 'Continuing will stop these apps first, then relaunch the entire workspace.',
+      restart: 'Relaunch',
+      cancel: 'Cancel'
     },
     menu: {
       file: 'File',
@@ -198,7 +215,10 @@ const MESSAGES = {
       externalBlocked: 'This external link is not allowed',
       scriptNameRequired: 'Please enter a script name',
       exeFilter: 'Executables',
-      scanCancelled: 'Scan cancelled'
+      scanCancelled: 'Scan cancelled',
+      shortcutDuplicate: 'This shortcut is already assigned to "{name}"',
+      shortcutOccupied: 'This shortcut is already used by Windows or another app. Choose another combination.',
+      shortcutInvalid: 'This shortcut is invalid. Include at least one modifier key.'
     },
     engine: {
       preRunning: 'Running pre-launch script',
@@ -236,6 +256,13 @@ const MESSAGES = {
       loginFailedTitle: 'ログイン時起動の設定に失敗',
       hintTitle: 'LaunchPad は実行中です',
       hintBody: 'ウィンドウはシステムトレイに収納されました。いつでもワークスペースを一括起動できます。'
+    },
+    shortcut: {
+      restartTitle: 'ワークスペースを再実行',
+      restartMessage: '「{name}」のアプリはすべて実行中です',
+      restartDetail: '続行するとアプリを終了してから、ワークスペース全体を再実行します。',
+      restart: '再実行',
+      cancel: 'キャンセル'
     },
     menu: {
       file: 'ファイル',
@@ -306,7 +333,10 @@ const MESSAGES = {
       externalBlocked: 'この外部リンクは許可されていません',
       scriptNameRequired: 'スクリプト名を入力してください',
       exeFilter: '実行ファイル',
-      scanCancelled: 'スキャンがキャンセルされました'
+      scanCancelled: 'スキャンがキャンセルされました',
+      shortcutDuplicate: 'このショートカットは「{name}」に割り当て済みです',
+      shortcutOccupied: 'このショートカットは Windows または別のアプリで使用されています。別の組み合わせを選んでください。',
+      shortcutInvalid: 'ショートカットが無効です。修飾キーを1つ以上含めてください。'
     },
     engine: {
       preRunning: '起動前スクリプトを実行',

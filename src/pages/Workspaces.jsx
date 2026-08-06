@@ -1,14 +1,15 @@
-// 应用管理页面（原工作空间）：工作空间 CRUD + 一键启动动画
+// 空间管理页面：工作空间 CRUD + 一键启动动画
 // 视觉对齐设计稿：页头(标题+副标题+CTA) + 卡片网格 + 模态表单
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { Plus, Pencil, Trash2, Play, PackageOpen, Search, X } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import LaunchAnimation from '../components/LaunchAnimation'
 import SoftwareIcon from '../components/SoftwareIcon'
+import ShortcutInput from '../components/ShortcutInput'
 import { useStore } from '../store/useStore'
-import { workspaceApi, onLaunchProgress } from '../lib/ipc'
+import { workspaceApi } from '../lib/ipc'
 import { useProcessStatuses } from '../hooks/useProcessStatuses'
 import { useT } from '../hooks/useT'
 import './Workspaces.css'
@@ -36,42 +37,38 @@ function Workspaces() {
     `${launching?.active || false}:${launching?.progress?.length || 0}`
   )
 
-  // 订阅启动进度：组件挂载期间持续转发到 store
-  useEffect(() => {
-    const unsubscribe = onLaunchProgress((progress) => {
-      updateLaunchProgress(progress)
-    })
-    return () => unsubscribe()
-  }, [updateLaunchProgress])
-
   // Modal 与表单状态
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', icon: '🚀' })
+  const [form, setForm] = useState({ name: '', description: '', icon: '🚀', shortcut: '' })
   // 已选软件：[{ software_id, name, icon, launch_order, delay_ms }]
   const [selectedSoftware, setSelectedSoftware] = useState([])
   const [softwareSearch, setSoftwareSearch] = useState('')
   const [saving, setSaving] = useState(false)
+  const [shortcutError, setShortcutError] = useState('')
   // 防止保存重复提交
   const savingRef = useRef(false)
 
   // 打开新建 Modal
   const openCreate = () => {
     setEditingId(null)
-    setForm({ name: '', description: '', icon: '🚀' })
+    setForm({ name: '', description: '', icon: '🚀', shortcut: '' })
     setSelectedSoftware([])
     setSoftwareSearch('')
+    setShortcutError('')
     setModalOpen(true)
   }
 
   // 打开编辑 Modal，预填工作空间数据
   const openEdit = (workspace) => {
     setSoftwareSearch('')
+    setShortcutError('')
     setEditingId(workspace.id)
     setForm({
       name: workspace.name || '',
       description: workspace.description || '',
-      icon: workspace.icon || '🚀'
+      icon: workspace.icon || '🚀',
+      shortcut: workspace.shortcut || ''
     })
     // 将工作空间的 software 映射为可编辑项
     setSelectedSoftware(
@@ -130,6 +127,14 @@ function Workspaces() {
       window.alert(t('workspaces.nameRequired'))
       return
     }
+    const conflict = form.shortcut && workspaces.find(
+      (workspace) => workspace.id !== editingId &&
+        String(workspace.shortcut || '').toLowerCase() === form.shortcut.toLowerCase()
+    )
+    if (conflict) {
+      setShortcutError(t('workspaces.shortcutConflict', { name: conflict.name }))
+      return
+    }
     savingRef.current = true
     setSaving(true)
     try {
@@ -138,6 +143,7 @@ function Workspaces() {
         name: form.name.trim(),
         description: form.description.trim(),
         icon: form.icon,
+        shortcut: form.shortcut.trim(),
         software: selectedSoftware
           .slice()
           .sort((a, b) => Number(a.launch_order) - Number(b.launch_order))
@@ -248,10 +254,11 @@ function Workspaces() {
             const extraCount = wsSoftware.length - shownSoftware.length
             return (
               <GlassCard key={ws.id} className="workspace-card" hover>
-                {/* 顶部：icon + 名称 + 状态灯 */}
+                {/* 顶部：icon + 名称 + 快捷键 + 状态灯 */}
                 <div className="ws-card-header">
                   <span className="ws-icon">{ws.icon || '🚀'}</span>
                   <span className="ws-name">{ws.name}</span>
+                  {ws.shortcut && <kbd className="ws-shortcut">{ws.shortcut}</kbd>}
                   <span className="ws-status">
                     <span
                       className={`ws-status-dot ${
@@ -373,6 +380,19 @@ function Workspaces() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 全局快捷键 */}
+          <div className="form-group">
+            <label className="form-label">{t('workspaces.shortcut')}</label>
+            <ShortcutInput
+              value={form.shortcut}
+              error={shortcutError}
+              onChange={(shortcut) => {
+                setShortcutError('')
+                setForm((current) => ({ ...current, shortcut }))
+              }}
+            />
           </div>
 
           {/* 软件选择 */}

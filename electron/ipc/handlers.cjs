@@ -9,6 +9,7 @@ const processManager = require('../services/processManager.cjs')
 const perfMonitor = require('../services/perfMonitor.cjs')
 const systemPreferences = require('../services/systemPreferences.cjs')
 const trayService = require('../services/trayService.cjs')
+const shortcutService = require('../services/shortcutService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -52,21 +53,62 @@ function registerIpcHandlers() {
   ipcMain.handle('workspace:list', () => wrap(() => workspaceDao.list()))
   ipcMain.handle('workspace:get', (_e, id) => wrap(() => workspaceDao.get(id)))
   ipcMain.handle('workspace:create', (_e, data) => wrap(() => {
+    const validation = shortcutService.validateShortcut(data?.shortcut)
+    if (!validation.valid) {
+      const key = validation.reason === 'duplicate'
+        ? 'errors.shortcutDuplicate'
+        : validation.reason === 'occupied'
+          ? 'errors.shortcutOccupied'
+          : 'errors.shortcutInvalid'
+      throw new Error(t(key, { name: validation.workspaceName || '' }))
+    }
     const result = workspaceDao.create(data)
     trayService.refreshTrayMenu()
+    const failure = shortcutService.syncShortcuts().find((item) => item.workspaceId === result.id)
+    if (failure) {
+      // 快捷键未真正注册时不保留“看似成功”的配置。
+      workspaceDao.remove(result.id)
+      shortcutService.syncShortcuts()
+      trayService.refreshTrayMenu()
+      const key = failure.reason === 'occupied'
+        ? 'errors.shortcutOccupied'
+        : 'errors.shortcutInvalid'
+      throw new Error(t(key))
+    }
     return result
   }))
   ipcMain.handle('workspace:update', (_e, id, data) => wrap(() => {
-    const result = workspaceDao.update(id, data)
+    const workspaceId = Number(id)
+    const validation = shortcutService.validateShortcut(data?.shortcut, workspaceId)
+    if (!validation.valid) {
+      const key = validation.reason === 'duplicate'
+        ? 'errors.shortcutDuplicate'
+        : validation.reason === 'occupied'
+          ? 'errors.shortcutOccupied'
+          : 'errors.shortcutInvalid'
+      throw new Error(t(key, { name: validation.workspaceName || '' }))
+    }
+    const previousShortcut = workspaceDao.get(workspaceId)?.shortcut || ''
+    const result = workspaceDao.update(workspaceId, data)
     trayService.refreshTrayMenu()
+    const failure = shortcutService.syncShortcuts().find((item) => item.workspaceId === workspaceId)
+    if (failure) {
+      workspaceDao.updateShortcut(workspaceId, previousShortcut)
+      shortcutService.syncShortcuts()
+      const key = failure.reason === 'occupied'
+        ? 'errors.shortcutOccupied'
+        : 'errors.shortcutInvalid'
+      throw new Error(t(key))
+    }
     return result
   }))
   ipcMain.handle('workspace:delete', (_e, id) => wrap(() => {
     const result = workspaceDao.remove(id)
     trayService.refreshTrayMenu()
+    shortcutService.syncShortcuts()
     return result
   }))
-  ipcMain.handle('workspace:launch', async (e, workspaceId) => {
+  ipcMain.handle('workspace:launch', async (e, workspaceId, options) => {
     return wrap(async () => {
       const win = BrowserWindow.fromWebContents(e.sender)
       const onProgress = (progress) => {
@@ -75,10 +117,11 @@ function registerIpcHandlers() {
           win.webContents.send('workspace:launch-progress', progress)
         }
       }
-      await workspaceEngine.launchWorkspace(workspaceId, onProgress)
+      await workspaceEngine.launchWorkspace(workspaceId, onProgress, options || {})
       return { success: true }
     })
   })
+  ipcMain.handle('shortcut:status', () => wrap(() => shortcutService.getStatus()))
 
   // ===== 软件 =====
   ipcMain.handle('software:list', () => wrap(() => softwareDao.list()))
@@ -111,6 +154,8 @@ function registerIpcHandlers() {
   )
   // 性能监视：返回 CPU / 内存 / 磁盘 / GPU 快照（渲染层仅在性能页可见时轮询）
   ipcMain.handle('perf:snapshot', () => wrap(() => perfMonitor.getSnapshot()))
+  // 性能监视：内存 / GPU 占用排行（渲染层在内存/GPU 页时轮询）
+  ipcMain.handle('perf:topProcesses', () => wrap(() => perfMonitor.getTopProcesses()))
   ipcMain.handle('software:scan', async () =>
     wrap(() => runSoftwareScan((signal) => softwareScanner.scanAll(null, { signal })))
   )

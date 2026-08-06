@@ -57,7 +57,7 @@ function executeScript(script) {
 //   progress = {phase, softwareId?, softwareName?, status?, message?}
 //   phase: 'pre_script' | 'software' | 'post_script' | 'done' | 'error'
 //   status: 'pending' | 'running' | 'success' | 'failed'
-async function launchWorkspace(workspaceId, onProgress) {
+async function launchWorkspace(workspaceId, onProgress, options = {}) {
   // 进度回调的安全包装，避免回调异常影响启动流程
   const report = (data) => {
     if (typeof onProgress === 'function') {
@@ -77,6 +77,7 @@ async function launchWorkspace(workspaceId, onProgress) {
       throw new Error(t('engine.notFound', { id: workspaceId }))
     }
     const killBeforeLaunch = settingsDao.get('killBeforeLaunch')
+    const restartRunning = options?.restartRunning === true
 
     // 2. 查询 pre/post 脚本
     const preScript = scriptDao.getByWorkspaceAndType(workspaceId, 'pre')
@@ -128,7 +129,7 @@ async function launchWorkspace(workspaceId, onProgress) {
         await delay(software.delay_ms)
       }
 
-      if (killBeforeLaunch) {
+      if (killBeforeLaunch || restartRunning) {
         try {
           const terminated = await processManager.terminateByExecutablePath(software.path)
           if (terminated.killed > 0) {

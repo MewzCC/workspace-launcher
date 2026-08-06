@@ -1,4 +1,4 @@
-/* 应用管理页面样式：工作空间卡片网格 + 模态表单 */
+/* 空间管理页面样式：工作空间卡片网格 + 模态表单 */
 
 .workspaces-page {
   padding: 0;
@@ -279,4 +279,18 @@
 .od-input {
   width: 64px;
   padding: 6px 8px;
+}
+
+/* 卡片上的全局快捷键徽标 */
+.ws-shortcut {
+  font-family: var(--brand-font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-primary-400);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }

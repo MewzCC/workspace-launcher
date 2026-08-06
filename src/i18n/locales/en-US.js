@@ -29,7 +29,7 @@ export default {
   },
   nav: {
     dashboard: 'Dashboard',
-    workspaces: 'Workspaces',
+    workspaces: 'Space Management',
     software: 'Software Library',
     automation: 'Automation',
     scan: 'Scan Center',
@@ -50,10 +50,10 @@ export default {
     subtitle: 'Ready to get into your workflow',
     quickLaunch: 'Quick Launch',
     workspaceCount: '{count} workspaces',
-    empty: "No workspaces yet. Create one on the Workspaces page.",
-    goManage: 'Go to Workspaces',
+    empty: "No workspaces yet. Create one in Space Management.",
+    goManage: 'Go to Space Management',
     quickEditTitle: 'Quick edit · {name}',
-    quickEditHint: 'Only adjust which apps this workspace includes. Name, icon, launch order and delay stay unchanged.',
+    quickEditHint: 'Adjust included apps and the quick-launch shortcut. Name, icon, launch order and delay stay unchanged.',
     searchPlaceholder: 'Search app name or path',
     searchAria: 'Search selectable apps',
     clearSearch: 'Clear search',
@@ -64,11 +64,13 @@ export default {
     noSoftware: 'No software added',
     quickEdit: 'Quick edit',
     launch: 'Launch',
-    save: 'Save apps'
+    relaunch: 'Relaunch',
+    relaunchConfirm: 'All apps in "{name}" are running. Stop them and relaunch the workspace?',
+    save: 'Save settings'
   },
   workspaces: {
-    title: 'Workspaces',
-    subtitle: 'Manage workspaces and configure app combinations and launch order',
+    title: 'Space Management',
+    subtitle: 'Manage workspaces, app combinations, launch order, and global shortcuts',
     add: 'Add Workspace',
     empty: 'No workspaces yet. Create one from the top right.',
     launching: 'Launching',
@@ -90,7 +92,14 @@ export default {
     delayMs: 'Delay (ms)',
     deleteConfirm: 'Delete workspace "{name}"?',
     deleteFailed: 'Delete failed: ',
-    launchFailed: 'Launch failed: '
+    launchFailed: 'Launch failed: ',
+    shortcut: 'Global Shortcut',
+    shortcutPlaceholder: 'Click the field then press the combo',
+    shortcutHint: 'Works globally and launches this workspace. Include at least one modifier, e.g. Ctrl+Alt+W',
+    shortcutRecording: 'Recording: press modifiers plus a letter, number, or function key. Press Esc to finish.',
+    shortcutInvalid: 'The shortcut must include at least one modifier (Ctrl / Alt / Shift / Win)',
+    shortcutConflict: 'This shortcut is already assigned to "{name}"',
+    shortcutClear: 'Clear'
   },
   software: {
     title: 'Software Library',
@@ -316,6 +325,13 @@ export default {
     gpuFan: 'Fan speed',
     noGpu: 'No usable GPU data detected',
     history: 'Usage history',
+    topProcesses: 'Top processes',
+    rankUpdated: 'Updated {time}',
+    rankLoading: 'Loading process data…',
+    rankEmpty: 'No process data',
+    rankPage: 'Page {page}/{total}',
+    rankAll: 'All',
+    rankGpuFilter: 'Filter by GPU',
     na: 'N/A'
   },
   settings: {

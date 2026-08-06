@@ -56,7 +56,47 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+}
+
+.quick-card-status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 15px 44px;
+  padding: 4px 8px;
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+}
+
+.quick-card-status-dot,
+.software-running-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: var(--brand-muted-foreground);
+  border-radius: 50%;
+}
+
+.quick-card-status.running {
+  color: var(--brand-state-success);
+  background: color-mix(in srgb, var(--brand-state-success) 9%, transparent);
+  border-color: color-mix(in srgb, var(--brand-state-success) 24%, var(--brand-border));
+}
+
+.quick-card-status.running .quick-card-status-dot,
+.software-item.is-running .software-running-dot {
+  background: var(--brand-state-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-state-success) 13%, transparent);
+}
+
+.quick-card-status.partial {
+  color: var(--brand-state-warning);
 }
 
 .quick-card-icon {
@@ -65,9 +105,14 @@
 }
 
 .quick-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 16px;
   font-weight: 600;
   color: var(--brand-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 软件列表：占满卡片剩余空间 */
@@ -85,6 +130,17 @@
   gap: 8px;
   font-size: 14px;
   color: var(--brand-muted-foreground);
+}
+
+.software-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.software-running-dot {
+  margin-left: auto;
 }
 
 /* 超出数量的提示 */
@@ -171,6 +227,27 @@
   color: var(--brand-muted-foreground);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.quick-edit-shortcut {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--brand-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, var(--brand-border));
+  border-radius: var(--brand-radius-md);
+}
+
+.quick-card-shortcut {
+  max-width: 145px;
+  overflow: hidden;
+  padding: 3px 7px;
+  color: var(--brand-primary-400);
+  font: 600 10px/1.2 var(--brand-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--brand-primary) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  border-radius: 5px;
 }
 
 .quick-edit-search {

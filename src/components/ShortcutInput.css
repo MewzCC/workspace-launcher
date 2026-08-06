@@ -1,0 +1,119 @@
+.shortcut-field {
+  width: 100%;
+}
+
+.shortcut-field-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.shortcut-recorder {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 11px;
+  color: var(--brand-muted-foreground);
+  text-align: left;
+  background: var(--brand-input);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.shortcut-recorder:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 48%, var(--brand-border));
+}
+
+.shortcut-recorder:focus,
+.shortcut-recorder.recording {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+
+.has-error .shortcut-recorder {
+  border-color: var(--brand-state-error);
+}
+
+.shortcut-recorder-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.shortcut-key {
+  min-width: 26px;
+  padding: 3px 7px;
+  color: var(--brand-foreground);
+  font: 600 11px/1.25 var(--brand-font-mono);
+  text-align: center;
+  background: var(--brand-card-solid);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, var(--brand-border));
+  border-radius: 5px;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--brand-primary) 20%, var(--brand-border));
+}
+
+.shortcut-plus {
+  color: var(--brand-muted-foreground);
+  font: 600 11px/1 var(--brand-font-mono);
+}
+
+.shortcut-recording-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: var(--brand-state-success);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-state-success) 16%, transparent);
+}
+
+.shortcut-clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.shortcut-clear:hover {
+  color: var(--brand-foreground);
+  border-color: var(--brand-muted-foreground);
+}
+
+.shortcut-hint {
+  min-height: 18px;
+  margin: 7px 0 0;
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.shortcut-hint.error {
+  color: var(--brand-state-error);
+}
+
+@media (max-width: 520px) {
+  .shortcut-field-row {
+    align-items: stretch;
+  }
+
+  .shortcut-clear {
+    padding: 0 9px;
+  }
+}

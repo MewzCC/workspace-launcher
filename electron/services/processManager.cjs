@@ -621,5 +621,6 @@ module.exports = {
   getExecutableStatuses,
   listProcessesWithPorts,
   listProcessPage,
+  getProcessBase,
   terminateProcessTree
 }

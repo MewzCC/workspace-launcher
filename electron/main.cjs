@@ -2,6 +2,7 @@ const { app, BrowserWindow, nativeTheme, ipcMain } = require('electron')
 const path = require('path')
 const { setupAppMenu, refreshAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
+const shortcutService = require('./services/shortcutService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const { t } = require('./i18n.cjs')
 
@@ -124,6 +125,8 @@ if (!gotSingleInstanceLock) {
       toggleWindow: toggleMainWindow,
       quitApp
     })
+    shortcutService.init({ showWindow: showMainWindow })
+    shortcutService.syncShortcuts()
 
     app.on('activate', showMainWindow)
   })
@@ -135,6 +138,7 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
   trayService.destroyTray()
+  shortcutService.unregisterAll()
 })
 
 app.on('window-all-closed', () => {

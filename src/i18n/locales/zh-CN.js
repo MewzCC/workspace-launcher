@@ -29,7 +29,7 @@ export default {
   },
   nav: {
     dashboard: '启动台',
-    workspaces: '应用管理',
+    workspaces: '空间管理',
     software: '软件库',
     automation: '自动化',
     scan: '扫描中心',
@@ -50,10 +50,10 @@ export default {
     subtitle: '准备进入你的工作状态',
     quickLaunch: '快速启动',
     workspaceCount: '{count} 个工作空间',
-    empty: '还没有工作空间，去应用管理页面创建一个吧',
-    goManage: '前往应用管理',
+    empty: '还没有工作空间，去空间管理页面创建一个吧',
+    goManage: '前往空间管理',
     quickEditTitle: '快速编辑 · {name}',
-    quickEditHint: '这里只调整工作空间包含的应用，名称、图标、启动顺序和延迟保持不变。',
+    quickEditHint: '可调整工作空间包含的应用与快捷启动组合，名称、图标、启动顺序和延迟保持不变。',
     searchPlaceholder: '搜索应用名称或路径',
     searchAria: '搜索可选应用',
     clearSearch: '清空搜索',
@@ -64,11 +64,13 @@ export default {
     noSoftware: '暂未添加软件',
     quickEdit: '快速编辑',
     launch: '启动',
-    save: '保存应用'
+    relaunch: '重新运行',
+    relaunchConfirm: '工作空间「{name}」中的应用均在运行。确定结束这些应用并重新运行吗？',
+    save: '保存设置'
   },
   workspaces: {
-    title: '应用管理',
-    subtitle: '管理工作空间，配置软件组合与启动顺序',
+    title: '空间管理',
+    subtitle: '管理工作空间，配置软件组合、启动顺序与全局快捷键',
     add: '添加工作空间',
     empty: '暂无工作空间，点击右上角创建一个吧',
     launching: '启动中',
@@ -90,7 +92,14 @@ export default {
     delayMs: '延迟(ms)',
     deleteConfirm: '确认删除工作空间「{name}」吗？',
     deleteFailed: '删除失败：',
-    launchFailed: '启动失败：'
+    launchFailed: '启动失败：',
+    shortcut: '全局快捷键',
+    shortcutPlaceholder: '点击输入框后按下组合键',
+    shortcutHint: '全局生效，按下即启动该工作空间，需至少包含一个修饰键，如 Ctrl+Alt+W',
+    shortcutRecording: '正在录制，请同时按下修饰键与字母、数字或功能键；Esc 结束录制',
+    shortcutInvalid: '快捷键需至少包含一个修饰键（Ctrl / Alt / Shift / Win）',
+    shortcutConflict: '该快捷键已分配给空间「{name}」',
+    shortcutClear: '清除'
   },
   software: {
     title: '软件库',
@@ -316,6 +325,13 @@ export default {
     gpuFan: '风扇转速',
     noGpu: '未检测到可用的 GPU 数据',
     history: '使用率历史',
+    topProcesses: '进程占用排行',
+    rankUpdated: '更新于 {time}',
+    rankLoading: '正在加载进程数据…',
+    rankEmpty: '暂无进程数据',
+    rankPage: '第 {page}/{total} 页',
+    rankAll: '全部',
+    rankGpuFilter: '按显卡过滤',
     na: '不可用'
   },
   settings: {

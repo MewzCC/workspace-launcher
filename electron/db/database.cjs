@@ -14,6 +14,7 @@ const CREATE_TABLES_SQL = `
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     icon TEXT DEFAULT '🚀',
+    shortcut_key TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -89,6 +90,12 @@ const CREATE_TABLES_SQL = `
 // 轻量迁移：为已存在的旧表补充新增列
 // 旧数据库通过 CREATE TABLE IF NOT EXISTS 不会自动加列，需逐列检查后 ALTER TABLE ADD COLUMN
 const MIGRATIONS = [
+  {
+    table: 'workspaces',
+    columns: [
+      { name: 'shortcut_key', definition: "TEXT DEFAULT ''" }
+    ]
+  },
   {
     table: 'launch_logs',
     columns: [

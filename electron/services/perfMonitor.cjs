@@ -10,6 +10,7 @@
 //   无 NVIDIA 时温度/转速显示 N/A。
 const os = require('os')
 const { execFile, execFileSync } = require('child_process')
+const processManager = require('./processManager.cjs')
 
 // ===== 缓存 helper（与 processManager 相同的去重语义）=====
 function cachedLoader(holder, ttl, loader, force = false) {
@@ -53,15 +54,20 @@ function runPowerShell(script, { timeout = 10000, maxBuffer = 4 * 1024 * 1024, e
 
 // ===== CPU（进程内，零开销）=====
 let lastCpuSample = null
+let lastCpuPerCore = null
 
 function readCpuUsage() {
   const cpus = os.cpus()
   let idle = 0
   let total = 0
-  for (const core of cpus) {
-    const times = core.times
-    total += times.user + times.nice + times.sys + times.idle + times.irq
-    idle += times.idle
+  const nowCore = cpus.map((core) => {
+    const t = core.times
+    const sum = t.user + t.nice + t.sys + t.idle + t.irq
+    return { idle: t.idle, total: sum }
+  })
+  for (const core of nowCore) {
+    total += core.total
+    idle += core.idle
   }
   const now = { idle, total }
   let usage = null
@@ -70,8 +76,19 @@ function readCpuUsage() {
     const dTotal = now.total - lastCpuSample.total
     usage = Math.min(100, Math.max(0, (1 - dIdle / dTotal) * 100))
   }
+  let perCore = null
+  if (lastCpuPerCore) {
+    perCore = nowCore.map((core, index) => {
+      const prev = lastCpuPerCore[index]
+      if (!prev || core.total <= prev.total) return null
+      const dIdle = core.idle - prev.idle
+      const dTotal = core.total - prev.total
+      return Math.min(100, Math.max(0, (1 - dIdle / dTotal) * 100))
+    })
+  }
   lastCpuSample = now
-  return usage
+  lastCpuPerCore = nowCore
+  return { usage, perCore }
 }
 
 function readMemory() {
@@ -98,47 +115,118 @@ function loadSlowStats() {
     "$gpus = @(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | ForEach-Object { [ordered]@{ name = [string]$_.Name; adapterRam = [long]$_.AdapterRAM; status = [string]$_.Status } })",
     "$cpuTemp = $null",
     "$tz = Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue",
-    "if ($null -ne $tz) { $cpuTemp = [math]::Round(($tz.CurrentTemperature / 10) - 273.15, 1) }",
-    "[ordered]@{ drives = $drives; cpuTemp = $cpuTemp; gpus = $gpus } | ConvertTo-Json -Depth 3 -Compress"
+    "if ($null -ne $tz) {",
+    "  $cand = ($tz.CurrentTemperature / 10) - 273.15",
+    "  if ($cand -lt -10) { $cand = $tz.CurrentTemperature / 10 }",
+    "  if ($cand -ge 0 -and $cand -le 120) { $cpuTemp = [math]::Round($cand, 1) }",
+    "}",
+    "if ($null -eq $cpuTemp) {",
+    "  $pt = Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue",
+    "  foreach ($item in $pt) {",
+    "    $raw = [double]$item.Temperature",
+    "    $cand = ($raw / 10) - 273.15",
+    "    if ($cand -lt -10) { $cand = $raw / 10 }",
+    "    if ($cand -ge 0 -and $cand -le 120) { if ($null -eq $cpuTemp -or $cand -gt $cpuTemp) { $cpuTemp = [math]::Round($cand, 1) } }",
+    "  }",
+    "}",
+    "$diskAct = @()",
+    "try {",
+    "  $rdMap = @{}",
+    "  $wrMap = @{}",
+    "  $actMap = @{}",
+    "  foreach ($s in (Get-Counter '\\LogicalDisk(*)\\Disk Read Bytes/sec' -ErrorAction SilentlyContinue).CounterSamples) {",
+    "    if ($null -eq $s.CookedValue) { continue }",
+    "    $letter = $s.InstanceName.TrimEnd('\\').ToUpperInvariant()",
+    "    if ($letter -eq '_TOTAL') { continue }",
+    "    $rdMap[$letter] = [long]$s.CookedValue",
+    "  }",
+    "  foreach ($s in (Get-Counter '\\LogicalDisk(*)\\Disk Write Bytes/sec' -ErrorAction SilentlyContinue).CounterSamples) {",
+    "    if ($null -eq $s.CookedValue) { continue }",
+    "    $letter = $s.InstanceName.TrimEnd('\\').ToUpperInvariant()",
+    "    if ($letter -eq '_TOTAL') { continue }",
+    "    $wrMap[$letter] = [long]$s.CookedValue",
+    "  }",
+    "  foreach ($s in (Get-Counter '\\LogicalDisk(*)\\% Disk Time' -ErrorAction SilentlyContinue).CounterSamples) {",
+    "    if ($null -eq $s.CookedValue) { continue }",
+    "    $letter = $s.InstanceName.TrimEnd('\\').ToUpperInvariant()",
+    "    if ($letter -eq '_TOTAL') { continue }",
+    "    $actMap[$letter] = $s.CookedValue",
+    "  }",
+    "  foreach ($k in $rdMap.Keys) {",
+    "    $diskAct += [ordered]@{ letter = $k; read = $rdMap[$k]; write = $wrMap[$k]; active = [math]::Round($actMap[$k], 1) }",
+    "  }",
+    "} catch { }",
+    "[ordered]@{ drives = $drives; diskAct = $diskAct; cpuTemp = $cpuTemp; gpus = $gpus } | ConvertTo-Json -Depth 3 -Compress"
   ].join('; ')
-  return runPowerShell(script).then((data) => ({
-    drives: Array.isArray(data?.drives) ? data.drives : [],
-    cpuTemp: Number.isFinite(data?.cpuTemp) ? data.cpuTemp : null,
-    gpus: Array.isArray(data?.gpus) ? data.gpus : []
-  }))
+  return runPowerShell(script).then((data) => {
+    const diskAct = Array.isArray(data?.diskAct) ? data.diskAct : []
+    const actByLetter = new Map(diskAct.map((d) => [String(d?.letter || '').toUpperCase(), d]))
+    return {
+      drives: Array.isArray(data?.drives) ? data.drives.map((d) => {
+        const letter = String(d?.letter || '').toUpperCase()
+        const act = actByLetter.get(letter)
+        return {
+          letter,
+          total: Number(d?.total) || 0,
+          free: Number(d?.free) || 0,
+          read: Number.isFinite(act?.read) ? act.read : null,
+          write: Number.isFinite(act?.write) ? act.write : null,
+          active: Number.isFinite(act?.active) ? act.active : null
+        }
+      }) : [],
+      cpuTemp: Number.isFinite(data?.cpuTemp) ? data.cpuTemp : null,
+      gpus: Array.isArray(data?.gpus) ? data.gpus : []
+    }
+  })
 }
 
 function getSlowStats() {
   return cachedLoader(slowHolder, SLOW_TTL_MS, loadSlowStats)
 }
 
-// ===== GPU 使用率 / 显存（快，TTL 2s）=====
-// 按 LUID 分组，每张显卡独立采集：
-// - \GPU Engine(*)\Utilization Percentage 实例名含 luid_..._engtype_...，按 luid 聚合得每卡使用率；
-//   同时记录引擎类型集合（video codec / videodecode 等可区分 NVIDIA/AMD/虚拟适配器）。
+// ===== GPU 使用率 / 显存 / 进程 CPU（快，TTL 2s）=====
+// 按 LUID 分组，每张显卡独立采集；同时按 PID 聚合，得到每个进程的 GPU 使用率与显存：
+// - \GPU Engine(*)\Utilization Percentage 实例名含 pid_..._luid_..._engtype_...，
+//   按 luid 聚合得每卡使用率（并记录引擎类型集合区分厂商 / 引擎明细），
+//   按 pid|luid 聚合得每进程各引擎使用率（与任务管理器一致：进程 GPU = 各引擎最大值，而非求和）。
 // - \GPU Adapter Memory(*)\Dedicated Usage + Shared Usage 按 luid 聚合得每卡显存已用。
-//   （无此计数器集时退回 \GPU Local Adapter Memory(*)\Local Usage）
+// - \GPU Process Memory(*)\Local Usage 按 pid 聚合得每进程显存已用。
+//   （适配卡显存无此计数器集时退回 \GPU Local Adapter Memory(*)\Local Usage）
+// - 每进程 CPU 使用率来自 Win32_PerfFormattedData_PerfProc_Process（任务管理器同源），
+//   % Processor Time 按逻辑核数归一化，上限 100%。
 const GPU_TTL_MS = 2000
 const gpuHolder = { value: null, updatedAt: 0, pending: null }
 
 function loadGpuStats() {
   if (process.platform !== 'win32') {
-    return Promise.resolve({ devices: [] })
+    return Promise.resolve({ devices: [], proc: [], cpu: [] })
   }
   const script = [
     "$devices = @()",
+    "$procEng = @{}",
+    "$engMap = @{}",
+    "$procVram = @{}",
+    "$procCpu = @{}",
     "try {",
     "  $usageMap = @{}",
     "  $typeMap = @{}",
     "  $samples = (Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -ErrorAction Stop).CounterSamples",
     "  foreach ($s in $samples) {",
     "    if ($null -eq $s.CookedValue) { continue }",
-    "    if ($s.InstanceName -match '^pid_\\d+_luid_([^_]+_[^_]+)_phys_\\d+_eng_\\d+_engtype_(.+)$') {",
-    "      $luid = $matches[1]",
+    "    if ($s.InstanceName -match '^pid_(\\d+)_luid_([^_]+_[^_]+)_phys_\\d+_eng_\\d+_engtype_(.+)$') {",
+    "      $procId = [int]$matches[1]",
+    "      $luid = $matches[2]",
+    "      $et = $matches[3]",
     "      if (-not $usageMap.ContainsKey($luid)) { $usageMap[$luid] = 0.0; $typeMap[$luid] = @() }",
     "      $usageMap[$luid] += [double]$s.CookedValue",
-    "      $et = $matches[2]",
     "      if ($typeMap[$luid] -notcontains $et) { $typeMap[$luid] += $et }",
+    "      $gkey = \"$procId|$luid\"",
+    "      if (-not $procEng.ContainsKey($gkey)) { $procEng[$gkey] = @{} }",
+    "      if (-not $procEng[$gkey].ContainsKey($et)) { $procEng[$gkey][$et] = 0.0 }",
+    "      $procEng[$gkey][$et] += [double]$s.CookedValue",
+    "      $ekey = \"$luid|$et\"",
+    "      if (-not $engMap.ContainsKey($ekey)) { $engMap[$ekey] = 0.0 }",
+    "      $engMap[$ekey] += [double]$s.CookedValue",
     "    }",
     "  }",
     "  foreach ($luid in $usageMap.Keys) {",
@@ -169,20 +257,82 @@ function loadGpuStats() {
     "      if ($s.InstanceName -match '^luid_([^_]+_[^_]+)') {",
     "        $luid = $matches[1]",
     "        $entry = $devices | Where-Object { $_.luid -eq $luid }",
-    "        if ($null -eq $entry) { $devices += [ordered]@{ luid = $luid; usage = $null; vramUsed = [long]$s.CookedValue; engTypes = @() } }",
-    "        else { $entry.vramUsed = [long]$s.CookedValue }",
+    "        if ($null -eq $entry) { $devices += [ordered]@{ luid = $luid; usage = $null; vramUsed = [long]$s.CookedValue; engTypes = @() } } else { $entry.vramUsed = [long]$s.CookedValue }",
     "      }",
     "    }",
     "  } catch { }",
     "}",
-    "$devices | ConvertTo-Json -Compress"
+    "try {",
+    "  $samples = (Get-Counter '\\GPU Process Memory(*)\\Local Usage' -ErrorAction SilentlyContinue).CounterSamples",
+    "  foreach ($s in $samples) {",
+    "    if ($null -eq $s.CookedValue) { continue }",
+    "    if ($s.InstanceName -match '^pid_(\\d+)_luid_([^_]+_[^_]+)_') {",
+    "      $procId = [int]$matches[1]",
+    "      $vkey = \"$procId|$matches[2]\"",
+    "      if (-not $procVram.ContainsKey($vkey)) { $procVram[$vkey] = 0 }",
+    "      $procVram[$vkey] = $procVram[$vkey] + [long]$s.CookedValue",
+    "    }",
+    "  }",
+    "} catch { }",
+    "try {",
+    "  $cores = [System.Environment]::ProcessorCount",
+    "  $procs = Get-CimInstance -ClassName Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue",
+    "  foreach ($p in $procs) {",
+    "    $pidv = $p.IDProcess",
+    "    if ($null -eq $pidv -or $p.Name -eq '_Total') { continue }",
+    "    $cpu = [double]$p.PercentProcessorTime",
+    "    if ($cores -gt 0) { $cpu = [math]::Min(100.0, $cpu / $cores) }",
+    "    $procCpu[$pidv] = [math]::Round($cpu, 1)",
+    "  }",
+    "} catch { }",
+    "foreach ($luid in $usageMap.Keys) {",
+    "  $engOut = [ordered]@{}",
+    "  foreach ($ekey in $engMap.Keys) {",
+    "    if ($ekey.StartsWith(\"$luid|\")) {",
+    "      $engOut[$ekey.Substring($luid.Length + 1)] = [math]::Round($engMap[$ekey], 1)",
+    "    }",
+    "  }",
+    "  ($devices | Where-Object { $_.luid -eq $luid } | Select-Object -First 1).engines = $engOut",
+    "}",
+    "$proc = @()",
+    "foreach ($gkey in $procEng.Keys) {",
+    "  $gparts = $gkey.Split('|')",
+    "  $maxVal = 0.0",
+    "  foreach ($v in $procEng[$gkey].Values) { if ($v -gt $maxVal) { $maxVal = $v } }",
+    "  $proc += [ordered]@{ pid = [int]$gparts[0]; luid = $gparts[1]; gpu = [math]::Min(100, [math]::Round($maxVal, 1)); vram = $null; cpu = $null }",
+    "}",
+    "foreach ($vkey in $procVram.Keys) {",
+    "  $vparts = $vkey.Split('|')",
+    "  $vpid = [int]$vparts[0]",
+    "  $vluid = $vparts[1]",
+    "  $entry = $proc | Where-Object { $_.pid -eq $vpid -and $_.luid -eq $vluid }",
+    "  if ($null -eq $entry) { $proc += [ordered]@{ pid = $vpid; luid = $vluid; gpu = $null; vram = [long]$procVram[$vkey]; cpu = $null } } else { $entry.vram = [long]$procVram[$vkey] }",
+    "}",
+    "foreach ($entry in $proc) {",
+    "  if ($procCpu.ContainsKey($entry.pid)) { $entry.cpu = $procCpu[$entry.pid] }",
+    "}",
+    "$cpuArr = @()",
+    "foreach ($k in $procCpu.Keys) { $cpuArr += [ordered]@{ pid = $k; cpu = $procCpu[$k] } }",
+    "[ordered]@{ devices = $devices; proc = $proc; cpu = $cpuArr } | ConvertTo-Json -Depth 5 -Compress"
   ].join('; ')
   return runPowerShell(script, { timeout: 15000 }).then((data) => ({
-    devices: Array.isArray(data) ? data.map((d) => ({
+    devices: Array.isArray(data?.devices) ? data.devices.map((d) => ({
       luid: d?.luid ?? null,
       usage: Number.isFinite(d?.usage) ? d.usage : null,
       vramUsed: Number.isFinite(d?.vramUsed) ? d.vramUsed : null,
-      engTypes: Array.isArray(d?.engTypes) ? d.engTypes : []
+      engTypes: Array.isArray(d?.engTypes) ? d.engTypes : [],
+      engines: (d?.engines && typeof d.engines === 'object') ? d.engines : {}
+    })) : [],
+    proc: Array.isArray(data?.proc) ? data.proc.map((p) => ({
+      pid: Number(p?.pid),
+      luid: String(p?.luid || ''),
+      gpu: Number.isFinite(p?.gpu) ? p.gpu : null,
+      vram: Number.isFinite(p?.vram) ? p.vram : null,
+      cpu: Number.isFinite(p?.cpu) ? p.cpu : null
+    })) : [],
+    cpu: Array.isArray(data?.cpu) ? data.cpu.map((c) => ({
+      pid: Number(c?.pid),
+      cpu: Number.isFinite(c?.cpu) ? c.cpu : null
     })) : []
   }))
 }
@@ -258,6 +408,48 @@ function getNvidiaStats() {
   return cachedLoader(nvidiaHolder, NVIDIA_TTL_MS, loadNvidiaStats)
 }
 
+// ===== 进程占用排行（内存 / GPU）=====
+// memory 列表来自进程基表（processManager 30s 缓存，WorkingSet 降序）；
+// gpu 列表来自 getGpuStats 按 PID 聚合的使用率/显存（2s 缓存），与基表合并出进程名。
+async function getTopProcesses() {
+  const [gpu, baseHolder] = await Promise.all([
+    getGpuStats(),
+    typeof processManager.getProcessBase === 'function' ? processManager.getProcessBase() : Promise.resolve(null)
+  ])
+  const base = Array.isArray(baseHolder?.value) ? baseHolder.value : []
+  const byPid = new Map(base.map((item) => [item.pid, item]))
+  const cpuByPid = new Map((gpu?.cpu || []).map((c) => [c.pid, c.cpu]))
+
+  const gpuList = (gpu?.proc || [])
+    .map((item) => {
+      const meta = byPid.get(item.pid) || {}
+      return {
+        pid: item.pid,
+        luid: String(item.luid || ''),
+        name: String(meta.name || ''),
+        path: String(meta.path || ''),
+        gpu: Number.isFinite(item.gpu) ? item.gpu : null,
+        vram: Number.isFinite(item.vram) ? item.vram : null,
+        cpu: Number.isFinite(cpuByPid.get(item.pid)) ? cpuByPid.get(item.pid) : null
+      }
+    })
+    .filter((item) => item.name && item.gpu != null && item.luid)
+    .sort((a, b) => (b.gpu ?? 0) - (a.gpu ?? 0))
+
+  const memoryList = base
+    .map((item) => ({
+      pid: item.pid,
+      name: String(item.name || ''),
+      path: String(item.path || ''),
+      memory: Number(item.workingSetBytes) || 0,
+      cpu: Number.isFinite(cpuByPid.get(item.pid)) ? cpuByPid.get(item.pid) : null
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => b.memory - a.memory)
+
+  return { memory: memoryList, gpu: gpuList, updatedAt: Date.now() }
+}
+
 // ===== 快照组装 =====
 // 虚拟显示适配器（远程桌面 / 串流 / 投屏）不是物理显卡，识别并过滤
 const VIRTUAL_NAME_RE = /virtual display|todesk|gameviewer|sunlogin|basic display|basic render|remote display|microsoft basic|mirror/i
@@ -305,6 +497,8 @@ function buildGpuDevices({ nvidia, counters, adapters }) {
       shortName: shortNameOf(nvidia.name),
       vendor: 'nvidia',
       virtual: false,
+      luid: null,
+      engines: {},
       usage: nvidia.utilization,
       temp: nvidia.temp,
       fan: nvidia.fan,
@@ -321,15 +515,23 @@ function buildGpuDevices({ nvidia, counters, adapters }) {
   for (const cd of counterDevices) {
     if (!cd.luid) continue
     const vendor = classifyLuid(cd.engTypes)
-    if (nvidia && vendor === 'nvidia') continue
+    if (nvidia && vendor === 'nvidia') {
+      // 把 NVIDIA 的 LUID 与引擎明细关联到 nvidia-smi 设备，供进程排行按显卡过滤 / 引擎分解
+      const nv = devices.find((d) => d.id === 'nvidia-0')
+      if (nv && !nv.luid) nv.luid = cd.luid
+      if (nv && Object.keys(nv.engines).length === 0 && cd.engines) nv.engines = cd.engines
+      continue
+    }
     if (isVirtualLuid(cd.engTypes)) continue
     if (seen.has(cd.luid)) continue
     devices.push({
       id: cd.luid,
+      luid: cd.luid,
       name: null,
       shortName: null,
       vendor,
       virtual: false,
+      engines: cd.engines || {},
       usage: Number.isFinite(cd.usage) ? cd.usage : null,
       temp: null,
       fan: null,
@@ -367,10 +569,12 @@ function buildGpuDevices({ nvidia, counters, adapters }) {
       const name = adapter.name || `GPU ${index + 1}`
       devices.push({
         id: `adapter-${index}`,
+        luid: null,
         name,
         shortName: shortNameOf(name),
         vendor: /nvidia/i.test(name) ? 'nvidia' : /amd|radeon/i.test(name) ? 'amd' : /intel|arc/i.test(name) ? 'intel' : 'other',
         virtual: false,
+        engines: {},
         usage: null,
         temp: null,
         fan: null,
@@ -395,10 +599,12 @@ async function getSnapshot() {
   // 显卡识别：有 nvidia-smi / WMI 适配器 / 计数器数据任一即视为存在
   const gpuPresent = devices.length > 0 || realAdapters.length > 0
   const mem = readMemory()
+  const cpuSample = readCpuUsage()
   return {
     timestamp: Date.now(),
     cpu: {
-      usage: readCpuUsage(),
+      usage: cpuSample.usage,
+      perCore: cpuSample.perCore,
       temp: slow?.cpuTemp ?? null,
       cores: cpus.length,
       speed: cpus.length > 0 ? cpus[0].speed : 0
@@ -421,4 +627,4 @@ async function getSnapshot() {
   }
 }
 
-module.exports = { getSnapshot }
+module.exports = { getSnapshot, getTopProcesses }

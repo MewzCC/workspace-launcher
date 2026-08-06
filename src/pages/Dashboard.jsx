@@ -1,13 +1,15 @@
 // 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
-import React, { useEffect, useState } from 'react'
-import { Play, ArrowRight, Check, Pencil, Search, X } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Play, ArrowRight, Check, Pencil, Search, X, RotateCcw } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import SoftwareIcon from '../components/SoftwareIcon'
-import { workspaceApi, onLaunchProgress } from '../lib/ipc'
+import ShortcutInput from '../components/ShortcutInput'
+import { workspaceApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
+import { useProcessStatuses } from '../hooks/useProcessStatuses'
 import './Dashboard.css'
 
 // 根据当前小时返回对应问候语
@@ -35,7 +37,14 @@ export function Dashboard() {
   const setWorkspaces = useStore((s) => s.setWorkspaces)
   const setCurrentView = useStore((s) => s.setCurrentView)
   const startLaunch = useStore((s) => s.startLaunch)
-  const updateLaunchProgress = useStore((s) => s.updateLaunchProgress)
+  const workspaceSoftware = useMemo(
+    () => workspaces.flatMap((workspace) => workspace.software || []),
+    [workspaces]
+  )
+  const processStatuses = useProcessStatuses(
+    workspaceSoftware,
+    String(launching?.active || false)
+  )
 
   // 实时时钟，每秒刷新一次
   const [now, setNow] = useState(() => new Date())
@@ -44,20 +53,13 @@ export function Dashboard() {
     return () => clearInterval(timer)
   }, [])
 
-  // 订阅启动进度：组件挂载时订阅一次，卸载时取消订阅，避免重复订阅导致内存泄漏
-  useEffect(() => {
-    const unsubscribe = onLaunchProgress((progress) => {
-      updateLaunchProgress(progress)
-    })
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe()
-    }
-  }, [updateLaunchProgress])
-
   // 点击启动按钮：初始化 store 启动状态，并通知主进程启动该工作空间
-  const handleLaunch = (workspaceId) => {
-    startLaunch(workspaceId)
-    workspaceApi.launch(workspaceId).catch((err) => {
+  const handleLaunch = (workspace, restartRunning = false) => {
+    if (restartRunning && !window.confirm(t('dashboard.relaunchConfirm', { name: workspace.name }))) {
+      return
+    }
+    startLaunch(workspace.id)
+    workspaceApi.launch(workspace.id, { restartRunning }).catch((err) => {
       console.error('启动工作空间失败:', err)
     })
   }
@@ -67,11 +69,15 @@ export function Dashboard() {
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState([])
   const [savingQuickEdit, setSavingQuickEdit] = useState(false)
   const [quickSearch, setQuickSearch] = useState('')
+  const [quickShortcut, setQuickShortcut] = useState('')
+  const [shortcutError, setShortcutError] = useState('')
 
   const openQuickEdit = (workspace) => {
     setQuickEditing(workspace)
     setSelectedSoftwareIds((workspace.software || []).map((item) => item.id))
     setQuickSearch('')
+    setQuickShortcut(workspace.shortcut || '')
+    setShortcutError('')
   }
 
   const toggleQuickSoftware = (softwareId) => {
@@ -84,6 +90,14 @@ export function Dashboard() {
 
   const saveQuickEdit = async () => {
     if (!quickEditing || savingQuickEdit) return
+    const conflict = quickShortcut && workspaces.find(
+      (workspace) => workspace.id !== quickEditing.id &&
+        String(workspace.shortcut || '').toLowerCase() === quickShortcut.toLowerCase()
+    )
+    if (conflict) {
+      setShortcutError(t('workspaces.shortcutConflict', { name: conflict.name }))
+      return
+    }
     setSavingQuickEdit(true)
     try {
       const previous = new Map(
@@ -93,6 +107,7 @@ export function Dashboard() {
         name: quickEditing.name,
         description: quickEditing.description || '',
         icon: quickEditing.icon || '🚀',
+        shortcut: quickShortcut,
         software: selectedSoftwareIds.map((softwareId, index) => {
           const old = previous.get(softwareId)
           return {
@@ -152,6 +167,7 @@ export function Dashboard() {
               key={ws.id}
               workspace={ws}
               launching={launching}
+              processStatuses={processStatuses}
               onLaunch={handleLaunch}
               onEdit={openQuickEdit}
             />
@@ -169,6 +185,17 @@ export function Dashboard() {
           <p className="quick-edit-hint">
             {t('dashboard.quickEditHint')}
           </p>
+          <div className="quick-edit-shortcut">
+            <label className="form-label">{t('workspaces.shortcut')}</label>
+            <ShortcutInput
+              value={quickShortcut}
+              error={shortcutError}
+              onChange={(shortcut) => {
+                setQuickShortcut(shortcut)
+                setShortcutError('')
+              }}
+            />
+          </div>
           <div className="quick-edit-search">
             <Search size={16} aria-hidden="true" />
             <input
@@ -225,7 +252,7 @@ export function Dashboard() {
 }
 
 // 快速启动卡片：工作空间图标与名称 + 软件列表 + 启动按钮
-function QuickCard({ workspace, launching, onLaunch, onEdit }) {
+function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit }) {
   const t = useT()
   const software = workspace.software || []
   // 仅展示前 3 个软件，超出部分以 +N 形式提示
@@ -234,6 +261,15 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
   // 判断当前工作空间是否正在启动中
   const isLaunching =
     launching && launching.workspaceId === workspace.id && launching.active
+  const runningCount = software.filter((item) => processStatuses[item.path]).length
+  const allRunning = software.length > 0 && runningCount === software.length
+  const statusText = isLaunching
+    ? t('workspaces.launching')
+    : allRunning
+      ? t('common.running')
+      : runningCount > 0
+        ? t('workspaces.partialRunning', { running: runningCount, total: software.length })
+        : t('common.stopped')
 
   return (
     <GlassCard className="quick-card" hover={true}>
@@ -241,14 +277,25 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
       <div className="quick-card-header">
         <span className="quick-card-icon">{workspace.icon || '🚀'}</span>
         <span className="quick-card-name">{workspace.name}</span>
+        {workspace.shortcut && <kbd className="quick-card-shortcut">{workspace.shortcut}</kbd>}
+      </div>
+
+      <div
+        className={`quick-card-status ${allRunning ? 'running' : runningCount > 0 ? 'partial' : 'stopped'}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="quick-card-status-dot" aria-hidden="true" />
+        <span>{statusText}</span>
       </div>
 
       {/* 中间：包含的软件列表 */}
       <div className="software-list">
         {visible.map((sw) => (
-          <div className="software-item" key={sw.id}>
+          <div className={`software-item ${processStatuses[sw.path] ? 'is-running' : ''}`} key={sw.id}>
             <span className="software-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} size="sm" /></span>
             <span className="software-name">{sw.name}</span>
+            <span className="software-running-dot" aria-label={processStatuses[sw.path] ? t('common.running') : t('common.stopped')} />
           </div>
         ))}
         {extraCount > 0 && (
@@ -296,10 +343,14 @@ function QuickCard({ workspace, launching, onLaunch, onEdit }) {
           variant="primary"
           size="sm"
           disabled={isLaunching}
-          onClick={() => onLaunch(workspace.id)}
+          onClick={() => onLaunch(workspace, allRunning)}
         >
-          <Play size={14} />
-          {isLaunching ? t('common.starting') : t('dashboard.launch')}
+          {allRunning ? <RotateCcw size={14} /> : <Play size={14} />}
+          {isLaunching
+            ? t('common.starting')
+            : allRunning
+              ? t('dashboard.relaunch')
+              : t('dashboard.launch')}
         </GlowButton>
       </div>
     </GlassCard>

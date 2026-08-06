@@ -16,8 +16,8 @@ function getStmts() {
     getWorkspace: db.prepare('SELECT * FROM workspaces WHERE id = ?'),
     // 插入工作空间
     insertWorkspace: db.prepare(`
-      INSERT INTO workspaces (name, description, icon)
-      VALUES (@name, @description, @icon)
+      INSERT INTO workspaces (name, description, icon, shortcut_key)
+      VALUES (@name, @description, @icon, @shortcut_key)
     `),
     // 更新工作空间（同时刷新 updated_at）
     updateWorkspace: db.prepare(`
@@ -25,8 +25,14 @@ function getStmts() {
       SET name = @name,
           description = @description,
           icon = @icon,
+          shortcut_key = @shortcut_key,
           updated_at = datetime('now')
       WHERE id = @id
+    `),
+    updateShortcut: db.prepare(`
+      UPDATE workspaces
+      SET shortcut_key = ?, updated_at = datetime('now')
+      WHERE id = ?
     `),
     // 删除工作空间（外键级联会自动删除 workspace_software 和 scripts）
     deleteWorkspace: db.prepare('DELETE FROM workspaces WHERE id = ?'),
@@ -35,12 +41,13 @@ function getStmts() {
       SELECT s.id, s.name, s.description, s.path, s.args, s.icon, s.created_at,
              ws.launch_order, ws.delay_ms
       FROM workspace_software ws
-      LEFT JOIN software s ON s.id = ws.software_id
+      INNER JOIN software s ON s.id = ws.software_id
       WHERE ws.workspace_id = ?
       ORDER BY ws.launch_order ASC
     `),
     // 删除某工作空间的全部关联
     deleteRelations: db.prepare('DELETE FROM workspace_software WHERE workspace_id = ?'),
+    softwareExists: db.prepare('SELECT 1 FROM software WHERE id = ?'),
     // 插入工作空间-软件关联
     insertRelation: db.prepare(`
       INSERT INTO workspace_software (workspace_id, software_id, launch_order, delay_ms)
@@ -51,11 +58,13 @@ function getStmts() {
 }
 
 // 将单个工作空间行 + 其关联软件列表组装为返回对象
+// shortcut_key 在接口层统一暴露为 shortcut 字段
 function assembleWorkspace(row) {
   if (!row) return null
   const s = getStmts()
   const software = s.listSoftwareByWorkspace.all(row.id)
-  return { ...row, software }
+  const { shortcut_key, ...rest } = row
+  return { ...rest, shortcut: shortcut_key || '', software }
 }
 
 // 查询所有工作空间（每个工作空间附带关联软件列表）
@@ -73,17 +82,23 @@ function get(id) {
 }
 
 // 创建工作空间并建立软件关联（事务）
-// data: { name, description, icon, software: [{software_id, launch_order, delay_ms}] }
+// data: { name, description, icon, shortcut, software: [{software_id, launch_order, delay_ms}] }
 // 返回新创建的工作空间
 function create(data) {
   const s = getStmts()
   const db = getDb()
-  const { name, description = '', icon = '🚀', software = [] } = data
+  const { name, description = '', icon = '🚀', shortcut = '', software = [] } = data
 
   const createTx = db.transaction(() => {
-    const info = s.insertWorkspace.run({ name, description, icon })
+    const info = s.insertWorkspace.run({
+      name,
+      description,
+      icon,
+      shortcut_key: String(shortcut || '').trim()
+    })
     const newId = info.lastInsertRowid
     for (const rel of software) {
+      if (!s.softwareExists.get(rel.software_id)) continue
       s.insertRelation.run({
         workspace_id: newId,
         software_id: rel.software_id,
@@ -103,13 +118,21 @@ function create(data) {
 function update(id, data) {
   const s = getStmts()
   const db = getDb()
-  const { name, description = '', icon = '🚀', software = [] } = data
+  const { name, description = '', icon = '🚀', shortcut = '', software = [] } = data
 
   const updateTx = db.transaction(() => {
-    s.updateWorkspace.run({ id, name, description, icon })
+    s.updateWorkspace.run({
+      id,
+      name,
+      description,
+      icon,
+      shortcut_key: String(shortcut || '').trim()
+    })
     // 删除旧关联，重新插入新关联
     s.deleteRelations.run(id)
     for (const rel of software) {
+      // 编辑窗口可能在软件删除前已打开；忽略已不存在的旧 ID，避免外键错误。
+      if (!s.softwareExists.get(rel.software_id)) continue
       s.insertRelation.run({
         workspace_id: id,
         software_id: rel.software_id,
@@ -131,10 +154,17 @@ function remove(id) {
   return info.changes > 0
 }
 
+function updateShortcut(id, shortcut) {
+  const s = getStmts()
+  s.updateShortcut.run(String(shortcut || '').trim(), id)
+  return get(id)
+}
+
 module.exports = {
   list,
   get,
   create,
   update,
+  updateShortcut,
   remove
 }

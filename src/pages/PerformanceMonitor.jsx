@@ -24,6 +24,7 @@ import {
   CircleAlert
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
+import ProcessRankList from '../components/perf/ProcessRankList'
 import { perfApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
@@ -78,7 +79,58 @@ function formatBytes(bytes) {
   const value = Number(bytes) || 0
   if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`
   if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
-  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`
+  return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`
+}
+
+// 磁盘/网络速率（字节/秒）
+function formatSpeed(bytesPerSec) {
+  const value = Number(bytesPerSec) || 0
+  if (value < 1024) return `${Math.round(value)} B/s`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB/s`
+  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB/s`
+  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB/s`
+}
+
+// GPU 引擎类型 → 任务管理器风格的短标签
+function normalizeEngine(type) {
+  const value = String(type || '').toLowerCase()
+  if (value === '3d') return '3D'
+  if (value.startsWith('copy')) return 'Copy'
+  if (value.startsWith('video decode') || value === 'videodecode') return 'Video Decode'
+  if (value.startsWith('video encode') || value === 'videoencode') return 'Video Encode'
+  if (value.startsWith('video codec')) return 'Video Codec'
+  if (value.startsWith('video jpeg')) return 'JPEG'
+  if (value.startsWith('compute') || value.startsWith('high priority compute')) return 'Compute'
+  if (value === 'vr') return 'VR'
+  if (value.startsWith('ofa')) return 'OFA'
+  if (value.startsWith('jpeg_decode')) return 'JPEG'
+  if (value.startsWith('security')) return 'Security'
+  if (value.startsWith('timer')) return 'Timer'
+  return value || ''
+}
+
+// ===== 每核心 CPU 用量条 =====
+function CpuCores({ perCore }) {
+  const cores = Array.isArray(perCore) ? perCore : []
+  if (cores.length === 0) return null
+  return (
+    <GlassCard className="perf-cores-card">
+      <h4>CPU {cores.length} · 每核心</h4>
+      <div className="perf-cores-grid">
+        {cores.map((value, index) => {
+          const pct = value == null ? null : Math.min(100, Math.max(0, value))
+          return (
+            <div key={index} className="perf-core">
+              <span className="perf-core-bar">
+                <i style={{ width: pct == null ? '0%' : `${pct}%` }} />
+              </span>
+              <small>{pct == null ? '—' : `${Math.round(pct)}%`}</small>
+            </div>
+          )
+        })}
+      </div>
+    </GlassCard>
+  )
 }
 
 function formatClock(mhz) {
@@ -338,6 +390,13 @@ function PerformanceMonitor() {
     { key: 'gpu', label: 'GPU', icon: Activity }
   ]
 
+  const gpuFilterOptions = useMemo(
+    () => (gpuDevices || [])
+      .filter((d) => d.luid)
+      .map((d) => ({ luid: d.luid, label: d.shortName || d.name || 'GPU' })),
+    [gpuDevices]
+  )
+
   if (error) {
     return (
       <div className="perf-page">
@@ -461,6 +520,7 @@ function PerformanceMonitor() {
                   <StatChip label={t('perf.speed')} value={formatClock(cpu?.speed)} />
                   <StatChip label={t('perf.cpuTemp')} value={cpu?.temp != null ? `${Math.round(cpu.temp)}°C` : t('perf.na')} />
                 </div>
+                <CpuCores perCore={cpu?.perCore} />
               </div>
             )}
 
@@ -483,6 +543,7 @@ function PerformanceMonitor() {
                     label={active.label}
                   />
                 </div>
+                <ProcessRankList metric="memory" accent={ACCENT.memory} />
                 <div className="perf-chip-row">
                   <StatChip label={t('perf.memUsed')} value={formatBytes(mem?.used)} />
                   <StatChip label={t('perf.memTotal')} value={formatBytes(mem?.total)} />
@@ -518,13 +579,30 @@ function PerformanceMonitor() {
                       const total = Number(drive.total) || 0
                       const used = total - (Number(drive.free) || 0)
                       const usage = total > 0 ? (used / total) * 100 : 0
+                      const hasActivity = drive.read != null || drive.write != null
                       return (
                         <GlassCard key={drive.letter} className="perf-drive">
                           <RingGauge value={usage} accent={ACCENT.disk} size={86} label={drive.letter} />
                           <div className="perf-drive-copy">
                             <strong>{drive.letter}</strong>
                             <small>{formatBytes(used)} / {formatBytes(total)}</small>
-                            <small>{Math.round(usage)}%</small>
+                            <small>{Math.round(usage)}% 已用</small>
+                            {hasActivity && (
+                              <div className="perf-drive-activity">
+                                <span className="perf-drive-io">
+                                  <i className="rd" />
+                                  {formatSpeed(drive.read)}
+                                </span>
+                                <span className="perf-drive-io">
+                                  <i className="wr" />
+                                  {formatSpeed(drive.write)}
+                                </span>
+                                <span className="perf-drive-io">
+                                  <i className="act" />
+                                  {drive.active != null ? `${drive.active.toFixed(1)}%` : '—'}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </GlassCard>
                       )
@@ -579,6 +657,20 @@ function PerformanceMonitor() {
                                 {dev.fan != null && <span className="perf-chip-mini">{Math.round(dev.fan)}% · 风扇</span>}
                                 {!gpuDevices.some((d) => d.temp != null) && <span className="perf-chip-mini muted">{t('perf.gpuTemp')}: {t('perf.na')}</span>}
                               </div>
+                              {Object.keys(dev.engines || {}).length > 0 && (
+                                <div className="perf-gpu-engines">
+                                  {Object.entries(dev.engines)
+                                    .map(([type, value]) => ({ type, value, label: normalizeEngine(type) }))
+                                    .filter((e) => e.label && e.value != null && e.value > 0)
+                                    .slice(0, 6)
+                                    .map((e) => (
+                                      <span key={e.type} className="perf-gpu-engine" title={`${e.type}`}>
+                                        <small>{e.label}</small>
+                                        <strong>{Math.round(e.value)}%</strong>
+                                      </span>
+                                    ))}
+                                </div>
+                              )}
                             </GlassCard>
                           )
                         })}
@@ -598,6 +690,7 @@ function PerformanceMonitor() {
                       accent={active.accent}
                       label={active.label}
                     />
+                    <ProcessRankList metric="gpu" accent={ACCENT.gpu} gpus={gpuFilterOptions} />
                   </>
                 )}
               </div>

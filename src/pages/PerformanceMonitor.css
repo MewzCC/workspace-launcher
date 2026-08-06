@@ -457,6 +457,120 @@
 
 .perf-chip-mini.muted { opacity: 0.65; }
 
+/* ===== 每核心 CPU 用量条 ===== */
+.perf-cores-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.perf-cores-card h4 {
+  margin: 0;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.perf-cores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 8px;
+}
+
+.perf-core {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.perf-core-bar {
+  position: relative;
+  display: block;
+  height: 44px;
+  background: color-mix(in srgb, var(--brand-muted) 70%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-sm);
+  overflow: hidden;
+}
+
+.perf-core-bar i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  max-width: 100%;
+  background: linear-gradient(180deg, #818cf8, var(--brand-primary));
+  border-radius: inherit;
+  transition: width 350ms ease;
+}
+
+.perf-core small {
+  color: var(--brand-muted-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 9px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 磁盘活动（读 / 写 / 占用率） ===== */
+.perf-drive-activity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.perf-drive-io {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-muted-foreground);
+  font-size: 9px;
+  font-family: var(--brand-font-mono);
+}
+
+.perf-drive-io i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.perf-drive-io i.rd { background: var(--brand-secondary); }
+.perf-drive-io i.wr { background: var(--brand-state-warning); }
+.perf-drive-io i.act { background: var(--brand-state-success); }
+
+/* ===== GPU 引擎分解（任务管理器风格） ===== */
+.perf-gpu-engines {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.perf-gpu-engine {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  color: var(--brand-muted-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 60%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+}
+
+.perf-gpu-engine small {
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+.perf-gpu-engine strong {
+  color: var(--brand-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 1180px) {
   .perf-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }

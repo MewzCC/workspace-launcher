@@ -12,7 +12,10 @@ contextBridge.exposeInMainWorld('api', {
     create: (data) => ipcRenderer.invoke('workspace:create', data),
     update: (id, data) => ipcRenderer.invoke('workspace:update', id, data),
     delete: (id) => ipcRenderer.invoke('workspace:delete', id),
-    launch: (id) => ipcRenderer.invoke('workspace:launch', id)
+    launch: (id, options) => ipcRenderer.invoke('workspace:launch', id, options)
+  },
+  shortcut: {
+    status: () => ipcRenderer.invoke('shortcut:status')
   },
   // 软件相关接口
   software: {
@@ -59,7 +62,8 @@ contextBridge.exposeInMainWorld('api', {
     terminate: (pid) => ipcRenderer.invoke('process:terminate', pid)
   },
   perf: {
-    snapshot: () => ipcRenderer.invoke('perf:snapshot')
+    snapshot: () => ipcRenderer.invoke('perf:snapshot'),
+    topProcesses: () => ipcRenderer.invoke('perf:topProcesses')
   },
   // 脚本相关接口
   script: {

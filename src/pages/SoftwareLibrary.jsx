@@ -23,7 +23,7 @@ import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
-import { softwareApi, batScriptApi, dialogApi } from '../lib/ipc'
+import { softwareApi, workspaceApi, batScriptApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import './SoftwareLibrary.css'
@@ -446,6 +446,7 @@ function SoftwareLibrary() {
   const t = useT()
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
+  const setWorkspaces = useStore((s) => s.setWorkspaces)
   const [activeTab, setActiveTab] = useState('software')
   const [searchQuery, setSearchQuery] = useState('')
   const [batScripts, setBatScripts] = useState([])
@@ -478,10 +479,14 @@ function SoftwareLibrary() {
     }
   }
 
-  // 刷新软件列表到 store
+  // 软件是工作空间的嵌套数据源；增删改后同时刷新两个 store，避免残留旧快照。
   const refresh = async () => {
-    const list = await softwareApi.list()
-    setSoftware(list)
+    const [softwareList, workspaceList] = await Promise.all([
+      softwareApi.list(),
+      workspaceApi.list()
+    ])
+    setSoftware(softwareList)
+    setWorkspaces(workspaceList)
   }
 
   const refreshBatScripts = async () => {

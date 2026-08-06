@@ -28,3 +28,16 @@
   width: 32px;
   height: 32px;
 }
+
+.software-icon-fallback {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.software-icon-fallback--xs { width: 16px; height: 16px; font-size: 14px; }
+.software-icon-fallback--sm { width: 20px; height: 20px; font-size: 18px; }
+.software-icon-fallback--md { width: 28px; height: 28px; font-size: 23px; }
+.software-icon-fallback--lg { width: 32px; height: 32px; font-size: 28px; }

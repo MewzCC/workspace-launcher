@@ -108,7 +108,7 @@ export function Settings() {
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.version')}</span>
-          <span className="info-value">1.3.0</span>
+          <span className="info-value">{window.api?.version || '0.0.0'}</span>
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.stack')}</span>
@@ -247,7 +247,7 @@ export function Settings() {
       </GlassCard>
 
       {/* 底部版权信息 */}
-      <p className="copyright">LaunchPad © 2026</p>
+      <p className="copyright">LaunchPad © 2026 by MewzCC</p>
     </div>
   )
 }

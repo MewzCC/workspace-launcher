@@ -1,6 +1,9 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'))
 
 // electron-vite 统一构建配置：主进程 / preload / 渲染层
 // 注意：主进程/preload 入口必须用绝对路径，否则会被 electron-vite 默认 external
@@ -25,6 +28,9 @@ export default defineConfig({
   // Preload：CommonJS 输出，入口 electron/preload.cjs -> out/preload/index.cjs
   preload: {
     plugins: [externalizeDepsPlugin()],
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version)
+    },
     build: {
       outDir: 'out/preload',
       rollupOptions: {

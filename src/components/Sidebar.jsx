@@ -195,7 +195,7 @@ function Sidebar() {
           <div className="version-card">
             <p className="version-label">{t('nav.version')}</p>
             <div className="version-row">
-              <span className="version-value">v1.3.0</span>
+              <span className="version-value">v{window.api?.version || '0.0.0'}</span>
               <LanguageSelect />
             </div>
           </div>

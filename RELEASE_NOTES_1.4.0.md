@@ -28,8 +28,8 @@ LaunchPad v1.4.0 带来了实时系统性能监控、全局快捷键与全面升
 ## 🔐 SHA-256
 
 ```text
-6ca97dcb9f998598d0071b12880cee6ec084a734625401f60f76de43cb3d08f5  LaunchPad-Setup-1.4.0-x64.exe
-fc7d801004c6a12f9111ff8992a1df4925b57005b24b02da54e12ce8156bb578  LaunchPad-Portable-1.4.0-x64.exe
+cd73baa085a10e82bd9a40894b48bffa898eb4e7d28ad1b9c4fcccdd0bfb41f5  LaunchPad-Setup-1.4.0-x64.exe
+654a896dbad1128c4d98e5df727e588aa2e4267b5c4e363e438e15b86e266dff  LaunchPad-Portable-1.4.0-x64.exe
 ```
 
 完整变更请查看 [CHANGELOG.md](https://github.com/MewzCC/workspace-launcher/blob/main/CHANGELOG.md)。

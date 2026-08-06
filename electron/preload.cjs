@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  version: '1.3.0',
+  version: __APP_VERSION__,
   // 工作空间相关接口
   workspace: {
     list: () => ipcRenderer.invoke('workspace:list'),

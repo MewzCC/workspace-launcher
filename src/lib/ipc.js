@@ -22,7 +22,9 @@ export const workspaceApi = {
 }
 
 export const shortcutApi = {
-  status: () => unwrap(api.shortcut.status())
+  status: () => unwrap(api.shortcut.status()),
+  validate: (accelerator, workspaceId) =>
+    unwrap(api.shortcut.validate(accelerator, workspaceId))
 }
 
 // 软件 API

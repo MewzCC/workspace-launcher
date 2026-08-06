@@ -17,12 +17,14 @@ import {
   FileText,
   LoaderCircle,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import SoftwareIcon, { preloadSoftwareIcons } from '../components/SoftwareIcon'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import { softwareApi, workspaceApi, batScriptApi, dialogApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
@@ -39,6 +41,7 @@ function SoftwareModal({ initial, onSave, onClose }) {
     name: initial?.name || '',
     description: initial?.description || '',
     icon: initial?.icon || '📦',
+    iconMode: initial?.icon_mode || (initial?.icon && initial.icon !== '📦' ? 'custom' : 'auto'),
     path: initial?.path || '',
     args: initial?.args || ''
   })
@@ -86,6 +89,7 @@ function SoftwareModal({ initial, onSave, onClose }) {
         name: form.name.trim(),
         description: form.description.trim(),
         icon: form.icon || '📦',
+        icon_mode: form.iconMode,
         path: form.path.trim(),
         args: form.args.trim()
       })
@@ -135,12 +139,21 @@ function SoftwareModal({ initial, onSave, onClose }) {
       <div className="form-group">
         <label className="form-label">{t('common.icon')}</label>
         <div className="emoji-picker">
+          <button
+            type="button"
+            className={`emoji-chip emoji-chip-auto ${form.iconMode === 'auto' ? 'active' : ''}`}
+            onClick={() => setForm((current) => ({ ...current, iconMode: 'auto' }))}
+            title={t('software.autoIcon')}
+            aria-label={t('software.autoIcon')}
+          >
+            <Sparkles size={17} />
+          </button>
           {PRESET_ICONS.map((ic) => (
             <button
               key={ic}
               type="button"
-              className={`emoji-chip ${form.icon === ic ? 'active' : ''}`}
-              onClick={() => update('icon', ic)}
+              className={`emoji-chip ${form.iconMode === 'custom' && form.icon === ic ? 'active' : ''}`}
+              onClick={() => setForm((current) => ({ ...current, icon: ic, iconMode: 'custom' }))}
             >
               {ic}
             </button>
@@ -148,7 +161,11 @@ function SoftwareModal({ initial, onSave, onClose }) {
           <input
             className="emoji-input"
             value={form.icon}
-            onChange={(e) => update('icon', e.target.value)}
+            onChange={(e) => setForm((current) => ({
+              ...current,
+              icon: e.target.value,
+              iconMode: 'custom'
+            }))}
             maxLength={4}
             title={t('software.customEmoji')}
           />
@@ -216,7 +233,7 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
     <GlassCard className="software-card" hover>
       <div className="sw-card-header">
         <span className="sw-icon-wrap">
-          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} size="lg" />
+          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} iconMode={item.icon_mode} size="lg" />
         </span>
         <span className="sw-name">{item.name}</span>
       </div>
@@ -269,7 +286,7 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
     <div className="software-row">
       <div className="software-row-main">
         <span className="software-row-icon">
-          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} size="md" />
+          <SoftwareIcon path={item.path} fallback={item.icon || '📦'} iconMode={item.icon_mode} size="md" />
         </span>
         <div className="software-row-copy">
           <span className="software-row-name">{item.name}</span>
@@ -444,6 +461,7 @@ function BatScriptCard({ item, runStatus, onEdit, onDelete, onRun }) {
 
 function SoftwareLibrary() {
   const t = useT()
+  const confirm = useConfirmDialog()
   const software = useStore((s) => s.software)
   const setSoftware = useStore((s) => s.setSoftware)
   const setWorkspaces = useStore((s) => s.setWorkspaces)
@@ -576,7 +594,14 @@ function SoftwareLibrary() {
 
   // 删除：确认后调用 remove 并刷新
   const handleDelete = async (item) => {
-    if (!window.confirm(t('software.deleteConfirm', { name: item.name }))) return
+    const confirmed = await confirm({
+      title: t('common.delete'),
+      message: t('software.deleteConfirm', { name: item.name }),
+      confirmText: t('common.delete'),
+      tone: 'danger',
+      icon: 'danger'
+    })
+    if (!confirmed) return
     const res = await softwareApi.remove(item.id)
     if (res && res.error) {
       window.alert(t('software.deleteFailed') + res.error)
@@ -660,7 +685,14 @@ function SoftwareLibrary() {
   }
 
   const deleteBat = async (item) => {
-    if (!window.confirm(t('software.batDeleteConfirm', { name: item.name }))) return
+    const confirmed = await confirm({
+      title: t('common.delete'),
+      message: t('software.batDeleteConfirm', { name: item.name }),
+      confirmText: t('common.delete'),
+      tone: 'danger',
+      icon: 'danger'
+    })
+    if (!confirmed) return
     const result = await batScriptApi.remove(item.id)
     if (result?.error) {
       window.alert(t('software.deleteFailed') + result.error)

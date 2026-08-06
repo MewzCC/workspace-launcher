@@ -105,6 +105,26 @@ function validateShortcut(accelerator, workspaceId = null) {
   return { valid: true }
 }
 
+// 表单保存前主动探测快捷键是否可被系统注册。
+// 已由当前工作空间持有的快捷键直接视为可用；其它组合会短暂注册后立即释放。
+function checkShortcutAvailability(accelerator, workspaceId = null) {
+  const validation = validateShortcut(accelerator, workspaceId)
+  if (!validation.valid || !String(accelerator || '').trim()) return validation
+
+  const accel = String(accelerator).trim()
+  const id = shortcutId(accel)
+  if (registeredShortcuts.get(id)?.workspaceId === workspaceId) return { valid: true }
+
+  try {
+    const registered = globalShortcut.register(accel, () => {})
+    if (!registered) return { valid: false, reason: 'occupied' }
+    globalShortcut.unregister(accel)
+    return { valid: true }
+  } catch (_) {
+    return { valid: false, reason: 'invalid' }
+  }
+}
+
 function unregisterManagedShortcuts() {
   for (const accelerator of registeredShortcuts.values()) {
     if (accelerator?.accelerator) globalShortcut.unregister(accelerator.accelerator)
@@ -171,4 +191,11 @@ function getStatus() {
     })
 }
 
-module.exports = { init, syncShortcuts, unregisterAll, validateShortcut, getStatus }
+module.exports = {
+  init,
+  syncShortcuts,
+  unregisterAll,
+  validateShortcut,
+  checkShortcutAvailability,
+  getStatus
+}

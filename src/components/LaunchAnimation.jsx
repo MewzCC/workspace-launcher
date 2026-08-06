@@ -139,7 +139,7 @@ function LaunchAnimation({ launching, workspace, onClose }) {
               <div className="status-item" key={s.id}>
                 <span className={`status-dot ${status}`}></span>
                 <span className="status-name">
-                  <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="xs" /> {s.name}
+                  <SoftwareIcon path={s.path} fallback={s.icon || '📦'} iconMode={s.icon_mode} size="xs" /> {s.name}
                 </span>
                 <span className={`status-label status-label--${status}`}>
                   {status === 'pending' && t('launch.waiting')}

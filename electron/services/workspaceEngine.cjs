@@ -113,6 +113,24 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
 
     // 4. 按 launch_order 顺序启动每个软件
     const softwareList = workspace.software || []
+    const skipAlreadyRunning = !killBeforeLaunch && !restartRunning
+    let runningStatuses = {}
+
+    if (skipAlreadyRunning && softwareList.length > 0) {
+      try {
+        runningStatuses = await processManager.getExecutableStatuses(
+          softwareList.map((software) => software.path)
+        )
+      } catch (err) {
+        // 进程状态读取失败时不阻断启动，回退到原有的逐个启动行为。
+        report({
+          phase: 'software',
+          status: 'running',
+          message: t('engine.processStatusFallback', { message: err.message })
+        })
+      }
+    }
+
     for (const software of softwareList) {
       const softwareId = software.id
       const softwareName = software.name
@@ -123,6 +141,18 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
         softwareName,
         status: 'pending'
       })
+
+      if (skipAlreadyRunning && runningStatuses[software.path]) {
+        report({
+          phase: 'software',
+          softwareId,
+          softwareName,
+          status: 'success',
+          skipped: true,
+          message: t('engine.alreadyRunningSkipped', { name: softwareName })
+        })
+        continue
+      }
 
       // 启动前延时
       if (software.delay_ms && software.delay_ms > 0) {
@@ -162,6 +192,9 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
 
       try {
         await processManager.launchExe(software.path, software.args)
+        if (skipAlreadyRunning) {
+          runningStatuses[software.path] = true
+        }
         report({
           phase: 'software',
           softwareId,

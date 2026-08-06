@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld('api', {
     launch: (id, options) => ipcRenderer.invoke('workspace:launch', id, options)
   },
   shortcut: {
-    status: () => ipcRenderer.invoke('shortcut:status')
+    status: () => ipcRenderer.invoke('shortcut:status'),
+    validate: (accelerator, workspaceId) =>
+      ipcRenderer.invoke('shortcut:validate', accelerator, workspaceId)
   },
   // 软件相关接口
   software: {

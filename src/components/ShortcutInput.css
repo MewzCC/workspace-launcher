@@ -36,8 +36,25 @@
   box-shadow: 0 0 0 2px var(--brand-ring);
 }
 
-.has-error .shortcut-recorder {
+.is-error .shortcut-recorder {
   border-color: var(--brand-state-error);
+}
+
+.is-valid .shortcut-recorder {
+  border-color: color-mix(in srgb, var(--brand-state-success) 48%, var(--brand-border));
+}
+
+.shortcut-validation-spinner {
+  color: var(--brand-primary-400);
+  animation: shortcut-spin 800ms linear infinite;
+}
+
+.shortcut-validation-check {
+  color: var(--brand-state-success);
+}
+
+@keyframes shortcut-spin {
+  to { transform: rotate(360deg); }
 }
 
 .shortcut-recorder-content {
@@ -106,6 +123,10 @@
 
 .shortcut-hint.error {
   color: var(--brand-state-error);
+}
+
+.shortcut-hint.valid {
+  color: var(--brand-state-success);
 }
 
 @media (max-width: 520px) {

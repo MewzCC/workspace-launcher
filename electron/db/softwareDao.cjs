@@ -16,8 +16,8 @@ function getStmts() {
     get: db.prepare('SELECT * FROM software WHERE id = ?'),
     // 插入软件
     insert: db.prepare(`
-      INSERT INTO software (name, description, path, args, icon)
-      VALUES (@name, @description, @path, @args, @icon)
+      INSERT INTO software (name, description, path, args, icon, icon_mode)
+      VALUES (@name, @description, @path, @args, @icon, @icon_mode)
     `),
     // 更新软件
     update: db.prepare(`
@@ -26,7 +26,8 @@ function getStmts() {
           description = @description,
           path = @path,
           args = @args,
-          icon = @icon
+          icon = @icon,
+          icon_mode = @icon_mode
       WHERE id = @id
     `),
     // 显式删除工作空间关联，兼容早期数据库曾关闭外键约束时留下的数据
@@ -44,7 +45,8 @@ function normalize(item) {
     description: item.description ?? '',
     path: item.path,
     args: item.args ?? '',
-    icon: item.icon ?? '📦'
+    icon: item.icon ?? '📦',
+    icon_mode: item.icon_mode === 'custom' ? 'custom' : 'auto'
   }
 }
 

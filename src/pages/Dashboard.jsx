@@ -5,11 +5,14 @@ import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import SoftwareIcon from '../components/SoftwareIcon'
+import SoftwareOverflowPreview from '../components/SoftwareOverflowPreview'
 import ShortcutInput from '../components/ShortcutInput'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import { workspaceApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import { useProcessStatuses } from '../hooks/useProcessStatuses'
+import { useShortcutValidation } from '../hooks/useShortcutValidation'
 import './Dashboard.css'
 
 // 根据当前小时返回对应问候语
@@ -30,6 +33,7 @@ function formatTime(date) {
 
 export function Dashboard() {
   const t = useT()
+  const confirm = useConfirmDialog()
   // 从 store 读取工作空间列表、启动状态及相关动作
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -54,9 +58,16 @@ export function Dashboard() {
   }, [])
 
   // 点击启动按钮：初始化 store 启动状态，并通知主进程启动该工作空间
-  const handleLaunch = (workspace, restartRunning = false) => {
-    if (restartRunning && !window.confirm(t('dashboard.relaunchConfirm', { name: workspace.name }))) {
-      return
+  const handleLaunch = async (workspace, restartRunning = false) => {
+    if (restartRunning) {
+      const confirmed = await confirm({
+        title: t('dashboard.relaunchDialogTitle'),
+        message: t('dashboard.relaunchConfirm', { name: workspace.name }),
+        confirmText: t('dashboard.relaunch'),
+        tone: 'warning',
+        icon: 'restart'
+      })
+      if (!confirmed) return
     }
     startLaunch(workspace.id)
     workspaceApi.launch(workspace.id, { restartRunning }).catch((err) => {
@@ -70,14 +81,13 @@ export function Dashboard() {
   const [savingQuickEdit, setSavingQuickEdit] = useState(false)
   const [quickSearch, setQuickSearch] = useState('')
   const [quickShortcut, setQuickShortcut] = useState('')
-  const [shortcutError, setShortcutError] = useState('')
+  const shortcutValidation = useShortcutValidation(quickShortcut, quickEditing?.id ?? null)
 
   const openQuickEdit = (workspace) => {
     setQuickEditing(workspace)
     setSelectedSoftwareIds((workspace.software || []).map((item) => item.id))
     setQuickSearch('')
     setQuickShortcut(workspace.shortcut || '')
-    setShortcutError('')
   }
 
   const toggleQuickSoftware = (softwareId) => {
@@ -90,14 +100,7 @@ export function Dashboard() {
 
   const saveQuickEdit = async () => {
     if (!quickEditing || savingQuickEdit) return
-    const conflict = quickShortcut && workspaces.find(
-      (workspace) => workspace.id !== quickEditing.id &&
-        String(workspace.shortcut || '').toLowerCase() === quickShortcut.toLowerCase()
-    )
-    if (conflict) {
-      setShortcutError(t('workspaces.shortcutConflict', { name: conflict.name }))
-      return
-    }
+    if (!(await shortcutValidation.validateNow(quickShortcut))) return
     setSavingQuickEdit(true)
     try {
       const previous = new Map(
@@ -121,7 +124,11 @@ export function Dashboard() {
       setQuickEditing(null)
     } catch (err) {
       console.error('快速编辑工作空间失败:', err)
-      window.alert(t('common.savingFailed') + (err?.message || err))
+      if (quickShortcut) {
+        shortcutValidation.setError(err?.message || t('workspaces.shortcutCheckFailed'))
+      } else {
+        window.alert(t('common.savingFailed') + (err?.message || err))
+      }
     } finally {
       setSavingQuickEdit(false)
     }
@@ -181,6 +188,8 @@ export function Dashboard() {
           onClose={() => setQuickEditing(null)}
           onSave={saveQuickEdit}
           saveText={savingQuickEdit ? t('common.saving') : t('dashboard.save')}
+          saveDisabled={savingQuickEdit || shortcutValidation.status === 'checking' || shortcutValidation.status === 'error'}
+          closeDisabled={savingQuickEdit}
         >
           <p className="quick-edit-hint">
             {t('dashboard.quickEditHint')}
@@ -189,10 +198,10 @@ export function Dashboard() {
             <label className="form-label">{t('workspaces.shortcut')}</label>
             <ShortcutInput
               value={quickShortcut}
-              error={shortcutError}
+              validationStatus={shortcutValidation.status}
+              validationMessage={shortcutValidation.message}
               onChange={(shortcut) => {
                 setQuickShortcut(shortcut)
-                setShortcutError('')
               }}
             />
           </div>
@@ -234,6 +243,7 @@ export function Dashboard() {
                     <SoftwareIcon
                       path={item.path}
                       fallback={item.icon || '📦'}
+                      iconMode={item.icon_mode}
                       size="sm"
                     />
                     <span className="quick-edit-name">{item.name}</span>
@@ -257,7 +267,7 @@ function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit }) 
   const software = workspace.software || []
   // 仅展示前 3 个软件，超出部分以 +N 形式提示
   const visible = software.slice(0, 3)
-  const extraCount = software.length - visible.length
+  const hiddenSoftware = software.slice(visible.length)
   // 判断当前工作空间是否正在启动中
   const isLaunching =
     launching && launching.workspaceId === workspace.id && launching.active
@@ -293,37 +303,16 @@ function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit }) 
       <div className="software-list">
         {visible.map((sw) => (
           <div className={`software-item ${processStatuses[sw.path] ? 'is-running' : ''}`} key={sw.id}>
-            <span className="software-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} size="sm" /></span>
+            <span className="software-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} iconMode={sw.icon_mode} size="sm" /></span>
             <span className="software-name">{sw.name}</span>
             <span className="software-running-dot" aria-label={processStatuses[sw.path] ? t('common.running') : t('common.stopped')} />
           </div>
         ))}
-        {extraCount > 0 && (
-          <div className="software-more-wrap">
-            <button
-              type="button"
-              className="software-item software-more"
-              onClick={() => onEdit(workspace)}
-              aria-label={t('dashboard.extraAppsAria', { count: extraCount })}
-            >
-              +{extraCount}
-            </button>
-            <div className="software-more-tooltip" role="tooltip">
-              <span className="software-more-title">{t('dashboard.otherApps')}</span>
-              {software.slice(3).map((item) => (
-                <span className="software-more-entry" key={item.id}>
-                  <SoftwareIcon
-                    path={item.path}
-                    fallback={item.icon || '📦'}
-                    size="xs"
-                  />
-                  {item.name}
-                </span>
-              ))}
-              <span className="software-more-action">{t('dashboard.clickToEdit')}</span>
-            </div>
-          </div>
-        )}
+        <SoftwareOverflowPreview
+          items={hiddenSoftware}
+          processStatuses={processStatuses}
+          onEdit={() => onEdit(workspace)}
+        />
         {software.length === 0 && (
           <div className="software-item software-empty">{t('dashboard.noSoftware')}</div>
         )}

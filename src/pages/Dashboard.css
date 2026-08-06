@@ -49,6 +49,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: visible;
+}
+
+.quick-card:hover,
+.quick-card:focus-within {
+  z-index: 25;
 }
 
 /* 卡片顶部：图标 + 名称 */
@@ -143,76 +149,6 @@
   margin-left: auto;
 }
 
-/* 超出数量的提示 */
-.software-more {
-  font-size: 13px;
-  width: fit-content;
-  padding: 3px 8px;
-  color: var(--brand-primary-400);
-  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, transparent);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.software-more-wrap {
-  position: relative;
-  width: fit-content;
-}
-
-.software-more-tooltip {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 8px);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  width: max-content;
-  min-width: 190px;
-  max-width: 280px;
-  padding: 12px;
-  color: var(--brand-popover-foreground);
-  background: var(--brand-popover);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
-  box-shadow: var(--brand-shadow-card);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(5px);
-  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms;
-  pointer-events: none;
-}
-
-.software-more-wrap:hover .software-more-tooltip,
-.software-more-wrap:focus-within .software-more-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.software-more-title {
-  color: var(--brand-muted-foreground);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.software-more-entry {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--brand-foreground);
-  font-size: 12px;
-}
-
-.software-more-action {
-  padding-top: 7px;
-  color: var(--brand-primary-400);
-  border-top: 1px solid var(--brand-border);
-  font-size: 11px;
-}
-
 /* 卡片底部：启动按钮靠右 */
 .quick-card-footer {
   margin-top: 16px;
@@ -290,8 +226,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  max-height: 380px;
-  overflow-y: auto;
 }
 
 .quick-edit-item {

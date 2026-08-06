@@ -67,9 +67,11 @@ export async function preloadSoftwareIcons(paths) {
  * @param {string} size - 尺寸 'xs'(16px) | 'sm'(20px) | 'md'(28px) | 'lg'(32px)
  * @param {string} className - 额外样式类名
  */
-function SoftwareIcon({ path, fallback = '📦', size = 'sm', className = '' }) {
-  // 默认盒子代表“自动读取系统图标”；任何其他值都是用户明确设置的图标，应优先展示。
-  const hasCustomIcon = Boolean(fallback && fallback !== '📦')
+function SoftwareIcon({ path, fallback = '📦', iconMode, size = 'sm', className = '' }) {
+  // icon_mode 明确区分“自动提取”和“自定义”；未迁移数据仍按旧规则兼容。
+  const hasCustomIcon = iconMode === 'custom' || (
+    iconMode == null && Boolean(fallback && fallback !== '📦')
+  )
   const [iconUrl, setIconUrl] = useState(() => {
     if (!path || hasCustomIcon) return null
     return iconCache.get(path.toLowerCase()) || null

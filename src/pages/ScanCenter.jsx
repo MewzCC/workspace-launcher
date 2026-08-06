@@ -24,7 +24,7 @@ function ScanResultItem({ r, added, checked, onToggle }) {
         disabled={added}
         onChange={() => onToggle(r.path)}
       />
-      <SoftwareIcon path={r.path} fallback={r.icon || '📦'} size="md" />
+      <SoftwareIcon path={r.path} fallback={r.icon || '📦'} iconMode={r.icon_mode} size="md" />
       <div className="scan-item-info">
         <div className="scan-item-name">{r.name}</div>
         <div className="scan-item-path" title={r.path}>{r.path}</div>

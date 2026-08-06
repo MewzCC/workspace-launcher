@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import PerformanceMonitor from './PerformanceMonitor'
 import { processApi } from '../lib/ipc'
 import { useT } from '../hooks/useT'
@@ -32,6 +33,7 @@ function formatMemory(bytes) {
 
 function ProcessManagerPage() {
   const t = useT()
+  const confirm = useConfirmDialog()
   const [processes, setProcesses] = useState([])
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -125,9 +127,13 @@ function ProcessManagerPage() {
     const portText = item.ports?.length
       ? t('processes.killPorts', { ports: item.ports.map((port) => `${port.protocol} ${port.localPort}`).join('、') })
       : ''
-    const confirmed = window.confirm(
-      t('processes.killConfirm', { name: item.name, pid: item.pid, ports: portText })
-    )
+    const confirmed = await confirm({
+      title: t('processes.kill'),
+      message: t('processes.killConfirm', { name: item.name, pid: item.pid, ports: portText }),
+      confirmText: t('processes.kill'),
+      tone: 'danger',
+      icon: 'warning'
+    })
     if (!confirmed) return
 
     setTerminatingPid(item.pid)

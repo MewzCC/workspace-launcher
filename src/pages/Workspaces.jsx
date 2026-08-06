@@ -7,10 +7,13 @@ import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import LaunchAnimation from '../components/LaunchAnimation'
 import SoftwareIcon from '../components/SoftwareIcon'
+import SoftwareOverflowPreview from '../components/SoftwareOverflowPreview'
 import ShortcutInput from '../components/ShortcutInput'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import { useStore } from '../store/useStore'
 import { workspaceApi } from '../lib/ipc'
 import { useProcessStatuses } from '../hooks/useProcessStatuses'
+import { useShortcutValidation } from '../hooks/useShortcutValidation'
 import { useT } from '../hooks/useT'
 import './Workspaces.css'
 
@@ -19,6 +22,7 @@ const ICON_PRESETS = ['🚀', '💻', '🎨', '📦', '🎮', '📊', '🔍', '�
 
 function Workspaces() {
   const t = useT()
+  const confirm = useConfirmDialog()
   // store 状态与 actions
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -45,9 +49,9 @@ function Workspaces() {
   const [selectedSoftware, setSelectedSoftware] = useState([])
   const [softwareSearch, setSoftwareSearch] = useState('')
   const [saving, setSaving] = useState(false)
-  const [shortcutError, setShortcutError] = useState('')
   // 防止保存重复提交
   const savingRef = useRef(false)
+  const shortcutValidation = useShortcutValidation(form.shortcut, editingId)
 
   // 打开新建 Modal
   const openCreate = () => {
@@ -55,14 +59,12 @@ function Workspaces() {
     setForm({ name: '', description: '', icon: '🚀', shortcut: '' })
     setSelectedSoftware([])
     setSoftwareSearch('')
-    setShortcutError('')
     setModalOpen(true)
   }
 
   // 打开编辑 Modal，预填工作空间数据
   const openEdit = (workspace) => {
     setSoftwareSearch('')
-    setShortcutError('')
     setEditingId(workspace.id)
     setForm({
       name: workspace.name || '',
@@ -76,6 +78,7 @@ function Workspaces() {
         software_id: s.id,
         name: s.name,
         icon: s.icon,
+        icon_mode: s.icon_mode,
         path: s.path,
         launch_order: s.launch_order ?? idx + 1,
         delay_ms: s.delay_ms ?? 0
@@ -103,6 +106,7 @@ function Workspaces() {
           software_id: sw.id,
           name: sw.name,
           icon: sw.icon,
+          icon_mode: sw.icon_mode,
           path: sw.path,
           launch_order: prev.length + 1,
           delay_ms: 0
@@ -127,14 +131,7 @@ function Workspaces() {
       window.alert(t('workspaces.nameRequired'))
       return
     }
-    const conflict = form.shortcut && workspaces.find(
-      (workspace) => workspace.id !== editingId &&
-        String(workspace.shortcut || '').toLowerCase() === form.shortcut.toLowerCase()
-    )
-    if (conflict) {
-      setShortcutError(t('workspaces.shortcutConflict', { name: conflict.name }))
-      return
-    }
+    if (!(await shortcutValidation.validateNow(form.shortcut))) return
     savingRef.current = true
     setSaving(true)
     try {
@@ -164,7 +161,11 @@ function Workspaces() {
       closeModal()
     } catch (err) {
       console.error('保存工作空间失败:', err)
-      window.alert(t('common.savingFailed') + (err?.message || err))
+      if (form.shortcut) {
+        shortcutValidation.setError(err?.message || t('workspaces.shortcutCheckFailed'))
+      } else {
+        window.alert(t('common.savingFailed') + (err?.message || err))
+      }
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -191,7 +192,14 @@ function Workspaces() {
 
   // 删除工作空间
   const handleDelete = async (workspace) => {
-    if (!window.confirm(t('workspaces.deleteConfirm', { name: workspace.name }))) return
+    const confirmed = await confirm({
+      title: t('common.delete'),
+      message: t('workspaces.deleteConfirm', { name: workspace.name }),
+      confirmText: t('common.delete'),
+      tone: 'danger',
+      icon: 'danger'
+    })
+    if (!confirmed) return
     try {
       await workspaceApi.remove(workspace.id)
       const list = await workspaceApi.list()
@@ -251,7 +259,7 @@ function Workspaces() {
                   : t('workspaces.partialRunning', { running: runningCount, total: wsSoftware.length })
             // 卡片最多显示 4 个软件，超出显示 +N
             const shownSoftware = wsSoftware.slice(0, 4)
-            const extraCount = wsSoftware.length - shownSoftware.length
+            const hiddenSoftware = wsSoftware.slice(shownSoftware.length)
             return (
               <GlassCard key={ws.id} className="workspace-card" hover>
                 {/* 顶部：icon + 名称 + 快捷键 + 状态灯 */}
@@ -279,13 +287,15 @@ function Workspaces() {
                   )}
                   {shownSoftware.map((s) => (
                     <span className="ws-software-item" key={s.id}>
-                      <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="sm" />
+                      <SoftwareIcon path={s.path} fallback={s.icon || '📦'} iconMode={s.icon_mode} size="sm" />
                       <span>{s.name}</span>
                     </span>
                   ))}
-                  {extraCount > 0 && (
-                    <span className="ws-software-item">+{extraCount}</span>
-                  )}
+                  <SoftwareOverflowPreview
+                    items={hiddenSoftware}
+                    processStatuses={processStatuses}
+                    onEdit={() => openEdit(ws)}
+                  />
                 </div>
 
                 {/* 底部按钮 */}
@@ -330,6 +340,8 @@ function Workspaces() {
           onClose={closeModal}
           onSave={handleSave}
           saveText={saving ? t('common.saving') : t('common.save')}
+          saveDisabled={saving || shortcutValidation.status === 'checking' || shortcutValidation.status === 'error'}
+          closeDisabled={saving}
         >
           {/* 名称 */}
           <div className="form-group">
@@ -387,9 +399,9 @@ function Workspaces() {
             <label className="form-label">{t('workspaces.shortcut')}</label>
             <ShortcutInput
               value={form.shortcut}
-              error={shortcutError}
+              validationStatus={shortcutValidation.status}
+              validationMessage={shortcutValidation.message}
               onChange={(shortcut) => {
-                setShortcutError('')
                 setForm((current) => ({ ...current, shortcut }))
               }}
             />
@@ -433,7 +445,7 @@ function Workspaces() {
                     checked={isSelected(sw.id)}
                     onChange={() => toggleSoftware(sw)}
                   />
-                  <span className="picker-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} size="sm" /></span>
+                  <span className="picker-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} iconMode={sw.icon_mode} size="sm" /></span>
                   <span className="picker-name">{sw.name}</span>
                 </label>
               ))}
@@ -453,7 +465,7 @@ function Workspaces() {
                   .map((s) => (
                     <div className="order-delay-row" key={s.software_id}>
                       <span className="od-name">
-                        <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="xs" /> {s.name}
+                        <SoftwareIcon path={s.path} fallback={s.icon || '📦'} iconMode={s.icon_mode} size="xs" /> {s.name}
                       </span>
                       <label className="od-field">
                         {t('workspaces.order')}

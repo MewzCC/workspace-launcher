@@ -1,6 +1,7 @@
 // 应用根组件：初始化加载工作空间与软件数据，订阅全局启动进度，渲染主布局
 import { useEffect } from 'react'
 import { Layout } from './components/Layout'
+import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import { useStore } from './store/useStore'
 import { workspaceApi, softwareApi, onLaunchProgress } from './lib/ipc'
 
@@ -36,7 +37,11 @@ function App() {
     return unsubscribe
   }, [])
 
-  return <Layout />
+  return (
+    <ConfirmDialogProvider>
+      <Layout />
+    </ConfirmDialogProvider>
+  )
 }
 
 export default App

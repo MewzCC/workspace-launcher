@@ -38,7 +38,7 @@ function getStmts() {
     deleteWorkspace: db.prepare('DELETE FROM workspaces WHERE id = ?'),
     // 查询某工作空间关联的软件列表（按 launch_order 排序）
     listSoftwareByWorkspace: db.prepare(`
-      SELECT s.id, s.name, s.description, s.path, s.args, s.icon, s.created_at,
+      SELECT s.id, s.name, s.description, s.path, s.args, s.icon, s.icon_mode, s.created_at,
              ws.launch_order, ws.delay_ms
       FROM workspace_software ws
       INNER JOIN software s ON s.id = ws.software_id

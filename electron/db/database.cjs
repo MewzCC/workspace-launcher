@@ -26,6 +26,7 @@ const CREATE_TABLES_SQL = `
     path TEXT NOT NULL,
     args TEXT DEFAULT '',
     icon TEXT DEFAULT '📦',
+    icon_mode TEXT DEFAULT 'auto',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -97,6 +98,12 @@ const MIGRATIONS = [
     ]
   },
   {
+    table: 'software',
+    columns: [
+      { name: 'icon_mode', definition: "TEXT DEFAULT 'auto'" }
+    ]
+  },
+  {
     table: 'launch_logs',
     columns: [
       { name: 'message_key', definition: 'TEXT' },
@@ -117,6 +124,12 @@ function applyMigrations(database) {
       }
     }
   }
+  // 旧版本用“非默认 📦 emoji”表示用户自定义图标，迁移后保留原有显示语义。
+  database.prepare(`
+    UPDATE software
+    SET icon_mode = 'custom'
+    WHERE icon_mode = 'auto' AND icon IS NOT NULL AND icon <> '📦'
+  `).run()
 }
 
 // 获取数据库连接（懒初始化）

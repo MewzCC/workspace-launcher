@@ -626,6 +626,10 @@
   background: color-mix(in srgb, var(--brand-primary) 15%, transparent);
 }
 
+.emoji-chip-auto {
+  color: var(--brand-primary-400);
+}
+
 .emoji-input {
   width: 48px;
   height: 36px;

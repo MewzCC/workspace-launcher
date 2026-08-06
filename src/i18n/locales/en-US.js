@@ -1,6 +1,11 @@
 // English language pack
 export default {
   common: {
+    confirm: 'Confirm',
+    otherApps: 'Other apps',
+    clickToEdit: 'Click to quick edit',
+    runningSummary: '{running}/{total} running',
+    hiddenAppsAria: 'View {count} more apps',
     cancel: 'Cancel',
     close: 'Close',
     save: 'Save',
@@ -65,6 +70,7 @@ export default {
     quickEdit: 'Quick edit',
     launch: 'Launch',
     relaunch: 'Relaunch',
+    relaunchDialogTitle: 'Relaunch workspace?',
     relaunchConfirm: 'All apps in "{name}" are running. Stop them and relaunch the workspace?',
     save: 'Save settings'
   },
@@ -99,6 +105,10 @@ export default {
     shortcutRecording: 'Recording: press modifiers plus a letter, number, or function key. Press Esc to finish.',
     shortcutInvalid: 'The shortcut must include at least one modifier (Ctrl / Alt / Shift / Win)',
     shortcutConflict: 'This shortcut is already assigned to "{name}"',
+    shortcutOccupied: 'This shortcut is used by another system application. Choose another combination.',
+    shortcutChecking: 'Checking shortcut availability…',
+    shortcutAvailable: 'Shortcut is available and will become global after saving',
+    shortcutCheckFailed: 'Could not check shortcut availability. Please try again.',
     shortcutClear: 'Clear'
   },
   software: {
@@ -134,6 +144,7 @@ export default {
     namePlaceholder: 'e.g. VS Code',
     descPlaceholder: 'Short description (optional)',
     customEmoji: 'Custom emoji',
+    autoIcon: 'Automatically use the application icon',
     exePath: 'Executable path',
     exePathPlaceholder: 'C:\\Program Files\\app\\app.exe',
     requiredFields: 'Please enter a name and select an executable.',

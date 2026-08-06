@@ -122,6 +122,9 @@ function registerIpcHandlers() {
     })
   })
   ipcMain.handle('shortcut:status', () => wrap(() => shortcutService.getStatus()))
+  ipcMain.handle('shortcut:validate', (_e, accelerator, workspaceId) =>
+    wrap(() => shortcutService.checkShortcutAvailability(accelerator, workspaceId ?? null))
+  )
 
   // ===== 软件 =====
   ipcMain.handle('software:list', () => wrap(() => softwareDao.list()))

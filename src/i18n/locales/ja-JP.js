@@ -1,6 +1,11 @@
 // 日本語言語パック
 export default {
   common: {
+    confirm: '確認',
+    otherApps: 'その他のアプリ',
+    clickToEdit: 'クリックしてクイック編集',
+    runningSummary: '{running}/{total} 実行中',
+    hiddenAppsAria: '残り {count} 個のアプリを表示',
     cancel: 'キャンセル',
     close: '閉じる',
     save: '保存',
@@ -65,6 +70,7 @@ export default {
     quickEdit: 'クイック編集',
     launch: '起動',
     relaunch: '再実行',
+    relaunchDialogTitle: 'ワークスペースを再実行しますか？',
     relaunchConfirm: '「{name}」のアプリはすべて実行中です。終了してワークスペースを再実行しますか？',
     save: '設定を保存'
   },
@@ -99,6 +105,10 @@ export default {
     shortcutRecording: '記録中：修飾キーと文字・数字・ファンクションキーを同時に押してください。Esc で終了します。',
     shortcutInvalid: '修飾キー（Ctrl/Alt/Shift/Win）を1つ以上含めてください',
     shortcutConflict: 'このショートカットは「{name}」に割り当て済みです',
+    shortcutOccupied: 'このショートカットは他のシステムアプリで使用されています。別の組み合わせを選択してください。',
+    shortcutChecking: 'ショートカットの空き状況を確認中…',
+    shortcutAvailable: 'ショートカットは利用可能です。保存後にグローバルで有効になります',
+    shortcutCheckFailed: 'ショートカットの使用状況を確認できません。もう一度お試しください。',
     shortcutClear: 'クリア'
   },
   software: {
@@ -134,6 +144,7 @@ export default {
     namePlaceholder: '例: VS Code',
     descPlaceholder: '簡単な説明（任意）',
     customEmoji: 'カスタム絵文字',
+    autoIcon: 'アプリのアイコンを自動的に使用',
     exePath: '実行ファイルパス',
     exePathPlaceholder: 'C:\\Program Files\\app\\app.exe',
     requiredFields: 'ソフトウェア名を入力し、実行ファイルを選択してください。',

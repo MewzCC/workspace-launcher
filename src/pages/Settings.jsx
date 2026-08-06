@@ -4,6 +4,7 @@ import { AppWindow, Code2, ExternalLink, Power, RefreshCcw, Rocket, Star } from 
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import { workspaceApi, softwareApi, externalApi, systemApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
@@ -11,6 +12,7 @@ import './Settings.css'
 
 export function Settings() {
   const t = useT()
+  const confirm = useConfirmDialog()
   const repositoryUrl = 'https://github.com/MewzCC/workspace-launcher'
   // 从 store 读取工作空间、软件列表及刷新动作
   const workspaces = useStore((s) => s.workspaces)
@@ -54,7 +56,13 @@ export function Settings() {
 
   // 清除所有数据：二次确认后逐个删除工作空间与软件，并刷新 store
   const handleClearAll = async () => {
-    const confirmed = window.confirm(t('settings.clearConfirm'))
+    const confirmed = await confirm({
+      title: t('settings.clearAll'),
+      message: t('settings.clearConfirm'),
+      confirmText: t('settings.clearAll'),
+      tone: 'danger',
+      icon: 'warning'
+    })
     if (!confirmed) return
 
     setClearing(true)

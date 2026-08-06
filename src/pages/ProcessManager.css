@@ -1,10 +1,10 @@
 .process-page {
   max-width: 1280px;
-  height: calc(100vh - 64px);
+  height: auto;
   min-height: 536px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .process-page .sr-only {
@@ -226,9 +226,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow-y: visible;
 }
 
 .process-table {
@@ -491,7 +489,7 @@
 @keyframes process-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1024px) {
-  .process-page { height: calc(100vh - 104px); }
+  .process-page { height: auto; }
 }
 
 @media (max-width: 900px) {

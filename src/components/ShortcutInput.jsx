@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Keyboard, X } from 'lucide-react'
+import { Check, Keyboard, LoaderCircle, X } from 'lucide-react'
 import { useT } from '../hooks/useT'
 import './ShortcutInput.css'
 
@@ -48,7 +48,13 @@ function ShortcutKeys({ value }) {
   ))
 }
 
-export default function ShortcutInput({ value = '', onChange, error = '' }) {
+export default function ShortcutInput({
+  value = '',
+  onChange,
+  error = '',
+  validationStatus = 'idle',
+  validationMessage = ''
+}) {
   const t = useT()
   const [invalid, setInvalid] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -79,10 +85,11 @@ export default function ShortcutInput({ value = '', onChange, error = '' }) {
     onChange(result)
   }
 
-  const message = error || (invalid ? t('workspaces.shortcutInvalid') : '')
+  const message = error || (invalid ? t('workspaces.shortcutInvalid') : validationMessage)
+  const displayStatus = error || invalid ? 'error' : validationStatus
 
   return (
-    <div className={`shortcut-field ${message ? 'has-error' : ''}`}>
+    <div className={`shortcut-field ${displayStatus ? `is-${displayStatus}` : ''}`}>
       <div className="shortcut-field-row">
         <button
           type="button"
@@ -97,6 +104,12 @@ export default function ShortcutInput({ value = '', onChange, error = '' }) {
             {value ? <ShortcutKeys value={value} /> : t('workspaces.shortcutPlaceholder')}
           </span>
           {recording && <span className="shortcut-recording-dot" aria-hidden="true" />}
+          {!recording && displayStatus === 'checking' && (
+            <LoaderCircle className="shortcut-validation-spinner" size={15} aria-hidden="true" />
+          )}
+          {!recording && displayStatus === 'valid' && (
+            <Check className="shortcut-validation-check" size={15} aria-hidden="true" />
+          )}
         </button>
         {value && (
           <button type="button" className="shortcut-clear" onClick={clear}>
@@ -105,8 +118,14 @@ export default function ShortcutInput({ value = '', onChange, error = '' }) {
           </button>
         )}
       </div>
-      <p className={`shortcut-hint ${message ? 'error' : ''}`} role={message ? 'alert' : undefined}>
-        {message || (recording ? t('workspaces.shortcutRecording') : t('workspaces.shortcutHint'))}
+      <p
+        className={`shortcut-hint ${displayStatus}`}
+        role={displayStatus === 'error' ? 'alert' : 'status'}
+        aria-live="polite"
+      >
+        {recording
+          ? t('workspaces.shortcutRecording')
+          : message || t('workspaces.shortcutHint')}
       </p>
     </div>
   )

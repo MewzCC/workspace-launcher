@@ -1,6 +1,11 @@
 // 简体中文语言包
 export default {
   common: {
+    confirm: '确认',
+    otherApps: '其余应用',
+    clickToEdit: '点击可快速编辑',
+    runningSummary: '{running}/{total} 运行',
+    hiddenAppsAria: '查看其余 {count} 个应用',
     cancel: '取消',
     close: '关闭',
     save: '保存',
@@ -65,6 +70,7 @@ export default {
     quickEdit: '快速编辑',
     launch: '启动',
     relaunch: '重新运行',
+    relaunchDialogTitle: '重新运行工作空间？',
     relaunchConfirm: '工作空间「{name}」中的应用均在运行。确定结束这些应用并重新运行吗？',
     save: '保存设置'
   },
@@ -99,6 +105,10 @@ export default {
     shortcutRecording: '正在录制，请同时按下修饰键与字母、数字或功能键；Esc 结束录制',
     shortcutInvalid: '快捷键需至少包含一个修饰键（Ctrl / Alt / Shift / Win）',
     shortcutConflict: '该快捷键已分配给空间「{name}」',
+    shortcutOccupied: '该快捷键已被其他系统程序占用，请更换组合',
+    shortcutChecking: '正在检查快捷键是否可用…',
+    shortcutAvailable: '快捷键可用，保存后将全局生效',
+    shortcutCheckFailed: '无法检查快捷键占用状态，请重试',
     shortcutClear: '清除'
   },
   software: {
@@ -134,6 +144,7 @@ export default {
     namePlaceholder: '例如：VS Code',
     descPlaceholder: '简要描述（可选）',
     customEmoji: '自定义 emoji',
+    autoIcon: '自动使用程序图标',
     exePath: '可执行文件路径',
     exePathPlaceholder: 'C:\\Program Files\\app\\app.exe',
     requiredFields: '请填写软件名称并选择可执行文件。',

@@ -1,11 +1,9 @@
 // 设置页面：应用信息 / 数据信息 / 危险操作区 / 版权信息
-import React, { useEffect, useState } from 'react'
-import { AppWindow, Code2, ExternalLink, Power, RefreshCcw, Rocket, Star } from 'lucide-react'
+import React, { useState } from 'react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
-import Toggle from '../components/ui/Toggle'
 import { useConfirmDialog } from '../components/ConfirmDialog'
-import { workspaceApi, softwareApi, externalApi, systemApi } from '../lib/ipc'
+import { workspaceApi, softwareApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import './Settings.css'
@@ -13,7 +11,6 @@ import './Settings.css'
 export function Settings() {
   const t = useT()
   const confirm = useConfirmDialog()
-  const repositoryUrl = 'https://github.com/MewzCC/workspace-launcher'
   // 从 store 读取工作空间、软件列表及刷新动作
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -22,37 +19,6 @@ export function Settings() {
 
   // 清除操作进行中标记，避免重复点击
   const [clearing, setClearing] = useState(false)
-  const [systemSettings, setSystemSettings] = useState(null)
-  const [savingSetting, setSavingSetting] = useState('')
-  const [systemMessage, setSystemMessage] = useState('')
-
-  useEffect(() => {
-    systemApi.getPreferences().then((result) => {
-      if (result?.error) setSystemMessage(result.error)
-      else setSystemSettings(result)
-    }).catch((error) => setSystemMessage(error.message))
-  }, [])
-
-  const updateSystemSetting = async (key, value) => {
-    const setters = {
-      openAtLogin: systemApi.setOpenAtLogin,
-      startMinimized: systemApi.setStartMinimized,
-      closeToTray: systemApi.setCloseToTray,
-      killBeforeLaunch: systemApi.setKillBeforeLaunch
-    }
-    setSavingSetting(key)
-    setSystemMessage('')
-    try {
-      const result = await setters[key](value)
-      if (result?.error) throw new Error(result.error)
-      setSystemSettings(result)
-      setSystemMessage(t('settings.saved'))
-    } catch (error) {
-      setSystemMessage(error.message || t('settings.saveFailed'))
-    } finally {
-      setSavingSetting('')
-    }
-  }
 
   // 清除所有数据：二次确认后逐个删除工作空间与软件，并刷新 store
   const handleClearAll = async () => {
@@ -114,100 +80,6 @@ export function Settings() {
           <span className="info-label">{t('settings.stack')}</span>
           <span className="info-value">Electron + React + SQLite</span>
         </div>
-      </GlassCard>
-
-      <GlassCard className="settings-section system-settings-card" hover={false}>
-        <div className="system-settings-heading">
-          <span className="system-settings-icon" aria-hidden="true"><Rocket size={22} /></span>
-          <div>
-            <h3>{t('settings.systemStartup')}</h3>
-            <p>{t('settings.systemStartupDesc')}</p>
-          </div>
-          <span className="tray-live-badge"><span /> {t('settings.trayRunning')}</span>
-        </div>
-
-        <div className="system-setting-list">
-          <div className="system-setting-row">
-            <span className="system-setting-symbol"><Power size={18} /></span>
-            <div className="system-setting-copy">
-              <strong>{t('settings.openAtLogin')}</strong>
-              <span>{systemSettings?.packaged === false ? t('settings.openAtLoginDescPackaged') : t('settings.openAtLoginDesc')}</span>
-            </div>
-            <Toggle
-              checked={Boolean(systemSettings?.openAtLogin)}
-              disabled={!systemSettings || savingSetting === 'openAtLogin' || systemSettings.packaged === false}
-              onChange={(event) => updateSystemSetting('openAtLogin', event.target.checked)}
-              ariaLabel={t('settings.openAtLogin')}
-            />
-          </div>
-
-          <div className="system-setting-row">
-            <span className="system-setting-symbol"><AppWindow size={18} /></span>
-            <div className="system-setting-copy">
-              <strong>{t('settings.startMinimized')}</strong>
-              <span>{t('settings.startMinimizedDesc')}</span>
-            </div>
-            <Toggle
-              checked={Boolean(systemSettings?.startMinimized)}
-              disabled={!systemSettings || savingSetting === 'startMinimized'}
-              onChange={(event) => updateSystemSetting('startMinimized', event.target.checked)}
-              ariaLabel={t('settings.startMinimized')}
-            />
-          </div>
-
-          <div className="system-setting-row">
-            <span className="system-setting-symbol"><Rocket size={18} /></span>
-            <div className="system-setting-copy">
-              <strong>{t('settings.closeToTray')}</strong>
-              <span>{t('settings.closeToTrayDesc')}</span>
-            </div>
-            <Toggle
-              checked={Boolean(systemSettings?.closeToTray)}
-              disabled={!systemSettings || savingSetting === 'closeToTray'}
-              onChange={(event) => updateSystemSetting('closeToTray', event.target.checked)}
-              ariaLabel={t('settings.closeToTray')}
-            />
-          </div>
-
-          <div className="system-setting-row process-policy-row">
-            <span className="system-setting-symbol"><RefreshCcw size={18} /></span>
-            <div className="system-setting-copy">
-              <strong>{t('settings.killBeforeLaunch')}</strong>
-              <span>{t('settings.killBeforeLaunchDesc')}</span>
-            </div>
-            <Toggle
-              checked={Boolean(systemSettings?.killBeforeLaunch)}
-              disabled={!systemSettings || savingSetting === 'killBeforeLaunch'}
-              onChange={(event) => updateSystemSetting('killBeforeLaunch', event.target.checked)}
-              ariaLabel={t('settings.killBeforeLaunch')}
-            />
-          </div>
-        </div>
-        {systemMessage && <div className="system-setting-message" role="status">{systemMessage}</div>}
-      </GlassCard>
-
-      <GlassCard className="settings-section repository-card" hover={false}>
-        <div className="repository-copy">
-          <span className="repository-icon" aria-hidden="true">
-            <Code2 size={24} />
-          </span>
-          <div>
-            <h3>{t('settings.repo')}</h3>
-            <p className="repository-desc">
-              {t('settings.repoDesc')}
-            </p>
-            <code className="repository-path">MewzCC/workspace-launcher</code>
-          </div>
-        </div>
-        <GlowButton
-          variant="primary"
-          size="md"
-          onClick={() => externalApi.open(repositoryUrl)}
-        >
-          <Star size={15} />
-          {t('settings.github')}
-          <ExternalLink size={14} />
-        </GlowButton>
       </GlassCard>
 
       {/* 数据信息 */}

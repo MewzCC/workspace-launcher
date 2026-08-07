@@ -1,139 +1,32 @@
-/* 主题变量定义：基于设计稿的品牌令牌
-   暗色为默认（html.dark），亮色为 html.light
-   所有组件通过 var(--brand-*) 引用，切换主题只需切换 html 的 class */
-
+/* 主题变量定义：Glassmorphism 暗色主题色值与设计令牌 */
 :root {
-  /* 品牌主色：冷调靛蓝 */
-  --brand-primary: #6366f1;
-  --brand-primary-50: #eef2ff;
-  --brand-primary-100: #e0e7ff;
-  --brand-primary-200: #c7d2fe;
-  --brand-primary-300: #a5b4fc;
-  --brand-primary-400: #818cf8;
-  --brand-primary-500: #6366f1;
-  --brand-primary-600: #4f46e5;
-  --brand-primary-700: #4338ca;
-  --brand-primary-800: #3730a3;
-  --brand-primary-900: #312e81;
-  --brand-primary-foreground: #ffffff;
+  /* 背景色 */
+  --color-bg: #080B12;            /* 深色底 */
+  --color-bg-elevated: #0F131C;   /* 稍亮层 */
+  --color-card: rgba(255, 255, 255, 0.08);        /* 玻璃卡片背景 */
+  --color-card-border: rgba(255, 255, 255, 0.12); /* 玻璃卡片边框 */
 
-  /* 辅助色 */
-  --brand-secondary: #22d3ee;
+  /* 文字色 */
+  --color-text: #E5E7EB;          /* 主文字 */
+  --color-text-muted: #9CA3AF;    /* 次文字 */
 
-  /* 状态色 */
-  --brand-state-success: #34d399;
-  --brand-state-warning: #fbbf24;
-  --brand-state-error: #f87171;
-  --brand-state-info: #60a5fa;
+  /* 主题色 */
+  --color-primary: #6366F1;       /* 主色 */
+  --color-secondary: #22D3EE;     /* 辅助色 */
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
 
   /* 圆角 */
-  --brand-radius-sm: 4px;
-  --brand-radius-md: 8px;
-  --brand-radius-lg: 16px;
-  --brand-radius-xl: 24px;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;              /* 卡片大圆角 */
 
   /* 模糊与阴影 */
-  --brand-blur: 20px;
-  --brand-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --brand-shadow-glow: 0 0 24px rgba(99, 102, 241, 0.4);
+  --blur: 20px;                                       /* 玻璃模糊值 */
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);       /* 卡片柔和阴影 */
+  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.4);    /* 主色发光 */
 
   /* 过渡 */
-  --brand-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* 字体 */
-  --brand-font-sans: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --brand-font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-/* ===== 暗色主题（默认） ===== */
-html.dark {
-  --brand-background: #0b0b0f;
-  --brand-background-elevated: #15151c;
-  --brand-foreground: #f4f4f7;
-  --brand-card: rgba(18, 18, 24, 0.72);
-  --brand-card-solid: #14141b;
-  --brand-card-foreground: #f4f4f7;
-  --brand-popover: rgba(22, 22, 30, 0.96);
-  --brand-popover-foreground: #f4f4f7;
-  --brand-muted: rgba(255, 255, 255, 0.08);
-  --brand-muted-foreground: rgba(244, 244, 247, 0.56);
-  --brand-border: rgba(255, 255, 255, 0.10);
-  --brand-input: rgba(255, 255, 255, 0.10);
-  --brand-ring: rgba(99, 102, 241, 0.5);
-  --brand-sidebar-bg: rgba(11, 11, 15, 0.80);
-  /* 光晕球颜色 */
-  --brand-glow-1: rgba(99, 102, 241, 0.45);
-  --brand-glow-2: rgba(34, 211, 238, 0.30);
-  --brand-scrollbar-thumb: rgba(255, 255, 255, 0.15);
-  --brand-scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
-  --brand-overlay: rgba(0, 0, 0, 0.6);
-}
-
-/* ===== 亮色主题 ===== */
-html.light {
-  --brand-background: #f6f7fb;
-  --brand-background-elevated: #ffffff;
-  --brand-foreground: #1a1a22;
-  --brand-card: rgba(255, 255, 255, 0.80);
-  --brand-card-solid: #ffffff;
-  --brand-card-foreground: #1a1a22;
-  --brand-popover: rgba(255, 255, 255, 0.98);
-  --brand-popover-foreground: #1a1a22;
-  --brand-muted: rgba(15, 18, 30, 0.06);
-  --brand-muted-foreground: rgba(26, 26, 34, 0.58);
-  --brand-border: rgba(15, 18, 30, 0.10);
-  --brand-input: rgba(15, 18, 30, 0.06);
-  --brand-ring: rgba(99, 102, 241, 0.45);
-  --brand-sidebar-bg: rgba(246, 247, 251, 0.85);
-  --brand-glow-1: rgba(99, 102, 241, 0.18);
-  --brand-glow-2: rgba(34, 211, 238, 0.14);
-  --brand-scrollbar-thumb: rgba(15, 18, 30, 0.18);
-  --brand-scrollbar-thumb-hover: rgba(15, 18, 30, 0.28);
-  --brand-overlay: rgba(15, 18, 30, 0.45);
-}
-
-/* 主题未初始化前默认按暗色渲染，避免闪烁 */
-html:not(.light):not(.dark) {
-  --brand-background: #0b0b0f;
-  --brand-background-elevated: #15151c;
-  --brand-foreground: #f4f4f7;
-  --brand-card: rgba(18, 18, 24, 0.72);
-  --brand-card-solid: #14141b;
-  --brand-card-foreground: #f4f4f7;
-  --brand-popover: rgba(22, 22, 30, 0.96);
-  --brand-popover-foreground: #f4f4f7;
-  --brand-muted: rgba(255, 255, 255, 0.08);
-  --brand-muted-foreground: rgba(244, 244, 247, 0.56);
-  --brand-border: rgba(255, 255, 255, 0.10);
-  --brand-input: rgba(255, 255, 255, 0.10);
-  --brand-ring: rgba(99, 102, 241, 0.5);
-  --brand-sidebar-bg: rgba(11, 11, 15, 0.80);
-  --brand-glow-1: rgba(99, 102, 241, 0.45);
-  --brand-glow-2: rgba(34, 211, 238, 0.30);
-  --brand-scrollbar-thumb: rgba(255, 255, 255, 0.15);
-  --brand-scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
-  --brand-overlay: rgba(0, 0, 0, 0.6);
-}
-
-/* ===== 向后兼容别名：将旧 --color-* 令牌映射到新 --brand-* =====
-   便于逐步迁移各页面 CSS，迁移完成后可删除 */
-:root {
-  --color-bg: var(--brand-background);
-  --color-bg-elevated: var(--brand-background-elevated);
-  --color-card: var(--brand-card);
-  --color-card-border: var(--brand-border);
-  --color-text: var(--brand-foreground);
-  --color-text-muted: var(--brand-muted-foreground);
-  --color-primary: var(--brand-primary);
-  --color-secondary: var(--brand-secondary);
-  --color-success: var(--brand-state-success);
-  --color-error: var(--brand-state-error);
-  --color-warning: var(--brand-state-warning);
-  --radius-sm: var(--brand-radius-md);
-  --radius-md: var(--brand-radius-md);
-  --radius-lg: var(--brand-radius-lg);
-  --blur: var(--brand-blur);
-  --shadow-card: var(--brand-shadow-card);
-  --shadow-glow: var(--brand-shadow-glow);
-  --transition: var(--brand-transition);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

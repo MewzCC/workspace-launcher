@@ -1,28 +1,18 @@
-// 空间管理页面：工作空间 CRUD + 一键启动动画
-// 视觉对齐设计稿：页头(标题+副标题+CTA) + 卡片网格 + 模态表单
-import React, { useMemo, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, Play, PackageOpen, Search, X } from 'lucide-react'
+// 工作空间页面：核心页面，含工作空间 CRUD 与一键启动动画
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
 import LaunchAnimation from '../components/LaunchAnimation'
 import SoftwareIcon from '../components/SoftwareIcon'
-import SoftwareOverflowPreview from '../components/SoftwareOverflowPreview'
-import ShortcutInput from '../components/ShortcutInput'
-import { useConfirmDialog } from '../components/ConfirmDialog'
 import { useStore } from '../store/useStore'
-import { workspaceApi } from '../lib/ipc'
-import { useProcessStatuses } from '../hooks/useProcessStatuses'
-import { useShortcutValidation } from '../hooks/useShortcutValidation'
-import { useT } from '../hooks/useT'
+import { workspaceApi, onLaunchProgress } from '../lib/ipc'
 import './Workspaces.css'
 
 // 图标预设选项
 const ICON_PRESETS = ['🚀', '💻', '🎨', '📦', '🎮', '📊', '🔍', '⚡', '🧩']
 
 function Workspaces() {
-  const t = useT()
-  const confirm = useConfirmDialog()
   // store 状态与 actions
   const workspaces = useStore((s) => s.workspaces)
   const software = useStore((s) => s.software)
@@ -32,45 +22,39 @@ function Workspaces() {
   const updateLaunchProgress = useStore((s) => s.updateLaunchProgress)
   const stopLaunch = useStore((s) => s.stopLaunch)
 
-  const workspaceSoftware = useMemo(
-    () => workspaces.flatMap((workspace) => workspace.software || []),
-    [workspaces]
-  )
-  const processStatuses = useProcessStatuses(
-    workspaceSoftware,
-    `${launching?.active || false}:${launching?.progress?.length || 0}`
-  )
+  // 订阅启动进度：组件挂载期间持续转发到 store
+  useEffect(() => {
+    const unsubscribe = onLaunchProgress((progress) => {
+      updateLaunchProgress(progress)
+    })
+    return () => unsubscribe()
+  }, [updateLaunchProgress])
 
   // Modal 与表单状态
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', icon: '🚀', shortcut: '' })
+  const [form, setForm] = useState({ name: '', description: '', icon: '🚀' })
   // 已选软件：[{ software_id, name, icon, launch_order, delay_ms }]
   const [selectedSoftware, setSelectedSoftware] = useState([])
-  const [softwareSearch, setSoftwareSearch] = useState('')
   const [saving, setSaving] = useState(false)
   // 防止保存重复提交
   const savingRef = useRef(false)
-  const shortcutValidation = useShortcutValidation(form.shortcut, editingId)
 
   // 打开新建 Modal
   const openCreate = () => {
     setEditingId(null)
-    setForm({ name: '', description: '', icon: '🚀', shortcut: '' })
+    setForm({ name: '', description: '', icon: '🚀' })
     setSelectedSoftware([])
-    setSoftwareSearch('')
     setModalOpen(true)
   }
 
   // 打开编辑 Modal，预填工作空间数据
   const openEdit = (workspace) => {
-    setSoftwareSearch('')
     setEditingId(workspace.id)
     setForm({
       name: workspace.name || '',
       description: workspace.description || '',
-      icon: workspace.icon || '🚀',
-      shortcut: workspace.shortcut || ''
+      icon: workspace.icon || '🚀'
     })
     // 将工作空间的 software 映射为可编辑项
     setSelectedSoftware(
@@ -78,7 +62,6 @@ function Workspaces() {
         software_id: s.id,
         name: s.name,
         icon: s.icon,
-        icon_mode: s.icon_mode,
         path: s.path,
         launch_order: s.launch_order ?? idx + 1,
         delay_ms: s.delay_ms ?? 0
@@ -106,7 +89,6 @@ function Workspaces() {
           software_id: sw.id,
           name: sw.name,
           icon: sw.icon,
-          icon_mode: sw.icon_mode,
           path: sw.path,
           launch_order: prev.length + 1,
           delay_ms: 0
@@ -128,10 +110,9 @@ function Workspaces() {
   const handleSave = async () => {
     if (savingRef.current) return
     if (!form.name.trim()) {
-      window.alert(t('workspaces.nameRequired'))
+      window.alert('请输入工作空间名称')
       return
     }
-    if (!(await shortcutValidation.validateNow(form.shortcut))) return
     savingRef.current = true
     setSaving(true)
     try {
@@ -140,7 +121,6 @@ function Workspaces() {
         name: form.name.trim(),
         description: form.description.trim(),
         icon: form.icon,
-        shortcut: form.shortcut.trim(),
         software: selectedSoftware
           .slice()
           .sort((a, b) => Number(a.launch_order) - Number(b.launch_order))
@@ -161,11 +141,7 @@ function Workspaces() {
       closeModal()
     } catch (err) {
       console.error('保存工作空间失败:', err)
-      if (form.shortcut) {
-        shortcutValidation.setError(err?.message || t('workspaces.shortcutCheckFailed'))
-      } else {
-        window.alert(t('common.savingFailed') + (err?.message || err))
-      }
+      window.alert('保存失败：' + (err?.message || err))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -185,28 +161,21 @@ function Workspaces() {
         softwareId: null,
         softwareName: '',
         status: 'failed',
-        message: t('workspaces.launchFailed') + (err?.message || err)
+        message: '启动失败：' + (err?.message || err)
       })
     }
   }
 
   // 删除工作空间
   const handleDelete = async (workspace) => {
-    const confirmed = await confirm({
-      title: t('common.delete'),
-      message: t('workspaces.deleteConfirm', { name: workspace.name }),
-      confirmText: t('common.delete'),
-      tone: 'danger',
-      icon: 'danger'
-    })
-    if (!confirmed) return
+    if (!window.confirm(`确认删除工作空间「${workspace.name}」吗？`)) return
     try {
       await workspaceApi.remove(workspace.id)
       const list = await workspaceApi.list()
       setWorkspaces(list)
     } catch (err) {
       console.error('删除工作空间失败:', err)
-      window.alert(t('workspaces.deleteFailed') + (err?.message || err))
+      window.alert('删除失败：' + (err?.message || err))
     }
   }
 
@@ -220,82 +189,63 @@ function Workspaces() {
 
   return (
     <div className="workspaces-page">
-      {/* 页头：标题 + 副标题 + 添加按钮 */}
-      <section className="page-header">
-        <div className="page-header-left">
-          <h1 className="page-title">{t('workspaces.title')}</h1>
-          <p className="page-subtitle">{t('workspaces.subtitle')}</p>
-        </div>
+      {/* 页头：标题 + 新建按钮 */}
+      <div className="page-header">
+        <h1 className="page-title">🚀 工作空间</h1>
         <GlowButton variant="primary" size="md" onClick={openCreate}>
-          <Plus size={16} />
-          {t('workspaces.add')}
+          + 新建工作空间
         </GlowButton>
-      </section>
+      </div>
 
       {/* 工作空间网格 / 空状态 */}
       {workspaces.length === 0 ? (
-        <GlassCard hover={false} className="empty-state">
-          <div className="empty-icon-wrap">
-            <PackageOpen size={40} />
-          </div>
-          <p>{t('workspaces.empty')}</p>
-        </GlassCard>
+        <div className="empty-state">
+          <div className="empty-icon">🚀</div>
+          <p>暂无工作空间，点击右上角创建一个吧</p>
+        </div>
       ) : (
         <div className="workspace-grid">
           {workspaces.map((ws) => {
-            const isLaunching =
+            // 运行中判断：launching 命中且 active
+            const isRunning =
               launching?.workspaceId === ws.id && launching?.active
-            const wsSoftware = ws.software || []
-            const runningCount = wsSoftware.filter(
-              (item) => processStatuses[item.path]
-            ).length
-            const isRunning = runningCount > 0
-            const statusText = isLaunching
-              ? t('workspaces.launching')
-              : runningCount === 0
-                ? t('common.stopped')
-                : runningCount === wsSoftware.length
-                  ? t('common.running')
-                  : t('workspaces.partialRunning', { running: runningCount, total: wsSoftware.length })
             // 卡片最多显示 4 个软件，超出显示 +N
+            const wsSoftware = ws.software || []
             const shownSoftware = wsSoftware.slice(0, 4)
-            const hiddenSoftware = wsSoftware.slice(shownSoftware.length)
+            const extraCount = wsSoftware.length - shownSoftware.length
             return (
               <GlassCard key={ws.id} className="workspace-card" hover>
-                {/* 顶部：icon + 名称 + 快捷键 + 状态灯 */}
+                {/* 顶部：icon + 名称 + 状态灯 */}
                 <div className="ws-card-header">
                   <span className="ws-icon">{ws.icon || '🚀'}</span>
                   <span className="ws-name">{ws.name}</span>
-                  {ws.shortcut && <kbd className="ws-shortcut">{ws.shortcut}</kbd>}
                   <span className="ws-status">
                     <span
                       className={`ws-status-dot ${
                         isRunning ? 'running' : 'stopped'
                       }`}
                     ></span>
-                    {statusText}
+                    {isRunning ? '运行中' : '已停止'}
                   </span>
                 </div>
 
                 {/* 描述 */}
-                <div className="ws-desc">{ws.description || t('common.noDescription')}</div>
+                <div className="ws-desc">{ws.description || '暂无描述'}</div>
 
                 {/* 软件列表 */}
                 <div className="ws-software">
                   {shownSoftware.length === 0 && (
-                    <span className="ws-software-empty">{t('workspaces.noSoftware')}</span>
+                    <span className="ws-software-empty">未配置软件</span>
                   )}
                   {shownSoftware.map((s) => (
                     <span className="ws-software-item" key={s.id}>
-                      <SoftwareIcon path={s.path} fallback={s.icon || '📦'} iconMode={s.icon_mode} size="sm" />
+                      <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="sm" />
                       <span>{s.name}</span>
                     </span>
                   ))}
-                  <SoftwareOverflowPreview
-                    items={hiddenSoftware}
-                    processStatuses={processStatuses}
-                    onEdit={() => openEdit(ws)}
-                  />
+                  {extraCount > 0 && (
+                    <span className="ws-software-item">+{extraCount}</span>
+                  )}
                 </div>
 
                 {/* 底部按钮 */}
@@ -304,18 +254,16 @@ function Workspaces() {
                     variant="primary"
                     size="sm"
                     onClick={() => handleLaunch(ws)}
-                    disabled={isLaunching}
+                    disabled={isRunning}
                   >
-                    <Play size={14} />
-                    {isLaunching ? t('common.starting') : t('workspaces.launch')}
+                    ▶ 一键启动
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
                     size="sm"
                     onClick={() => openEdit(ws)}
                   >
-                    <Pencil size={14} />
-                    {t('common.edit')}
+                    ✏ 编辑
                   </GlowButton>
                   <GlowButton
                     variant="ghost"
@@ -323,8 +271,7 @@ function Workspaces() {
                     className="ws-btn-delete"
                     onClick={() => handleDelete(ws)}
                   >
-                    <Trash2 size={14} />
-                    {t('common.delete')}
+                    🗑 删除
                   </GlowButton>
                 </div>
               </GlassCard>
@@ -336,47 +283,45 @@ function Workspaces() {
       {/* 新建/编辑 Modal */}
       {modalOpen && (
         <Modal
-          title={editingId ? t('workspaces.editTitle') : t('workspaces.newTitle')}
+          title={editingId ? '编辑工作空间' : '新建工作空间'}
           onClose={closeModal}
           onSave={handleSave}
-          saveText={saving ? t('common.saving') : t('common.save')}
-          saveDisabled={saving || shortcutValidation.status === 'checking' || shortcutValidation.status === 'error'}
-          closeDisabled={saving}
+          saveText={saving ? '保存中...' : '保存'}
         >
           {/* 名称 */}
           <div className="form-group">
-            <label className="form-label">{t('common.nameRequired')}</label>
+            <label className="form-label">名称 *</label>
             <input
               className="form-input"
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t('workspaces.namePlaceholder')}
+              placeholder="输入工作空间名称"
             />
           </div>
 
           {/* 描述 */}
           <div className="form-group">
-            <label className="form-label">{t('common.description')}</label>
+            <label className="form-label">描述</label>
             <textarea
               className="form-input"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
               }
-              placeholder={t('workspaces.descPlaceholder')}
+              placeholder="输入工作空间描述"
             />
           </div>
 
           {/* 图标 */}
           <div className="form-group">
-            <label className="form-label">{t('common.icon')}</label>
+            <label className="form-label">图标</label>
             <input
               className="form-input"
               type="text"
               value={form.icon}
               onChange={(e) => setForm({ ...form, icon: e.target.value })}
-              placeholder={t('workspaces.iconPlaceholder')}
+              placeholder="输入 emoji"
             />
             <div className="icon-presets">
               {ICON_PRESETS.map((ic) => (
@@ -394,50 +339,16 @@ function Workspaces() {
             </div>
           </div>
 
-          {/* 全局快捷键 */}
-          <div className="form-group">
-            <label className="form-label">{t('workspaces.shortcut')}</label>
-            <ShortcutInput
-              value={form.shortcut}
-              validationStatus={shortcutValidation.status}
-              validationMessage={shortcutValidation.message}
-              onChange={(shortcut) => {
-                setForm((current) => ({ ...current, shortcut }))
-              }}
-            />
-          </div>
-
           {/* 软件选择 */}
           <div className="form-group">
-            <label className="form-label">{t('workspaces.softwareSelection')}</label>
-            <div className="workspace-software-search">
-              <Search size={15} aria-hidden="true" />
-              <input
-                value={softwareSearch}
-                onChange={(event) => setSoftwareSearch(event.target.value)}
-                placeholder={t('workspaces.searchPlaceholder')}
-                aria-label={t('workspaces.searchAria')}
-              />
-              {softwareSearch && (
-                <button type="button" onClick={() => setSoftwareSearch('')} aria-label={t('dashboard.clearSearch')}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+            <label className="form-label">软件选择</label>
             <div className="software-picker">
               {software.length === 0 && (
                 <div className="software-picker-empty">
-                  {t('workspaces.noAvailableSoftware')}
+                  暂无可用软件，请先在软件库添加
                 </div>
               )}
-              {software
-                .filter((sw) => {
-                  const query = softwareSearch.trim().toLowerCase()
-                  return !query || [sw.name, sw.path].some((value) =>
-                    String(value || '').toLowerCase().includes(query)
-                  )
-                })
-                .map((sw) => (
+              {software.map((sw) => (
                 <label className="software-picker-item" key={sw.id}>
                   <input
                     type="checkbox"
@@ -445,7 +356,7 @@ function Workspaces() {
                     checked={isSelected(sw.id)}
                     onChange={() => toggleSoftware(sw)}
                   />
-                  <span className="picker-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} iconMode={sw.icon_mode} size="sm" /></span>
+                  <span className="picker-icon"><SoftwareIcon path={sw.path} fallback={sw.icon || '📦'} size="sm" /></span>
                   <span className="picker-name">{sw.name}</span>
                 </label>
               ))}
@@ -455,7 +366,7 @@ function Workspaces() {
           {/* 启动顺序与延迟 */}
           {selectedSoftware.length > 0 && (
             <div className="form-group">
-              <label className="form-label">{t('workspaces.orderDelay')}</label>
+              <label className="form-label">启动顺序与延迟</label>
               <div className="order-delay-list">
                 {selectedSoftware
                   .slice()
@@ -465,10 +376,10 @@ function Workspaces() {
                   .map((s) => (
                     <div className="order-delay-row" key={s.software_id}>
                       <span className="od-name">
-                        <SoftwareIcon path={s.path} fallback={s.icon || '📦'} iconMode={s.icon_mode} size="xs" /> {s.name}
+                        <SoftwareIcon path={s.path} fallback={s.icon || '📦'} size="xs" /> {s.name}
                       </span>
                       <label className="od-field">
-                        {t('workspaces.order')}
+                        顺序
                         <input
                           className="form-input od-input"
                           type="number"
@@ -484,7 +395,7 @@ function Workspaces() {
                         />
                       </label>
                       <label className="od-field">
-                        {t('workspaces.delayMs')}
+                        延迟(ms)
                         <input
                           className="form-input od-input"
                           type="number"

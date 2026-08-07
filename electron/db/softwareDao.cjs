@@ -16,8 +16,8 @@ function getStmts() {
     get: db.prepare('SELECT * FROM software WHERE id = ?'),
     // 插入软件
     insert: db.prepare(`
-      INSERT INTO software (name, description, path, args, icon, icon_mode)
-      VALUES (@name, @description, @path, @args, @icon, @icon_mode)
+      INSERT INTO software (name, description, path, args, icon)
+      VALUES (@name, @description, @path, @args, @icon)
     `),
     // 更新软件
     update: db.prepare(`
@@ -26,12 +26,9 @@ function getStmts() {
           description = @description,
           path = @path,
           args = @args,
-          icon = @icon,
-          icon_mode = @icon_mode
+          icon = @icon
       WHERE id = @id
     `),
-    // 显式删除工作空间关联，兼容早期数据库曾关闭外键约束时留下的数据
-    removeWorkspaceRelations: db.prepare('DELETE FROM workspace_software WHERE software_id = ?'),
     // 删除软件
     remove: db.prepare('DELETE FROM software WHERE id = ?')
   }
@@ -45,8 +42,7 @@ function normalize(item) {
     description: item.description ?? '',
     path: item.path,
     args: item.args ?? '',
-    icon: item.icon ?? '📦',
-    icon_mode: item.icon_mode === 'custom' ? 'custom' : 'auto'
+    icon: item.icon ?? '📦'
   }
 }
 
@@ -77,13 +73,8 @@ function update(id, data) {
 // 删除软件
 // 返回是否成功
 function remove(id) {
-  const s = getStmts()
-  const db = getDb()
-  return db.transaction(() => {
-    s.removeWorkspaceRelations.run(id)
-    const info = s.remove.run(id)
-    return info.changes > 0
-  })()
+  const info = getStmts().remove.run(id)
+  return info.changes > 0
 }
 
 // 批量插入软件（扫描结果添加用）

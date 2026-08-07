@@ -1,9 +1,7 @@
 // 通用模态框组件：全屏覆盖 + 居中玻璃面板
 // 支持 ESC 关闭、点击遮罩关闭，可选底部按钮栏（取消/保存）
 import React, { useEffect } from 'react'
-import { X } from 'lucide-react'
 import GlowButton from './ui/GlowButton'
-import { useT } from '../hooks/useT'
 import './Modal.css'
 
 function Modal({
@@ -11,26 +9,21 @@ function Modal({
   children,
   onClose,
   onSave,
-  saveText,
-  cancelText,
-  saveDisabled = false,
-  closeDisabled = false
+  saveText = '保存',
+  cancelText = '取消'
 }) {
-  const t = useT()
-  const resolvedSave = saveText ?? t('common.save')
-  const resolvedCancel = cancelText ?? t('common.cancel')
   // ESC 键关闭
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape' && !closeDisabled) onClose()
+      if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [onClose, closeDisabled])
+  }, [onClose])
 
   // 点击遮罩关闭（仅当点击目标为遮罩本身时触发，避免点击面板内部误关闭）
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget && !closeDisabled) onClose()
+    if (e.target === e.currentTarget) onClose()
   }
 
   return (
@@ -42,11 +35,10 @@ function Modal({
           <button
             className="modal-close"
             onClick={onClose}
-            aria-label={t('common.close')}
+            aria-label="关闭"
             type="button"
-            disabled={closeDisabled}
           >
-            <X size={18} />
+            ×
           </button>
         </div>
 
@@ -56,11 +48,11 @@ function Modal({
         {/* 底部按钮栏（传入 onSave 时显示） */}
         {onSave && (
           <div className="modal-footer">
-            <GlowButton variant="ghost" size="md" onClick={onClose} disabled={closeDisabled}>
-              {resolvedCancel}
+            <GlowButton variant="ghost" size="md" onClick={onClose}>
+              {cancelText}
             </GlowButton>
-            <GlowButton variant="primary" size="md" onClick={onSave} disabled={saveDisabled}>
-              {resolvedSave}
+            <GlowButton variant="primary" size="md" onClick={onSave}>
+              {saveText}
             </GlowButton>
           </div>
         )}

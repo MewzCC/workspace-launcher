@@ -1,7 +1,27 @@
-/* 软件扫描中心页面样式：对齐设计稿品牌令牌 */
+/* 软件扫描中心页面样式 */
 
 .scan-page {
   max-width: 1000px;
+}
+
+/* 页面头部：标题 + 扫描按钮 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-intro {
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 
 /* 扫描模式切换标签 */
@@ -10,9 +30,9 @@
   gap: 4px;
   margin-bottom: 16px;
   padding: 4px;
-  background: var(--brand-muted);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
   width: fit-content;
   flex-wrap: wrap;
 }
@@ -21,40 +41,38 @@
   padding: 8px 16px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--brand-radius-md);
-  color: var(--brand-muted-foreground);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: var(--brand-transition);
+  transition: var(--transition);
   font-family: inherit;
 }
 
 .mode-tab:hover {
-  color: var(--brand-foreground);
-  background: color-mix(in srgb, var(--brand-foreground) 6%, transparent);
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .mode-tab.active {
-  color: var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
-  border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+  color: var(--color-text);
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 /* 模式参数面板 */
 .mode-panel {
   margin-bottom: 16px;
   padding: 16px;
-  background: var(--brand-card);
-  backdrop-filter: blur(var(--brand-blur));
-  -webkit-backdrop-filter: blur(var(--brand-blur));
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
 }
 
 .mode-desc {
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   font-size: 13px;
   margin-bottom: 12px;
   line-height: 1.5;
@@ -79,43 +97,44 @@
 .mode-form .form-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text);
 }
 
 .mode-form .form-input,
 .mode-form .form-select {
   width: 100%;
-  padding: 8px 12px;
-  background: var(--brand-input);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
-  color: var(--brand-foreground);
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  transition: var(--brand-transition);
+  transition: var(--transition);
 }
 
 .mode-form .form-input:focus,
 .mode-form .form-select:focus {
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 2px var(--brand-ring);
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .mode-form .form-select option {
-  background: var(--brand-background-elevated);
-  color: var(--brand-foreground);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
 }
 
 .mode-form input[type="range"] {
   width: 100%;
-  accent-color: var(--brand-primary);
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 
 .mode-form .form-hint {
   font-size: 11px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   opacity: 0.7;
 }
 
@@ -135,29 +154,17 @@
   align-items: center;
   gap: 12px;
   margin: 20px 0;
-  color: var(--brand-foreground);
+  color: var(--color-text);
   font-size: 15px;
 }
 
 .scanner-icon {
   font-size: 32px;
   display: inline-block;
-  animation: scan-spin 2s linear infinite;
+  animation: spin 2s linear infinite;
 }
 
-.scan-cancel-button {
-  color: var(--brand-state-error);
-  border-color: color-mix(in srgb, var(--brand-state-error) 32%, var(--brand-border));
-  background: color-mix(in srgb, var(--brand-state-error) 7%, var(--brand-background-elevated));
-}
-
-.scan-cancel-button:hover:not(:disabled) {
-  color: var(--brand-state-error);
-  border-color: color-mix(in srgb, var(--brand-state-error) 55%, var(--brand-border));
-  background: color-mix(in srgb, var(--brand-state-error) 13%, var(--brand-background-elevated));
-}
-
-@keyframes scan-spin {
+@keyframes spin {
   to {
     transform: rotate(360deg);
   }
@@ -167,10 +174,10 @@
 .scan-message {
   margin: 16px 0;
   padding: 12px 16px;
-  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
-  border-radius: var(--brand-radius-md);
-  color: var(--brand-foreground);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
   font-size: 14px;
 }
 
@@ -181,7 +188,7 @@
   align-items: center;
   margin: 20px 0;
   padding: 12px 0;
-  border-bottom: 1px solid var(--brand-border);
+  border-bottom: 1px solid var(--color-card-border);
   gap: 16px;
 }
 
@@ -191,121 +198,21 @@
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--brand-foreground);
+  color: var(--color-text);
 }
 
-/* 复选框统一样式：对齐设计稿 .app-checkbox */
+/* 复选框统一样式 */
 .select-all input,
 .scan-item input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--brand-radius-sm);
-  border: 1px solid var(--brand-border);
-  background-color: var(--brand-input);
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
   cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.select-all input:hover,
-.scan-item input[type="checkbox"]:hover {
-  border-color: var(--brand-primary);
-}
-
-.select-all input:checked,
-.scan-item input[type="checkbox"]:checked {
-  background-color: var(--brand-primary);
-  border-color: var(--brand-primary);
-}
-
-.select-all input:checked::after,
-.scan-item input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 5px;
-  height: 9px;
-  border: solid var(--brand-primary-foreground);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
 }
 
 .result-summary {
   font-size: 13px;
-  color: var(--brand-muted-foreground);
-}
-
-.scan-search {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 13px;
-  margin: 18px 0 10px;
-  color: var(--brand-muted-foreground);
-  background: var(--brand-card);
-  border: 1px solid var(--brand-border);
-  border-radius: 12px;
-  backdrop-filter: blur(var(--brand-blur));
-  -webkit-backdrop-filter: blur(var(--brand-blur));
-}
-
-.scan-search-engine {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  color: var(--brand-state-success);
-  background: color-mix(in srgb, var(--brand-state-success) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-state-success) 22%, transparent);
-  border-radius: 999px;
-  font-family: var(--brand-font-mono);
-  font-size: 9px;
-  white-space: nowrap;
-}
-
-.scan-search-engine.searching {
-  color: var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-primary) 9%, transparent);
-  border-color: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-  animation: scan-index-pulse 1s ease-in-out infinite;
-}
-
-.scan-search:focus-within {
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 12%, transparent);
-}
-
-.scan-search input {
-  min-width: 0;
-  color: var(--brand-foreground);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font: inherit;
-}
-
-.scan-search button {
-  display: inline-flex;
-  padding: 4px;
-  color: var(--brand-muted-foreground);
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.scan-no-results {
-  padding: 42px;
-  color: var(--brand-muted-foreground);
-  text-align: center;
-  border: 1px dashed var(--brand-border);
-  border-radius: var(--brand-radius-md);
+  color: var(--color-text-muted);
 }
 
 /* 扫描结果列表 */
@@ -320,23 +227,34 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--brand-card);
-  backdrop-filter: blur(var(--brand-blur));
-  -webkit-backdrop-filter: blur(var(--brand-blur));
-  border-radius: var(--brand-radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  transition: var(--brand-transition);
-  min-width: 0;
+  transition: var(--transition);
 }
 
 .scan-item:hover {
-  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
-  background-color: color-mix(in srgb, var(--brand-primary) 6%, transparent);
+  border-color: var(--color-card-border);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* 已添加项：半透明 */
 .scan-item.added {
   opacity: 0.5;
+}
+
+.scan-item-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* 真实 exe 图标图片 */
+.scan-item-icon-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .scan-item-info {
@@ -347,62 +265,41 @@
 .scan-item-name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--brand-foreground);
+  color: var(--color-text);
   margin-bottom: 2px;
 }
 
 .scan-item-path {
   font-size: 12px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--brand-font-mono);
-}
-
-.scan-item-source {
-  flex-shrink: 0;
-  padding: 3px 7px;
-  color: var(--brand-secondary);
-  background: color-mix(in srgb, var(--brand-secondary) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-secondary) 22%, transparent);
-  border-radius: 999px;
-  font-family: var(--brand-font-mono);
-  font-size: 9px;
-}
-
-.scan-item-source.windows-app {
-  color: var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
-  border-color: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-}
-
-@keyframes scan-index-pulse {
-  50% { opacity: 0.55; }
-}
-
-@media (max-width: 760px) {
-  .scan-search {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .scan-search-engine {
-    grid-column: 2 / -1;
-    justify-self: start;
-    margin-bottom: 8px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scan-search-engine.searching { animation: none; }
 }
 
 /* "已添加"徽章 */
 .scan-item-badge {
   font-size: 11px;
-  color: var(--brand-state-success);
+  color: var(--color-success);
   padding: 2px 8px;
-  background: color-mix(in srgb, var(--brand-state-success) 12%, transparent);
-  border-radius: var(--brand-radius-sm);
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 64px 32px;
+}
+
+.empty-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.empty-state p {
+  color: var(--color-text-muted);
+  font-size: 14px;
 }

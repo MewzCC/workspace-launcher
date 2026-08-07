@@ -14,7 +14,6 @@ const CREATE_TABLES_SQL = `
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     icon TEXT DEFAULT '🚀',
-    shortcut_key TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -26,7 +25,6 @@ const CREATE_TABLES_SQL = `
     path TEXT NOT NULL,
     args TEXT DEFAULT '',
     icon TEXT DEFAULT '📦',
-    icon_mode TEXT DEFAULT 'auto',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -50,87 +48,15 @@ const CREATE_TABLES_SQL = `
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
   );
 
-  CREATE TABLE IF NOT EXISTS bat_scripts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    path TEXT NOT NULL,
-    args TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS workspace_bat_scripts (
-    workspace_id INTEGER NOT NULL,
-    bat_script_id INTEGER NOT NULL,
-    launch_order INTEGER DEFAULT 0,
-    delay_ms INTEGER DEFAULT 0,
-    PRIMARY KEY (workspace_id, bat_script_id),
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-    FOREIGN KEY (bat_script_id) REFERENCES bat_scripts(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS app_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
   CREATE TABLE IF NOT EXISTS launch_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workspace_id INTEGER,
     software_id INTEGER,
     status TEXT NOT NULL,
     message TEXT DEFAULT '',
-    message_key TEXT,
-    message_params TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
 `
-
-// 轻量迁移：为已存在的旧表补充新增列
-// 旧数据库通过 CREATE TABLE IF NOT EXISTS 不会自动加列，需逐列检查后 ALTER TABLE ADD COLUMN
-const MIGRATIONS = [
-  {
-    table: 'workspaces',
-    columns: [
-      { name: 'shortcut_key', definition: "TEXT DEFAULT ''" }
-    ]
-  },
-  {
-    table: 'software',
-    columns: [
-      { name: 'icon_mode', definition: "TEXT DEFAULT 'auto'" }
-    ]
-  },
-  {
-    table: 'launch_logs',
-    columns: [
-      { name: 'message_key', definition: 'TEXT' },
-      { name: 'message_params', definition: 'TEXT' }
-    ]
-  }
-]
-
-function applyMigrations(database) {
-  for (const migration of MIGRATIONS) {
-    const cols = database.prepare(`PRAGMA table_info(${migration.table})`).all()
-    const existing = new Set(cols.map((c) => c.name))
-    for (const column of migration.columns) {
-      if (!existing.has(column.name)) {
-        database.exec(
-          `ALTER TABLE ${migration.table} ADD COLUMN ${column.name} ${column.definition}`
-        )
-      }
-    }
-  }
-  // 旧版本用“非默认 📦 emoji”表示用户自定义图标，迁移后保留原有显示语义。
-  database.prepare(`
-    UPDATE software
-    SET icon_mode = 'custom'
-    WHERE icon_mode = 'auto' AND icon IS NOT NULL AND icon <> '📦'
-  `).run()
-}
 
 // 获取数据库连接（懒初始化）
 // 首次调用时创建 Database 实例，开启 WAL 模式和外键，执行建表 SQL
@@ -147,8 +73,6 @@ function getDb() {
 
   // 执行建表
   db.exec(CREATE_TABLES_SQL)
-  // 执行增量迁移（补齐旧表新增列）
-  applyMigrations(db)
 
   return db
 }

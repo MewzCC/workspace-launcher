@@ -163,6 +163,8 @@
   background: var(--color-bg);
   border-radius: var(--radius-sm);
   padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 13px;
 }

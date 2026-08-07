@@ -10,25 +10,6 @@ import './SoftwareIcon.css'
 const iconCache = new Map()
 // 正在请求中的路径集合，避免并发重复请求同一文件
 const pending = new Set()
-// path -> listeners。批量预加载完成后通知已经挂载的图标组件刷新。
-const listeners = new Map()
-
-function publishIcon(filePath, url) {
-  if (!filePath || !url) return
-  const key = filePath.toLowerCase()
-  iconCache.set(key, url)
-  for (const listener of listeners.get(key) || []) listener(url)
-}
-
-function subscribeIcon(key, listener) {
-  const current = listeners.get(key) || new Set()
-  current.add(listener)
-  listeners.set(key, current)
-  return () => {
-    current.delete(listener)
-    if (current.size === 0) listeners.delete(key)
-  }
-}
 
 /**
  * 批量预加载图标到模块缓存
@@ -43,14 +24,12 @@ export async function preloadSoftwareIcons(paths) {
   // 标记为请求中
   missing.forEach((p) => pending.add(p.toLowerCase()))
   try {
-    // 分批提取，既避免 IPC 超时，也确保超过 50 条的扫描结果最终都能拿到图标。
-    for (let index = 0; index < missing.length; index += 50) {
-      const batch = missing.slice(index, index + 50)
-      const result = await softwareApi.getIcons(batch)
-      if (result && !result.error) {
-        for (const [fp, url] of Object.entries(result)) {
-          publishIcon(fp, url)
-        }
+    // 限制单批大小，避免 IPC 超时
+    const batch = missing.slice(0, 50)
+    const result = await softwareApi.getIcons(batch)
+    if (result && !result.error) {
+      for (const [fp, url] of Object.entries(result)) {
+        iconCache.set(fp.toLowerCase(), url)
       }
     }
   } catch (_) {
@@ -67,53 +46,39 @@ export async function preloadSoftwareIcons(paths) {
  * @param {string} size - 尺寸 'xs'(16px) | 'sm'(20px) | 'md'(28px) | 'lg'(32px)
  * @param {string} className - 额外样式类名
  */
-function SoftwareIcon({ path, fallback = '📦', iconMode, size = 'sm', className = '' }) {
-  // icon_mode 明确区分“自动提取”和“自定义”；未迁移数据仍按旧规则兼容。
-  const hasCustomIcon = iconMode === 'custom' || (
-    iconMode == null && Boolean(fallback && fallback !== '📦')
-  )
+function SoftwareIcon({ path, fallback = '📦', size = 'sm', className = '' }) {
   const [iconUrl, setIconUrl] = useState(() => {
-    if (!path || hasCustomIcon) return null
+    if (!path) return null
     return iconCache.get(path.toLowerCase()) || null
   })
 
   useEffect(() => {
-    if (!path || hasCustomIcon) {
+    if (!path) {
       setIconUrl(null)
       return
     }
     const key = path.toLowerCase()
-    const unsubscribe = subscribeIcon(key, setIconUrl)
     // 已缓存直接用
     if (iconCache.has(key)) {
       setIconUrl(iconCache.get(key))
-      return unsubscribe
+      return
     }
-    setIconUrl(null)
     // 正在请求中，跳过（批量预加载或其它实例正在获取）
-    if (pending.has(key)) return unsubscribe
+    if (pending.has(key)) return
     pending.add(key)
     softwareApi
       .getIcon(path)
       .then((result) => {
         pending.delete(key)
         if (result && !result.error) {
-          publishIcon(path, result)
+          iconCache.set(key, result)
+          setIconUrl(result)
         }
       })
       .catch(() => {
         pending.delete(key)
       })
-    return unsubscribe
-  }, [path, hasCustomIcon])
-
-  if (hasCustomIcon) {
-    return (
-      <span className={`software-icon-fallback software-icon-fallback--${size} ${className}`}>
-        {fallback}
-      </span>
-    )
-  }
+  }, [path])
 
   if (iconUrl) {
     return (
@@ -124,11 +89,7 @@ function SoftwareIcon({ path, fallback = '📦', iconMode, size = 'sm', classNam
       />
     )
   }
-  return (
-    <span className={`software-icon-fallback software-icon-fallback--${size} ${className}`}>
-      {fallback}
-    </span>
-  )
+  return <span className={className}>{fallback}</span>
 }
 
 export default SoftwareIcon

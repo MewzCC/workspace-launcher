@@ -3,8 +3,7 @@
 // 通过 onProgress 回调向上层（IPC）上报启动进度
 const { exec } = require('child_process')
 const processManager = require('./processManager.cjs')
-const { workspaceDao, batScriptDao, scriptDao, logDao, settingsDao } = require('../db/index.cjs')
-const { t } = require('../i18n.cjs')
+const { workspaceDao, scriptDao, logDao } = require('../db/index.cjs')
 
 // 延时工具，返回 Promise，ms 毫秒后 resolve
 function delay(ms) {
@@ -57,7 +56,7 @@ function executeScript(script) {
 //   progress = {phase, softwareId?, softwareName?, status?, message?}
 //   phase: 'pre_script' | 'software' | 'post_script' | 'done' | 'error'
 //   status: 'pending' | 'running' | 'success' | 'failed'
-async function launchWorkspace(workspaceId, onProgress, options = {}) {
+async function launchWorkspace(workspaceId, onProgress) {
   // 进度回调的安全包装，避免回调异常影响启动流程
   const report = (data) => {
     if (typeof onProgress === 'function') {
@@ -73,11 +72,9 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
     // 1. 查询工作空间（包含软件列表，已按 launch_order 排序）
     const workspace = workspaceDao.get(workspaceId)
     if (!workspace) {
-      report({ phase: 'error', status: 'failed', message: t('engine.notFound', { id: workspaceId }) })
-      throw new Error(t('engine.notFound', { id: workspaceId }))
+      report({ phase: 'error', status: 'failed', message: `工作空间不存在: ${workspaceId}` })
+      throw new Error(`工作空间不存在: ${workspaceId}`)
     }
-    const killBeforeLaunch = settingsDao.get('killBeforeLaunch')
-    const restartRunning = options?.restartRunning === true
 
     // 2. 查询 pre/post 脚本
     const preScript = scriptDao.getByWorkspaceAndType(workspaceId, 'pre')
@@ -85,27 +82,23 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
 
     // 3. 执行 pre 脚本（失败不中断）
     if (preScript) {
-      report({ phase: 'pre_script', status: 'running', message: t('engine.preRunning') })
+      report({ phase: 'pre_script', status: 'running', message: '执行启动前脚本' })
       const result = await executeScript(preScript)
       if (result.success) {
-        report({ phase: 'pre_script', status: 'success', message: t('engine.preSuccess') })
+        report({ phase: 'pre_script', status: 'success', message: '启动前脚本执行成功' })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'success',
-          message: t('engine.preSuccess'),
-          message_key: 'engine.preSuccess',
-          message_params: {}
+          message: '启动前脚本执行成功'
         })
       } else {
-        report({ phase: 'pre_script', status: 'failed', message: t('engine.preFailed', { message: result.error }) })
+        report({ phase: 'pre_script', status: 'failed', message: result.error })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'failed',
-          message: t('engine.preFailed', { message: result.error }),
-          message_key: 'engine.preFailed',
-          message_params: { message: result.error }
+          message: `启动前脚本失败: ${result.error}`
         })
         // 脚本失败不中断后续流程
       }
@@ -113,24 +106,6 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
 
     // 4. 按 launch_order 顺序启动每个软件
     const softwareList = workspace.software || []
-    const skipAlreadyRunning = !killBeforeLaunch && !restartRunning
-    let runningStatuses = {}
-
-    if (skipAlreadyRunning && softwareList.length > 0) {
-      try {
-        runningStatuses = await processManager.getExecutableStatuses(
-          softwareList.map((software) => software.path)
-        )
-      } catch (err) {
-        // 进程状态读取失败时不阻断启动，回退到原有的逐个启动行为。
-        report({
-          phase: 'software',
-          status: 'running',
-          message: t('engine.processStatusFallback', { message: err.message })
-        })
-      }
-    }
-
     for (const software of softwareList) {
       const softwareId = software.id
       const softwareName = software.name
@@ -142,45 +117,9 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
         status: 'pending'
       })
 
-      if (skipAlreadyRunning && runningStatuses[software.path]) {
-        report({
-          phase: 'software',
-          softwareId,
-          softwareName,
-          status: 'success',
-          skipped: true,
-          message: t('engine.alreadyRunningSkipped', { name: softwareName })
-        })
-        continue
-      }
-
       // 启动前延时
       if (software.delay_ms && software.delay_ms > 0) {
         await delay(software.delay_ms)
-      }
-
-      if (killBeforeLaunch || restartRunning) {
-        try {
-          const terminated = await processManager.terminateByExecutablePath(software.path)
-          if (terminated.killed > 0) {
-            report({
-              phase: 'software',
-              softwareId,
-              softwareName,
-              status: 'running',
-              message: t('engine.killedExisting', { count: terminated.killed })
-            })
-            await delay(300)
-          }
-        } catch (err) {
-          report({
-            phase: 'software',
-            softwareId,
-            softwareName,
-            status: 'running',
-            message: t('engine.killFailed', { message: err.message })
-          })
-        }
       }
 
       report({
@@ -192,9 +131,6 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
 
       try {
         await processManager.launchExe(software.path, software.args)
-        if (skipAlreadyRunning) {
-          runningStatuses[software.path] = true
-        }
         report({
           phase: 'software',
           softwareId,
@@ -205,9 +141,7 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
           workspace_id: workspaceId,
           software_id: softwareId,
           status: 'success',
-          message: t('engine.launchSuccess', { name: softwareName }),
-          message_key: 'engine.launchSuccess',
-          message_params: { name: softwareName }
+          message: `${softwareName} 启动成功`
         })
       } catch (err) {
         // 单个软件失败不中断后续启动，继续下一个
@@ -222,86 +156,35 @@ async function launchWorkspace(workspaceId, onProgress, options = {}) {
           workspace_id: workspaceId,
           software_id: softwareId,
           status: 'failed',
-          message: t('engine.launchFailed', { name: softwareName, message: err.message }),
-          message_key: 'engine.launchFailed',
-          message_params: { name: softwareName, message: err.message }
+          message: `${softwareName} 启动失败: ${err.message}`
         })
       }
     }
 
     // 5. 执行 post 脚本（失败不中断）
     if (postScript) {
-      report({ phase: 'post_script', status: 'running', message: t('engine.postRunning') })
+      report({ phase: 'post_script', status: 'running', message: '执行启动后脚本' })
       const result = await executeScript(postScript)
       if (result.success) {
-        report({ phase: 'post_script', status: 'success', message: t('engine.postSuccess') })
+        report({ phase: 'post_script', status: 'success', message: '启动后脚本执行成功' })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'success',
-          message: t('engine.postSuccess'),
-          message_key: 'engine.postSuccess',
-          message_params: {}
+          message: '启动后脚本执行成功'
         })
       } else {
-        report({ phase: 'post_script', status: 'failed', message: t('engine.postFailed', { message: result.error }) })
+        report({ phase: 'post_script', status: 'failed', message: result.error })
         logDao.create({
           workspace_id: workspaceId,
           software_id: null,
           status: 'failed',
-          message: t('engine.postFailed', { message: result.error }),
-          message_key: 'engine.postFailed',
-          message_params: { message: result.error }
+          message: `启动后脚本失败: ${result.error}`
         })
       }
     }
 
-    // 6. 所有软件启动完成后，按配置顺序运行脚本库中关联的 BAT/CMD 脚本
-    const linkedBatchScripts = batScriptDao.listByWorkspace(workspaceId)
-    for (const batchScript of linkedBatchScripts) {
-      if (batchScript.delay_ms > 0) {
-        await delay(batchScript.delay_ms)
-      }
-
-      report({
-        phase: 'post_script',
-        status: 'running',
-        message: t('engine.batchRunning', { name: batchScript.name })
-      })
-
-      try {
-        await processManager.launchBatch(batchScript.path, batchScript.args)
-        report({
-          phase: 'post_script',
-          status: 'success',
-          message: t('engine.batchStarted', { name: batchScript.name })
-        })
-        logDao.create({
-          workspace_id: workspaceId,
-          software_id: null,
-          status: 'success',
-          message: t('engine.batchStartedLog', { name: batchScript.name }),
-          message_key: 'engine.batchStartedLog',
-          message_params: { name: batchScript.name }
-        })
-      } catch (err) {
-        report({
-          phase: 'post_script',
-          status: 'failed',
-          message: t('engine.batchFailed', { name: batchScript.name, message: err.message })
-        })
-        logDao.create({
-          workspace_id: workspaceId,
-          software_id: null,
-          status: 'failed',
-          message: t('engine.batchFailedLog', { name: batchScript.name, message: err.message }),
-          message_key: 'engine.batchFailedLog',
-          message_params: { name: batchScript.name, message: err.message }
-        })
-      }
-    }
-
-    // 7. 全部完成
+    // 6. 全部完成
     report({ phase: 'done' })
   } catch (err) {
     report({ phase: 'error', status: 'failed', message: err.message })

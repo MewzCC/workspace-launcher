@@ -1,113 +1,47 @@
-/* 主布局样式：固定左侧 Sidebar + 右侧主区域，对齐设计稿 ml-[240px] p-8 */
+/* 主布局样式：左 Sidebar + 右主区域 */
 
 .layout {
+  display: flex;
   min-height: 100vh;
 }
 
-/* 主区域：左侧留出 240px 侧边栏宽度，内边距 32px */
+/* 主区域：自适应剩余宽度，可滚动 */
 .main-view {
-  margin-left: 240px;
-  min-height: 100vh;
-  background: var(--brand-background);
-  color: var(--brand-foreground);
+  flex: 1;
   padding: 32px 40px;
   overflow-y: auto;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 0.3s ease, color 0.3s ease;
-}
-
-/* 响应式：<=1024px 侧边栏收起为抽屉，主区域占满宽度 */
-@media (max-width: 1024px) {
-  .main-view {
-    margin-left: 0;
-    padding: 72px 16px 32px;
-  }
-}
-
-/* ===== 通用页面头（标题 + 操作区） ===== */
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  margin-bottom: 32px;
-}
-
-.page-header-left {
   min-width: 0;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--brand-foreground);
-}
-
-.page-subtitle {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--brand-muted-foreground);
-}
-
-.page-actions {
+/* ===== 占位页面 ===== */
+.placeholder-wrap {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  min-height: calc(100vh - 64px);
 }
 
-/* 空状态：仅负责居中与文字色，padding 由容器或 GlassCard 提供 */
-.empty-state {
+.placeholder-card {
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 240px;
-  color: var(--brand-muted-foreground);
+  padding: 64px 48px;
+  max-width: 480px;
+  width: 100%;
 }
 
-.empty-icon,
-.empty-icon-wrap {
-  color: var(--brand-muted-foreground);
-  opacity: 0.7;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-icon {
-  font-size: 56px;
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
   line-height: 1;
 }
 
-/* 区块标题（分类标题等） */
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
+.placeholder-title {
+  font-size: 24px;
   font-weight: 600;
-  color: var(--brand-foreground);
+  color: var(--color-text);
   margin-bottom: 12px;
 }
 
-.section-title .count {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--brand-muted-foreground);
-}
-
-/* 徽章：分类标签 */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--brand-radius-sm);
-  background: var(--brand-muted);
-  font-size: 12px;
-  color: var(--brand-muted-foreground);
+.placeholder-hint {
+  font-size: 14px;
+  color: var(--color-text-muted);
 }

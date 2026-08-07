@@ -1,33 +1,23 @@
-/* 全局样式：重置 + 玻璃光晕背景 + 滚动条 + 通用工具类 */
+/* 全局样式：重置 + 玻璃光晕背景 + 滚动条 + 元素重置 */
 
 /* 全局重置 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  border-color: var(--brand-border);
 }
 
-/* body 基础样式 */
-html,
+/* body 基础样式：使用主题色，系统字体栈，相对定位以承载光晕伪元素 */
 body {
-  min-height: 100%;
-  max-width: 100%;
-}
-
-body {
-  background-color: var(--brand-background);
-  color: var(--brand-foreground);
-  font-family: var(--brand-font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* 主色光晕球：左上区域 */
+/* 主色光晕球：左上区域，fixed 固定不随滚动 */
 body::before {
   content: '';
   position: fixed;
@@ -36,13 +26,13 @@ body::before {
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--brand-glow-1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, transparent 70%);
   filter: blur(80px);
   z-index: -1;
   pointer-events: none;
 }
 
-/* 辅助色光晕球：右下区域 */
+/* 辅助色光晕球：右下区域，fixed 固定不随滚动 */
 body::after {
   content: '';
   position: fixed;
@@ -51,7 +41,7 @@ body::after {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--brand-glow-2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.35) 0%, transparent 70%);
   filter: blur(80px);
   z-index: -1;
   pointer-events: none;
@@ -60,7 +50,6 @@ body::after {
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -68,15 +57,15 @@ body::after {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--brand-scrollbar-thumb);
-  border-radius: var(--brand-radius-sm);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-scrollbar-thumb-hover);
+  background: rgba(255, 255, 255, 0.25);
 }
 
-/* 链接 */
+/* 链接：继承颜色，无下划线 */
 a {
   color: inherit;
   text-decoration: none;
@@ -88,72 +77,4 @@ button {
   border: none;
   cursor: pointer;
   font: inherit;
-  color: inherit;
-}
-
-/* 输入框重置 */
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
-/* ===== 通用工具类（对齐设计稿语义令牌） ===== */
-
-/* 隐藏滚动条 */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* 等宽字体 */
-.font-mono {
-  font-family: var(--brand-font-mono);
-}
-
-/* ===== 表单通用样式 ===== */
-.lp-input,
-.lp-select,
-.lp-textarea {
-  width: 100%;
-  border-radius: var(--brand-radius-md);
-  border: 1px solid var(--brand-border);
-  background-color: var(--brand-input);
-  padding: 8px 12px;
-  font-size: 14px;
-  color: var(--brand-foreground);
-  transition: var(--brand-transition);
-  outline: none;
-}
-
-.lp-input::placeholder,
-.lp-textarea::placeholder {
-  color: var(--brand-muted-foreground);
-}
-
-.lp-input:focus,
-.lp-select:focus,
-.lp-textarea:focus {
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 2px var(--brand-ring);
-}
-
-.lp-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--brand-muted-foreground);
-  margin-bottom: 6px;
-}
-
-/* 表单字段组 */
-.lp-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
 }

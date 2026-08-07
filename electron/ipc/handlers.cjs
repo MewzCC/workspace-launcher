@@ -1,18 +1,13 @@
 // IPC 处理器注册模块
 // 在 app ready 时调用 registerIpcHandlers() 注册所有 ipcMain.handle 处理器
 // 处理器内部用 try/catch 包裹，异常返回 {error: message}
-const { ipcMain, dialog, BrowserWindow, app, shell } = require('electron')
+const { ipcMain, dialog, BrowserWindow, app } = require('electron')
 const db = require('../db/index.cjs')
 const softwareScanner = require('../services/softwareScanner.cjs')
 const workspaceEngine = require('../services/workspaceEngine.cjs')
 const processManager = require('../services/processManager.cjs')
-const perfMonitor = require('../services/perfMonitor.cjs')
-const systemPreferences = require('../services/systemPreferences.cjs')
-const trayService = require('../services/trayService.cjs')
-const shortcutService = require('../services/shortcutService.cjs')
 
-const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
-const { t } = require('../i18n.cjs')
+const { workspaceDao, softwareDao, scriptDao, logDao } = db
 
 // 通用错误包装：将处理器的异常转为 {error} 对象
 // 处理器可以是同步或异步函数
@@ -28,87 +23,16 @@ async function wrap(fn) {
 // 图标缓存：filePath(小写) -> dataURL
 // 进程内缓存，避免重复提取（app.getFileIcon 对同一文件会走系统缓存，但仍可省去 IPC + 编码开销）
 const iconCache = new Map()
-let activeSoftwareScan = null
-
-async function runSoftwareScan(task) {
-  if (activeSoftwareScan) activeSoftwareScan.controller.abort()
-  const controller = new AbortController()
-  const token = Symbol('software-scan')
-  activeSoftwareScan = { controller, token }
-  try {
-    return await task(controller.signal)
-  } catch (error) {
-    if (error?.name === 'AbortError' || controller.signal.aborted) {
-      return { cancelled: true }
-    }
-    throw error
-  } finally {
-    if (activeSoftwareScan?.token === token) activeSoftwareScan = null
-  }
-}
 
 // 注册所有 IPC 处理器（在 app ready 时调用一次）
 function registerIpcHandlers() {
   // ===== 工作空间 =====
   ipcMain.handle('workspace:list', () => wrap(() => workspaceDao.list()))
   ipcMain.handle('workspace:get', (_e, id) => wrap(() => workspaceDao.get(id)))
-  ipcMain.handle('workspace:create', (_e, data) => wrap(() => {
-    const validation = shortcutService.validateShortcut(data?.shortcut)
-    if (!validation.valid) {
-      const key = validation.reason === 'duplicate'
-        ? 'errors.shortcutDuplicate'
-        : validation.reason === 'occupied'
-          ? 'errors.shortcutOccupied'
-          : 'errors.shortcutInvalid'
-      throw new Error(t(key, { name: validation.workspaceName || '' }))
-    }
-    const result = workspaceDao.create(data)
-    trayService.refreshTrayMenu()
-    const failure = shortcutService.syncShortcuts().find((item) => item.workspaceId === result.id)
-    if (failure) {
-      // 快捷键未真正注册时不保留“看似成功”的配置。
-      workspaceDao.remove(result.id)
-      shortcutService.syncShortcuts()
-      trayService.refreshTrayMenu()
-      const key = failure.reason === 'occupied'
-        ? 'errors.shortcutOccupied'
-        : 'errors.shortcutInvalid'
-      throw new Error(t(key))
-    }
-    return result
-  }))
-  ipcMain.handle('workspace:update', (_e, id, data) => wrap(() => {
-    const workspaceId = Number(id)
-    const validation = shortcutService.validateShortcut(data?.shortcut, workspaceId)
-    if (!validation.valid) {
-      const key = validation.reason === 'duplicate'
-        ? 'errors.shortcutDuplicate'
-        : validation.reason === 'occupied'
-          ? 'errors.shortcutOccupied'
-          : 'errors.shortcutInvalid'
-      throw new Error(t(key, { name: validation.workspaceName || '' }))
-    }
-    const previousShortcut = workspaceDao.get(workspaceId)?.shortcut || ''
-    const result = workspaceDao.update(workspaceId, data)
-    trayService.refreshTrayMenu()
-    const failure = shortcutService.syncShortcuts().find((item) => item.workspaceId === workspaceId)
-    if (failure) {
-      workspaceDao.updateShortcut(workspaceId, previousShortcut)
-      shortcutService.syncShortcuts()
-      const key = failure.reason === 'occupied'
-        ? 'errors.shortcutOccupied'
-        : 'errors.shortcutInvalid'
-      throw new Error(t(key))
-    }
-    return result
-  }))
-  ipcMain.handle('workspace:delete', (_e, id) => wrap(() => {
-    const result = workspaceDao.remove(id)
-    trayService.refreshTrayMenu()
-    shortcutService.syncShortcuts()
-    return result
-  }))
-  ipcMain.handle('workspace:launch', async (e, workspaceId, options) => {
+  ipcMain.handle('workspace:create', (_e, data) => wrap(() => workspaceDao.create(data)))
+  ipcMain.handle('workspace:update', (_e, id, data) => wrap(() => workspaceDao.update(id, data)))
+  ipcMain.handle('workspace:delete', (_e, id) => wrap(() => workspaceDao.remove(id)))
+  ipcMain.handle('workspace:launch', async (e, workspaceId) => {
     return wrap(async () => {
       const win = BrowserWindow.fromWebContents(e.sender)
       const onProgress = (progress) => {
@@ -117,14 +41,10 @@ function registerIpcHandlers() {
           win.webContents.send('workspace:launch-progress', progress)
         }
       }
-      await workspaceEngine.launchWorkspace(workspaceId, onProgress, options || {})
+      await workspaceEngine.launchWorkspace(workspaceId, onProgress)
       return { success: true }
     })
   })
-  ipcMain.handle('shortcut:status', () => wrap(() => shortcutService.getStatus()))
-  ipcMain.handle('shortcut:validate', (_e, accelerator, workspaceId) =>
-    wrap(() => shortcutService.checkShortcutAvailability(accelerator, workspaceId ?? null))
-  )
 
   // ===== 软件 =====
   ipcMain.handle('software:list', () => wrap(() => softwareDao.list()))
@@ -136,96 +56,29 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const software = softwareDao.get(id)
       if (!software) {
-        return { success: false, message: t('errors.softwareNotExist') }
+        return { success: false, message: '软件不存在' }
       }
       try {
         await processManager.launchExe(software.path, software.args)
-        return { success: true, message: t('engine.launchSuccess', { name: software.name }) }
+        return { success: true, message: `${software.name} 启动成功` }
       } catch (err) {
         return { success: false, message: err.message }
       }
     })
   })
-  ipcMain.handle('software:getProcessStatuses', (_e, exePaths) =>
-    wrap(() => processManager.getExecutableStatuses(exePaths))
-  )
-  ipcMain.handle('process:list', (_e, options) =>
-    wrap(() => processManager.listProcessPage(options))
-  )
-  ipcMain.handle('process:terminate', (_e, pid) =>
-    wrap(() => processManager.terminateProcessTree(pid))
-  )
-  // 性能监视：返回 CPU / 内存 / 磁盘 / GPU 快照（渲染层仅在性能页可见时轮询）
-  ipcMain.handle('perf:snapshot', () => wrap(() => perfMonitor.getSnapshot()))
-  // 性能监视：内存 / GPU 占用排行（渲染层在内存/GPU 页时轮询）
-  ipcMain.handle('perf:topProcesses', () => wrap(() => perfMonitor.getTopProcesses()))
-  ipcMain.handle('software:scan', async () =>
-    wrap(() => runSoftwareScan((signal) => softwareScanner.scanAll(null, { signal })))
-  )
-  ipcMain.handle('software:cancelScan', () => wrap(() => {
-    if (!activeSoftwareScan) return { success: true, active: false }
-    activeSoftwareScan.controller.abort()
-    return { success: true, active: true }
-  }))
-  ipcMain.handle('software:searchInstalled', (_e, query) =>
-    wrap(() => softwareScanner.searchInstalledApplications(query))
-  )
+  ipcMain.handle('software:scan', async () => wrap(async () => await softwareScanner.scanAll()))
   ipcMain.handle('software:bulkCreate', (_e, items) => wrap(() => softwareDao.bulkCreate(items)))
-  ipcMain.handle('software:createValidated', (_e, data) => {
-    return wrap(async () => {
-      const launch = await processManager.launchExe(data.path, data.args)
-      const software = softwareDao.create(data)
-      return { success: true, software, launch }
-    })
-  })
-  ipcMain.handle('software:updateValidated', (_e, id, data) => {
-    return wrap(async () => {
-      const launch = await processManager.launchExe(data.path, data.args)
-      const software = softwareDao.update(id, data)
-      return { success: true, software, launch }
-    })
-  })
-  ipcMain.handle('software:bulkCreateValidated', (_e, items) => {
-    return wrap(async () => {
-      if (!Array.isArray(items) || items.length === 0) {
-        return { success: true, created: [], failed: [] }
-      }
-      if (items.length > 20) {
-        throw new Error(t('errors.bulkLimit'))
-      }
-
-      const created = []
-      const failed = []
-      for (const item of items) {
-        try {
-          await processManager.launchExe(item.path, item.args)
-          created.push(softwareDao.create(item))
-        } catch (err) {
-          failed.push({
-            name: item.name || item.path,
-            path: item.path,
-            error: err.message
-          })
-        }
-      }
-      return { success: true, created, failed }
-    })
-  })
   // 获取可用盘符列表
   ipcMain.handle('software:getDrives', () => wrap(() => softwareScanner.getAvailableDrives()))
   // 扫描指定盘符的 .exe 文件
   // 参数: driveLetter(如 'D'), options(可选 {maxDepth})
   ipcMain.handle('software:scanDrive', (_e, driveLetter, options) =>
-    wrap(() => runSoftwareScan((signal) =>
-      softwareScanner.scanDrive(driveLetter, null, { ...(options || {}), signal })
-    ))
+    wrap(() => softwareScanner.scanDrive(driveLetter, null, options || {}))
   )
   // 扫描指定目录的 .exe 文件
   // 参数: dirPath(如 'D:\\Tools'), options(可选 {maxDepth})
   ipcMain.handle('software:scanDirectory', (_e, dirPath, options) =>
-    wrap(() => runSoftwareScan((signal) =>
-      softwareScanner.scanExeFiles(dirPath, null, { ...(options || {}), signal })
-    ))
+    wrap(() => softwareScanner.scanExeFiles(dirPath, null, options || {}))
   )
   // 提取文件图标：返回 data URL（PNG base64）
   // 对 .exe 直接提取图标；对 .lnk 自动解析为目标文件的图标
@@ -275,26 +128,6 @@ function registerIpcHandlers() {
     })
   })
 
-  // ===== BAT 脚本库 =====
-  ipcMain.handle('batScript:list', () => wrap(() => batScriptDao.list()))
-  ipcMain.handle('batScript:listByWorkspace', (_e, workspaceId) =>
-    wrap(() => batScriptDao.listByWorkspace(workspaceId))
-  )
-  ipcMain.handle('batScript:setWorkspaceScripts', (_e, workspaceId, items) =>
-    wrap(() => batScriptDao.setForWorkspace(workspaceId, items))
-  )
-  ipcMain.handle('batScript:create', (_e, data) => wrap(() => batScriptDao.create(data)))
-  ipcMain.handle('batScript:update', (_e, id, data) => wrap(() => batScriptDao.update(id, data)))
-  ipcMain.handle('batScript:delete', (_e, id) => wrap(() => batScriptDao.remove(id)))
-  ipcMain.handle('batScript:run', (_e, id) => {
-    return wrap(async () => {
-      const script = batScriptDao.get(id)
-      if (!script) throw new Error(t('errors.scriptNotExist'))
-      await processManager.launchBatch(script.path, script.args)
-      return { success: true, message: t('engine.batchStarted', { name: script.name }) }
-    })
-  })
-
   // ===== 脚本 =====
   ipcMain.handle('script:listByWorkspace', (_e, workspaceId) =>
     wrap(() => scriptDao.listByWorkspace(workspaceId))
@@ -317,7 +150,7 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: filters || [{ name: t('errors.exeFilter'), extensions: ['exe'] }]
+        filters: filters || [{ name: '可执行文件', extensions: ['exe'] }]
       })
       if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
         return null
@@ -330,7 +163,7 @@ function registerIpcHandlers() {
     return wrap(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
-        filters: filters || [{ name: t('errors.exeFilter'), extensions: ['exe'] }]
+        filters: filters || [{ name: '可执行文件', extensions: ['exe'] }]
       })
       if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
         return []
@@ -350,35 +183,6 @@ function registerIpcHandlers() {
       return result.filePaths[0]
     })
   })
-
-  // ===== 安全外链 =====
-  ipcMain.handle('external:open', async (_e, rawUrl) => {
-    return wrap(async () => {
-      const url = new URL(rawUrl)
-      if (url.protocol !== 'https:' || url.hostname !== 'github.com') {
-        throw new Error(t('errors.externalBlocked'))
-      }
-      await shell.openExternal(url.toString())
-      return { success: true }
-    })
-  })
-
-  // ===== 系统与启动 =====
-  ipcMain.handle('system:getPreferences', () => wrap(() => systemPreferences.getPreferences()))
-  ipcMain.handle('system:setOpenAtLogin', (_e, enabled) => wrap(() => {
-    const result = systemPreferences.setOpenAtLogin(enabled)
-    trayService.refreshTrayMenu()
-    return result
-  }))
-  ipcMain.handle('system:setStartMinimized', (_e, enabled) =>
-    wrap(() => systemPreferences.setStartMinimized(enabled))
-  )
-  ipcMain.handle('system:setCloseToTray', (_e, enabled) =>
-    wrap(() => systemPreferences.setCloseToTray(enabled))
-  )
-  ipcMain.handle('system:setKillBeforeLaunch', (_e, enabled) =>
-    wrap(() => systemPreferences.setKillBeforeLaunch(enabled))
-  )
 }
 
 module.exports = { registerIpcHandlers }

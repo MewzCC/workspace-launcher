@@ -1,7 +1,20 @@
-/* 空间管理页面样式：工作空间卡片网格 + 模态表单 */
-
+/* 工作空间页面 */
 .workspaces-page {
   padding: 0;
+}
+
+/* 页头：标题与新建按钮 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 /* 工作空间网格：自适应列宽 */
@@ -16,12 +29,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: visible;
-}
-
-.workspace-card:hover,
-.workspace-card:focus-within {
-  z-index: 25;
 }
 
 .ws-card-header {
@@ -33,14 +40,13 @@
 
 .ws-icon {
   font-size: 28px;
-  line-height: 1;
 }
 
 .ws-name {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   flex: 1;
-  color: var(--brand-foreground);
+  color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -51,7 +57,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
@@ -63,18 +69,18 @@
 }
 
 .ws-status-dot.stopped {
-  background: var(--brand-muted-foreground);
+  background: #6B7280;
 }
 
 .ws-status-dot.running {
-  background: var(--brand-state-success);
+  background: var(--color-success);
   animation: pulse-green 1.5s infinite;
 }
 
 /* 运行中绿色脉冲动画 */
 @keyframes pulse-green {
   0% {
-    box-shadow: 0 0 0 0 var(--brand-state-success);
+    box-shadow: 0 0 0 0 var(--color-success);
   }
   100% {
     box-shadow: 0 0 0 6px transparent;
@@ -82,8 +88,8 @@
 }
 
 .ws-desc {
-  color: var(--brand-muted-foreground);
-  font-size: 13px;
+  color: var(--color-text-muted);
+  font-size: 14px;
   margin-bottom: 16px;
   min-height: 20px;
   /* 描述超长时最多显示两行 */
@@ -100,23 +106,22 @@
   gap: 8px;
   flex: 1;
   margin-bottom: 16px;
-  align-content: flex-start;
 }
 
 .ws-software-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: var(--brand-muted);
-  border-radius: var(--brand-radius-sm);
-  font-size: 12px;
-  color: var(--brand-foreground);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .ws-software-empty {
   font-size: 13px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   opacity: 0.6;
 }
 
@@ -124,13 +129,25 @@
 .ws-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 /* 删除按钮：hover 时红色提示 */
 .ws-btn-delete:hover:not(:disabled) {
-  color: var(--brand-state-error) !important;
-  border-color: var(--brand-state-error) !important;
+  color: var(--color-error) !important;
+  border-color: var(--color-error) !important;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
 }
 
 /* 图标预设按钮 */
@@ -148,63 +165,29 @@
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  background: var(--brand-muted);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: var(--brand-transition);
+  transition: var(--transition);
 }
 
 .icon-preset:hover {
-  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .icon-preset.active {
-  border-color: var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.2);
 }
 
 /* 软件选择列表 */
 .software-picker {
-  margin-top: 8px;
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
-}
-
-.workspace-software-search {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 11px;
-  margin-top: 8px;
-  color: var(--brand-muted-foreground);
-  background: var(--brand-input);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius-md);
-}
-
-.workspace-software-search:focus-within {
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 2px var(--brand-ring);
-}
-
-.workspace-software-search input {
-  min-width: 0;
-  color: var(--brand-foreground);
-  background: transparent;
-  border: 0;
-  outline: 0;
-}
-
-.workspace-software-search button {
-  display: inline-flex;
-  padding: 3px;
-  color: var(--brand-muted-foreground);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
+  margin-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-sm);
 }
 
 .software-picker-item {
@@ -212,9 +195,9 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--brand-border);
+  border-bottom: 1px solid var(--color-card-border);
   cursor: pointer;
-  transition: var(--brand-transition);
+  transition: var(--transition);
 }
 
 .software-picker-item:last-child {
@@ -222,30 +205,28 @@
 }
 
 .software-picker-item:hover {
-  background: var(--brand-muted);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .software-picker-empty {
   padding: 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
 }
 
 .picker-icon {
   font-size: 16px;
-  display: inline-flex;
-  align-items: center;
 }
 
 .picker-name {
   font-size: 14px;
-  color: var(--brand-foreground);
+  color: var(--color-text);
 }
 
 /* 启动顺序与延迟列表 */
 .order-delay-list {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .order-delay-row {
@@ -254,8 +235,7 @@
   align-items: center;
   font-size: 13px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--brand-border);
-  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-card-border);
 }
 
 .order-delay-row:last-child {
@@ -264,11 +244,7 @@
 
 .od-name {
   flex: 1;
-  min-width: 120px;
-  color: var(--brand-foreground);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  color: var(--color-text);
 }
 
 .od-field {
@@ -276,25 +252,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
 }
 
 /* 顺序/延迟输入框：窄宽度 */
 .od-input {
-  width: 64px;
+  width: 60px;
   padding: 6px 8px;
-}
-
-/* 卡片上的全局快捷键徽标 */
-.ws-shortcut {
-  font-family: var(--brand-font-mono, monospace);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--brand-primary-400);
-  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
-  border-radius: 6px;
-  padding: 2px 7px;
-  white-space: nowrap;
-  flex-shrink: 0;
 }

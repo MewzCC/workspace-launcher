@@ -1,88 +1,69 @@
-/* 发光按钮基础样式：对齐设计稿 rounded-lg / shadow / hover:bg-primary/90 */
+/* 发光按钮基础样式 */
 .glow-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: var(--brand-radius-md);
+  border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
   font-weight: 600;
-  transition: var(--brand-transition);
+  transition: var(--transition);
   position: relative;
   overflow: hidden;
   color: #fff;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
-/* 主色变体：实色主色 + 阴影 */
+/* 主色变体：紫色渐变 + 紫光阴影 */
 .glow-btn--primary {
-  background: var(--brand-primary);
-  color: var(--brand-primary-foreground);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, #6366F1, #4F46E5);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
 }
 
-/* 辅助色变体 */
+/* 辅助色变体：青色渐变 + 青光阴影 */
 .glow-btn--secondary {
-  background: var(--brand-secondary);
-  color: #07222a;
-  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.35);
+  background: linear-gradient(135deg, #22D3EE, #06B6D4);
+  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.4);
 }
 
-/* 幽灵变体：边框 + 透明背景 */
+/* 幽灵变体：玻璃质感 */
 .glow-btn--ghost {
-  background: var(--brand-background-elevated);
-  border: 1px solid var(--brand-border);
-  color: var(--brand-foreground);
-  box-shadow: none;
+  background: var(--color-card);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--color-card-border);
 }
 
 /* 尺寸 */
 .glow-btn--sm {
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 13px;
-  border-radius: var(--brand-radius-md);
 }
 
 .glow-btn--md {
-  padding: 10px 18px;
+  padding: 10px 20px;
   font-size: 14px;
 }
 
 .glow-btn--lg {
-  padding: 12px 24px;
-  font-size: 15px;
+  padding: 14px 28px;
+  font-size: 16px;
 }
 
-/* 悬浮反馈 */
+/* 悬浮反馈：上浮 + 提亮 */
 .glow-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
+  transform: translateY(-2px);
+  filter: brightness(1.1);
 }
 
+/* 主色按钮悬浮：阴影加强 */
 .glow-btn--primary:hover:not(:disabled) {
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.6);
 }
 
-.glow-btn--ghost:hover:not(:disabled) {
-  background: var(--brand-muted);
-  color: var(--brand-primary);
-  border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
-}
-
-/* 点击反馈 */
+/* 点击反馈：下沉 + 微缩 */
 .glow-btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.98);
 }
 
 /* 禁用态 */
 .glow-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* 聚焦环 */
-.glow-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--brand-ring);
 }

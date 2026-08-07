@@ -1,8 +1,19 @@
-/* 状态监控页面样式：对齐设计稿品牌令牌 */
+/* 状态监控页面样式 */
 
 .monitor-page {
   display: flex;
   flex-direction: column;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 /* 工作空间选择器：按钮组 */
@@ -18,25 +29,22 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border-radius: var(--brand-radius-md);
-  background: var(--brand-card);
-  color: var(--brand-muted-foreground);
+  border-radius: var(--radius-sm);
+  background: var(--color-card);
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: var(--brand-transition);
+  transition: var(--transition);
   border: 1px solid transparent;
   font-size: 14px;
-  font-family: inherit;
 }
 
 .ws-picker-btn:hover {
-  color: var(--brand-foreground);
-  background: var(--brand-muted);
+  color: var(--color-text);
 }
 
 .ws-picker-btn.active {
-  color: var(--brand-primary);
-  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
-  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .ws-picker-icon {
@@ -64,7 +72,7 @@
 .status-section-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--brand-foreground);
+  color: var(--color-text);
 }
 
 /* 软件状态行 */
@@ -78,7 +86,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--brand-border);
+  border-bottom: 1px solid var(--color-card-border);
 }
 
 .status-software:last-child {
@@ -88,33 +96,33 @@
 .status-software-name {
   flex: 1;
   font-size: 14px;
-  color: var(--brand-foreground);
+  color: var(--color-text);
 }
 
 .status-software-label {
   font-size: 13px;
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
 }
 
 /* 状态文案配色 */
 .status-text-pending {
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
 }
 
 .status-text-running {
-  color: var(--brand-primary);
+  color: var(--color-primary);
 }
 
 .status-text-success {
-  color: var(--brand-state-success);
+  color: var(--color-success);
 }
 
 .status-text-failed {
-  color: var(--brand-state-error);
+  color: var(--color-error);
 }
 
 .status-text-stopped {
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
 }
 
 /* 状态灯 */
@@ -126,30 +134,30 @@
 }
 
 .status-dot.pending {
-  background: var(--brand-muted-foreground);
+  background: #6B7280;
 }
 
 .status-dot.running {
-  background: var(--brand-primary);
-  animation: status-pulse 1.5s infinite;
+  background: var(--color-primary);
+  animation: pulse 1.5s infinite;
 }
 
 .status-dot.success {
-  background: var(--brand-state-success);
+  background: var(--color-success);
 }
 
 .status-dot.failed {
-  background: var(--brand-state-error);
+  background: var(--color-error);
 }
 
 .status-dot.stopped {
-  background: var(--brand-muted-foreground);
+  background: #6B7280;
 }
 
 /* 状态灯脉冲动画 */
-@keyframes status-pulse {
+@keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 var(--brand-primary);
+    box-shadow: 0 0 0 0 var(--color-primary);
   }
   100% {
     box-shadow: 0 0 0 8px transparent;
@@ -165,7 +173,7 @@
 .log-section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--brand-foreground);
+  color: var(--color-text);
   margin-bottom: 12px;
 }
 
@@ -173,6 +181,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 /* 单条日志 */
@@ -181,15 +191,14 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: var(--brand-muted);
-  border-radius: var(--brand-radius-md);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
   font-size: 13px;
 }
 
 .log-time {
-  color: var(--brand-muted-foreground);
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
-  font-family: var(--brand-font-mono);
   font-size: 12px;
   min-width: 60px;
 }
@@ -201,26 +210,36 @@
 }
 
 .log-status-icon.success {
-  color: var(--brand-state-success);
+  color: var(--color-success);
 }
 
 .log-status-icon.failed {
-  color: var(--brand-state-error);
+  color: var(--color-error);
 }
 
 .log-software {
-  color: var(--brand-secondary);
+  color: var(--color-secondary);
   min-width: 80px;
   flex-shrink: 0;
 }
 
 .log-message {
-  color: var(--brand-foreground);
+  color: var(--color-text);
   flex: 1;
   word-break: break-word;
 }
 
 /* 失败日志左侧红色边框 */
 .log-item.failed {
-  border-left: 3px solid var(--brand-state-error);
+  border-left: 3px solid var(--color-error);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  padding: 24px;
 }

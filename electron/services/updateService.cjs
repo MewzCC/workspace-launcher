@@ -13,6 +13,7 @@ let started = false
 let checking = false
 let startupTimer = null
 let intervalTimer = null
+let releasesCache = null
 
 const status = {
   state: 'idle',
@@ -293,6 +294,41 @@ function stop() {
   intervalTimer = null
 }
 
+// ===== 发布历史（更新日志弹窗）=====
+// 读取随应用发布的本地清单 release-history.json（打包在 resources，开发在项目根），
+// 不依赖 GitHub API（未认证限流频繁）。
+// 安装包下载直链格式：https://github.com/MewzCC/workspace-launcher/releases/download/{tag}/LaunchPad-Setup-{version}-x64.exe
+function buildSetupDownloadUrl(tag, version) {
+  return `https://github.com/MewzCC/workspace-launcher/releases/download/${encodeURIComponent(tag)}/LaunchPad-Setup-${encodeURIComponent(version)}-x64.exe`
+}
+
+function getReleaseHistoryFile() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'release-history.json')
+    : path.join(app.getAppPath(), 'release-history.json')
+}
+
+function getReleaseHistory() {
+  if (releasesCache) return Promise.resolve(releasesCache)
+  try {
+    const raw = fs.readFileSync(getReleaseHistoryFile(), 'utf8')
+    const list = JSON.parse(raw)
+    releasesCache = (Array.isArray(list) ? list : [])
+      .map((release) => ({
+        tag: `v${String(release.version || '').replace(/^v/i, '')}`,
+        version: String(release.version || '').replace(/^v/i, ''),
+        name: release.name || `v${release.version}`,
+        publishedAt: release.date || '',
+        notes: String(release.notes || '').trim(),
+        url: release.version ? buildSetupDownloadUrl(`v${String(release.version).replace(/^v/i, '')}`, String(release.version).replace(/^v/i, '')) : ''
+      }))
+      .filter((release) => release.version)
+    return Promise.resolve(releasesCache)
+  } catch (error) {
+    return Promise.reject(new Error(`无法读取发布记录: ${error.message}`))
+  }
+}
+
 module.exports = {
   start,
   stop,
@@ -301,5 +337,6 @@ module.exports = {
   downloadUpdate,
   installUpdate,
   getLastUpdate,
-  clearLastUpdate
+  clearLastUpdate,
+  getReleaseHistory
 }

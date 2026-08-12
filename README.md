@@ -98,8 +98,8 @@
 
 前往 [GitHub Releases](https://github.com/MewzCC/workspace-launcher/releases/latest) 下载：
 
-- **`LaunchPad-Setup-1.4.3-x64.exe`**：推荐，大多数用户选择此安装包；支持自选安装目录，并创建桌面与开始菜单快捷方式。
-- **`LaunchPad-Portable-1.4.3-x64.exe`**：免安装便携版，双击即可运行。
+- **`LaunchPad-Setup-1.4.4-x64.exe`**：推荐，大多数用户选择此安装包；支持自选安装目录，并创建桌面与开始菜单快捷方式。
+- **`LaunchPad-Portable-1.4.4-x64.exe`**：免安装便携版，双击即可运行。
 
 > 当前版本面向 Windows 10/11 x64。安装包暂未购买商业代码签名证书，Windows SmartScreen 可能显示未知发布者；请仅从本仓库 Release 页面下载。
 

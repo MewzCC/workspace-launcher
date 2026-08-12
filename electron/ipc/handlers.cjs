@@ -322,6 +322,15 @@ function registerIpcHandlers() {
     updateService.clearLastUpdate()
     return { success: true }
   }))
+  ipcMain.handle('releases:list', () => wrap(() => updateService.getReleaseHistory()))
+  ipcMain.handle('releases:download', async (_e, url) => wrap(async () => {
+    const allowed = String(url || '').startsWith(
+      'https://github.com/MewzCC/workspace-launcher/releases/download/'
+    )
+    if (!allowed) throw new Error(t('errors.externalBlocked'))
+    await shell.openExternal(url)
+    return { success: true }
+  }))
   ipcMain.handle('storage:info', () => wrap(() => storageService.getInfo()))
   ipcMain.handle('storage:open', async () => wrap(async () => {
     const info = storageService.getInfo()

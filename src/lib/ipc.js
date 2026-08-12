@@ -104,7 +104,9 @@ export const updateApi = {
   download: () => unwrap(api.update.download()),
   install: () => unwrap(api.update.install()),
   lastResult: () => unwrap(api.update.lastResult()),
-  clearLastResult: () => unwrap(api.update.clearLastResult())
+  clearLastResult: () => unwrap(api.update.clearLastResult()),
+  releases: () => unwrap(api.update.releases()),
+  downloadRelease: (url) => unwrap(api.update.downloadRelease(url))
 }
 
 // 对话框 API

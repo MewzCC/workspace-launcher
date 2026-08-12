@@ -8,6 +8,7 @@ import {
   Download,
   ExternalLink,
   FolderOpen,
+  History,
   LoaderCircle,
   Power,
   RefreshCcw,
@@ -17,6 +18,7 @@ import {
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
+import UpdateHistoryModal from '../components/UpdateHistoryModal'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import {
   appVersion,
@@ -65,6 +67,7 @@ export function Settings() {
   const [systemMessage, setSystemMessage] = useState('')
   const [storageMessage, setStorageMessage] = useState('')
   const [updateStatus, setUpdateStatus] = useState({ state: 'idle', progress: 0 })
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
@@ -344,6 +347,14 @@ export function Settings() {
         )}
         <div className="update-actions">
           <GlowButton
+            variant="ghost"
+            size="sm"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <History size={14} />
+            {t('settings.updateHistory')}
+          </GlowButton>
+          <GlowButton
             variant="primary"
             size="sm"
             onClick={handleUpdateAction}
@@ -357,6 +368,8 @@ export function Settings() {
           </GlowButton>
         </div>
       </GlassCard>
+
+      {historyOpen && <UpdateHistoryModal onClose={() => setHistoryOpen(false)} />}
 
       <GlassCard className="settings-section repository-card" hover={false}>
         <div className="repository-copy">

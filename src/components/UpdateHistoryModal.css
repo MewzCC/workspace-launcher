@@ -1,0 +1,90 @@
+/* 更新日志弹窗样式 */
+
+.update-history-intro {
+  margin: 0 0 14px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.update-history-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+}
+
+.update-history-message.error {
+  color: var(--brand-state-error);
+}
+
+.update-history-spin {
+  animation: update-history-spin 800ms linear infinite;
+}
+
+@keyframes update-history-spin {
+  to { transform: rotate(360deg); }
+}
+
+.update-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.update-history-item {
+  padding: 14px;
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-lg);
+}
+
+.update-history-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.update-history-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--brand-foreground);
+  font-size: 14px;
+  font-weight: 650;
+  flex: 1;
+}
+
+.update-history-version svg {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.update-history-current {
+  padding: 2px 8px;
+  color: var(--brand-state-success);
+  background: color-mix(in srgb, var(--brand-state-success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-state-success) 26%, transparent);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.update-history-date {
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.update-history-notes {
+  max-height: 260px;
+  padding-top: 10px;
+  overflow-y: auto;
+  border-top: 1px dashed var(--brand-border);
+}

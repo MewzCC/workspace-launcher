@@ -1,6 +1,6 @@
 {
   "name": "workspace-launcher",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "LaunchPad：面向 Windows 的开源工作空间管理与软件一键启动工具",
   "author": "MewzCC",
   "license": "MIT",
@@ -66,6 +66,10 @@
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "release-history.json",
+        "to": "release-history.json"
+      },
       {
         "from": "vendor/everything",
         "to": "tools/everything",

@@ -21,6 +21,7 @@ import {
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import { SUPPORTED_LANGUAGES } from '../i18n'
+import { appVersion } from '../lib/ipc'
 import launchpadIcon from '../assets/launchpad-icon.png'
 import './Sidebar.css'
 
@@ -195,7 +196,7 @@ function Sidebar() {
           <div className="version-card">
             <p className="version-label">{t('nav.version')}</p>
             <div className="version-row">
-              <span className="version-value">v1.3.0</span>
+              <span className="version-value">v{appVersion}</span>
               <LanguageSelect />
             </div>
           </div>

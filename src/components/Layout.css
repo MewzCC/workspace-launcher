@@ -16,11 +16,50 @@
     background-color 0.3s ease, color 0.3s ease;
 }
 
+/* 页面内容区至少铺满主窗口，空状态面板再填充标题/工具栏之后的剩余空间。 */
+.dashboard,
+.workspaces-page,
+.software-page,
+.automation-page,
+.scan-page,
+.monitor-page,
+.process-page,
+.settings {
+  min-height: calc(100vh - 64px);
+}
+
+.dashboard,
+.workspaces-page,
+.software-page,
+.automation-page,
+.scan-page,
+.monitor-page,
+.settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-fill-state {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* 响应式：<=1024px 侧边栏收起为抽屉，主区域占满宽度 */
 @media (max-width: 1024px) {
   .main-view {
     margin-left: 0;
     padding: 72px 16px 32px;
+  }
+
+  .dashboard,
+  .workspaces-page,
+  .software-page,
+  .automation-page,
+  .scan-page,
+  .monitor-page,
+  .process-page,
+  .settings {
+    min-height: calc(100vh - 104px);
   }
 }
 

@@ -1,8 +1,7 @@
 // 数据库初始化模块
 // 负责创建/连接 SQLite 数据库、执行建表 SQL、提供单例连接管理
 const Database = require('better-sqlite3')
-const path = require('path')
-const { app } = require('electron')
+const storageService = require('../services/storageService.cjs')
 
 // 模块级单例 db 实例（懒初始化，首次调用 getDb 时才创建）
 let db = null
@@ -137,7 +136,7 @@ function applyMigrations(database) {
 function getDb() {
   if (db) return db
 
-  const dbPath = path.join(app.getPath('userData'), 'workspace-launcher.db')
+  const dbPath = storageService.getDatabasePath()
   db = new Database(dbPath)
 
   // 开启 WAL 模式，提升并发读写性能

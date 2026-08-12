@@ -153,7 +153,7 @@ export function Dashboard() {
 
       {/* 快速启动卡片网格，或无工作空间时的空状态 */}
       {workspaces.length === 0 ? (
-        <GlassCard hover={false} className="empty-state">
+        <GlassCard hover={false} className="empty-state page-fill-state">
           <div className="empty-icon-wrap">
             <Play size={40} />
           </div>

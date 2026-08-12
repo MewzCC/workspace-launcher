@@ -267,7 +267,7 @@ function Automation() {
 
         <div className="script-editor">
           {selectedWorkspace == null ? (
-            <GlassCard hover={false} className="empty-state">{t('automation.selectWorkspace')}</GlassCard>
+            <GlassCard hover={false} className="empty-state page-fill-state">{t('automation.selectWorkspace')}</GlassCard>
           ) : (
             <>
               {statusMsg && <div className="save-status">{statusMsg}</div>}

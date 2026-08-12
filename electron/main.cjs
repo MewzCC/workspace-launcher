@@ -96,6 +96,8 @@ if (!gotSingleInstanceLock) {
   app.on('second-instance', showMainWindow)
 
   app.whenReady().then(() => {
+    // 运行时版本唯一来源：package.json -> app.getVersion() -> preload/渲染层。
+    process.env.LAUNCHPAD_VERSION = app.getVersion()
     const db = require('./db/index.cjs')
     db.getDb()
     require('./ipc/handlers.cjs').registerIpcHandlers()

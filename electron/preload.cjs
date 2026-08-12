@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  version: '1.3.0',
+  version: process.env.LAUNCHPAD_VERSION || '0.0.0',
   // 工作空间相关接口
   workspace: {
     list: () => ipcRenderer.invoke('workspace:list'),
@@ -77,6 +77,10 @@ contextBridge.exposeInMainWorld('api', {
   logs: {
     list: (workspaceId, limit) => ipcRenderer.invoke('logs:list', workspaceId, limit),
     listAll: (limit) => ipcRenderer.invoke('logs:listAll', limit)
+  },
+  storage: {
+    info: () => ipcRenderer.invoke('storage:info'),
+    open: () => ipcRenderer.invoke('storage:open')
   },
   // 原生对话框
   dialog: {

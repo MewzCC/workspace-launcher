@@ -1,16 +1,22 @@
 /* 自动化脚本页面样式：对齐设计稿品牌令牌 */
 
+.automation-page {
+  min-width: 0;
+}
+
 /* 主体区域：左右布局，占满视口高度减去页头 */
 .automation-body {
   display: flex;
   gap: 20px;
-  min-height: calc(100vh - 180px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* 左侧工作空间选择器 */
 .ws-selector {
   width: 240px;
   flex-shrink: 0;
+  height: 100%;
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -85,6 +91,10 @@
   flex-direction: column;
   gap: 20px;
   min-width: 0;
+}
+
+.script-editor > .page-fill-state {
+  height: 100%;
 }
 
 /* 保存提示条 */

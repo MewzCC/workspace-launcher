@@ -234,7 +234,7 @@ function Workspaces() {
 
       {/* 工作空间网格 / 空状态 */}
       {workspaces.length === 0 ? (
-        <GlassCard hover={false} className="empty-state">
+        <GlassCard hover={false} className="empty-state page-fill-state">
           <div className="empty-icon-wrap">
             <PackageOpen size={40} />
           </div>

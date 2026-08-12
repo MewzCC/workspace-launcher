@@ -569,7 +569,7 @@ function ScanCenter() {
 
       {/* 空状态：未扫描或扫描后无结果 */}
       {!scanning && !showResultPanel && !message && (
-        <GlassCard hover={false} className="empty-state">
+        <GlassCard hover={false} className="empty-state page-fill-state">
           <div className="empty-icon">🔍</div>
           <p>
             {hasScanned

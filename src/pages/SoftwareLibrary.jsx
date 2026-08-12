@@ -842,7 +842,7 @@ function SoftwareLibrary() {
       )}
 
       {activeTab === 'software' && (software.length === 0 ? (
-        <GlassCard hover={false} className="empty-state">
+        <GlassCard hover={false} className="empty-state page-fill-state">
           <div className="empty-icon-wrap">
             <Package size={40} />
           </div>
@@ -878,7 +878,7 @@ function SoftwareLibrary() {
       ))}
 
       {activeTab === 'bat' && (batScripts.length === 0 ? (
-        <GlassCard hover={false} className="empty-state">
+        <GlassCard hover={false} className="empty-state page-fill-state">
           <div className="empty-icon-wrap"><FileText size={40} /></div>
           <p>{t('software.emptyBat')}</p>
         </GlassCard>

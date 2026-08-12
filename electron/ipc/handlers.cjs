@@ -10,6 +10,7 @@ const perfMonitor = require('../services/perfMonitor.cjs')
 const systemPreferences = require('../services/systemPreferences.cjs')
 const trayService = require('../services/trayService.cjs')
 const shortcutService = require('../services/shortcutService.cjs')
+const storageService = require('../services/storageService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -311,6 +312,13 @@ function registerIpcHandlers() {
     })
   )
   ipcMain.handle('logs:listAll', (_e, limit) => wrap(() => logDao.listAll(limit)))
+  ipcMain.handle('storage:info', () => wrap(() => storageService.getInfo()))
+  ipcMain.handle('storage:open', async () => wrap(async () => {
+    const info = storageService.getInfo()
+    const error = await shell.openPath(info.directory)
+    if (error) throw new Error(error)
+    return { success: true, path: info.directory }
+  }))
 
   // ===== 对话框 =====
   ipcMain.handle('dialog:openFile', async (_e, filters) => {

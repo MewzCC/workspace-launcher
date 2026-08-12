@@ -1,7 +1,7 @@
 .process-page {
   max-width: 1280px;
   height: auto;
-  min-height: 536px;
+  min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -489,11 +489,11 @@
 @keyframes process-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1024px) {
-  .process-page { height: auto; }
+  .process-page { height: auto; min-height: calc(100vh - 104px); }
 }
 
 @media (max-width: 900px) {
-  .process-page { min-height: 496px; }
+  .process-page { min-height: calc(100vh - 104px); }
   .process-stats { grid-template-columns: 1fr; }
   .process-toolbar { align-items: stretch; flex-direction: column; }
   .process-result-meta { justify-content: space-between; }

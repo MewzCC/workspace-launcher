@@ -22,6 +22,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "postinstall": "electron-builder install-app-deps",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win"
   },
@@ -42,7 +43,7 @@
     "react-dom": "^18.3.1",
     "vite": "^5.3.0"
   },
-  "//_build_note": "electron-builder 配置：产出 NSIS .exe 安装包到 dist_electron/。npmRebuild=false 跳过原生模块重编译（本机仅 VS2017，依赖预编译 better_sqlite3.node）；asarUnpack 把 better-sqlite3 从 asar 解出以加载 .node。",
+  "//_build_note": "electron-builder 配置：产出 NSIS .exe 安装包到 dist_electron/。postinstall 通过 electron-builder install-app-deps 为当前 Electron 重建 better-sqlite3；npmRebuild=false 避免打包阶段重复重编译；asarUnpack 把 better-sqlite3 从 asar 解出以加载 .node。",
   "build": {
     "appId": "com.workspace.launcher",
     "productName": "LaunchPad",

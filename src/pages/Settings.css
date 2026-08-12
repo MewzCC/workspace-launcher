@@ -233,9 +233,30 @@
 }
 
 .info-value {
+  min-width: 0;
+  max-width: 72%;
   color: var(--brand-foreground);
   font-weight: 500;
   font-size: 14px;
+  text-align: right;
+}
+
+.info-path {
+  overflow: hidden;
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-fallback-message {
+  padding: 9px 12px;
+  margin: 0 0 8px;
+  color: var(--brand-state-warning);
+  background: color-mix(in srgb, var(--brand-state-warning) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-state-warning) 24%, transparent);
+  border-radius: var(--brand-radius-md);
+  font-size: 12px;
 }
 
 /* 危险操作区：红色边框警示 */

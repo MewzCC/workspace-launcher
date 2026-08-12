@@ -3,6 +3,8 @@
 // 各 React 组件通过具名导入使用对应 API
 const api = window.api
 
+export const appVersion = api.version || '0.0.0'
+
 async function unwrap(result) {
   const value = await result
   if (value && typeof value === 'object' && value.error) {
@@ -89,6 +91,11 @@ export const scriptApi = {
 export const logsApi = {
   list: (workspaceId, limit) => api.logs.list(workspaceId, limit),
   listAll: (limit) => api.logs.listAll(limit)
+}
+
+export const storageApi = {
+  info: () => unwrap(api.storage.info()),
+  open: () => unwrap(api.storage.open())
 }
 
 // 对话框 API

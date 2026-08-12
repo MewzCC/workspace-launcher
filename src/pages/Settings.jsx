@@ -1,11 +1,11 @@
 // 设置页面：应用信息 / 数据信息 / 危险操作区 / 版权信息
 import React, { useEffect, useState } from 'react'
-import { AppWindow, Code2, ExternalLink, Power, RefreshCcw, Rocket, Star } from 'lucide-react'
+import { AppWindow, Code2, ExternalLink, FolderOpen, Power, RefreshCcw, Rocket, Star } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import { useConfirmDialog } from '../components/ConfirmDialog'
-import { workspaceApi, softwareApi, externalApi, systemApi } from '../lib/ipc'
+import { appVersion, workspaceApi, softwareApi, externalApi, storageApi, systemApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import './Settings.css'
@@ -23,8 +23,10 @@ export function Settings() {
   // 清除操作进行中标记，避免重复点击
   const [clearing, setClearing] = useState(false)
   const [systemSettings, setSystemSettings] = useState(null)
+  const [storageInfo, setStorageInfo] = useState(null)
   const [savingSetting, setSavingSetting] = useState('')
   const [systemMessage, setSystemMessage] = useState('')
+  const [storageMessage, setStorageMessage] = useState('')
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
@@ -32,6 +34,21 @@ export function Settings() {
       else setSystemSettings(result)
     }).catch((error) => setSystemMessage(error.message))
   }, [])
+
+  useEffect(() => {
+    storageApi.info()
+      .then((info) => setStorageInfo(info))
+      .catch((error) => setStorageMessage(error.message || t('settings.storageLoadFailed')))
+  }, [])
+
+  const openStorageDirectory = async () => {
+    try {
+      await storageApi.open()
+      setStorageMessage(t('settings.storageOpened'))
+    } catch (error) {
+      setStorageMessage(error.message || t('settings.storageOpenFailed'))
+    }
+  }
 
   const updateSystemSetting = async (key, value) => {
     const setters = {
@@ -108,7 +125,7 @@ export function Settings() {
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.version')}</span>
-          <span className="info-value">1.3.0</span>
+          <span className="info-value">{appVersion}</span>
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.stack')}</span>
@@ -214,9 +231,27 @@ export function Settings() {
       <GlassCard className="settings-section" hover={false}>
         <h3>{t('settings.dataInfo')}</h3>
         <div className="info-row">
-          <span className="info-label">{t('settings.dbPath')}</span>
-          <span className="info-value">{t('settings.dbPathDesc')}</span>
+          <span className="info-label">{t('settings.dataDirectory')}</span>
+          <span className="info-value info-path" title={storageInfo?.directory}>
+            {storageInfo?.directory || t('settings.storageLoading')}
+          </span>
+          <GlowButton variant="ghost" size="sm" onClick={openStorageDirectory} disabled={!storageInfo}>
+            <FolderOpen size={14} />
+            {t('settings.openStorage')}
+          </GlowButton>
         </div>
+        <div className="info-row">
+          <span className="info-label">{t('settings.dbPath')}</span>
+          <span className="info-value info-path" title={storageInfo?.databasePath}>
+            {storageInfo?.databasePath || t('settings.storageLoading')}
+          </span>
+        </div>
+        {storageInfo?.fallback && (
+          <div className="storage-fallback-message" role="status">
+            {t('settings.storageFallback', { path: storageInfo.directory })}
+          </div>
+        )}
+        {storageMessage && <div className="system-setting-message" role="status">{storageMessage}</div>}
         <div className="info-row">
           <span className="info-label">{t('settings.wsCount')}</span>
           <span className="info-value">{workspaces.length}</span>

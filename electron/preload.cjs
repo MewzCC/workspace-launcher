@@ -82,6 +82,12 @@ contextBridge.exposeInMainWorld('api', {
     info: () => ipcRenderer.invoke('storage:info'),
     open: () => ipcRenderer.invoke('storage:open')
   },
+  update: {
+    status: () => ipcRenderer.invoke('update:status'),
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install')
+  },
   // 原生对话框
   dialog: {
     openFile: (filters) => ipcRenderer.invoke('dialog:openFile', filters),
@@ -112,5 +118,10 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event, progress) => callback(progress)
     ipcRenderer.on('workspace:launch-progress', handler)
     return () => ipcRenderer.removeListener('workspace:launch-progress', handler)
+  },
+  onUpdateStatus: (callback) => {
+    const handler = (_event, status) => callback(status)
+    ipcRenderer.on('update:status', handler)
+    return () => ipcRenderer.removeListener('update:status', handler)
   }
 })

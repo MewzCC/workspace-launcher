@@ -1,14 +1,50 @@
 // 设置页面：应用信息 / 数据信息 / 危险操作区 / 版权信息
 import React, { useEffect, useState } from 'react'
-import { AppWindow, Code2, ExternalLink, FolderOpen, Power, RefreshCcw, Rocket, Star } from 'lucide-react'
+import {
+  AppWindow,
+  CheckCircle2,
+  CircleAlert,
+  Code2,
+  Download,
+  ExternalLink,
+  FolderOpen,
+  LoaderCircle,
+  Power,
+  RefreshCcw,
+  Rocket,
+  Star
+} from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import { useConfirmDialog } from '../components/ConfirmDialog'
-import { appVersion, workspaceApi, softwareApi, externalApi, storageApi, systemApi } from '../lib/ipc'
+import {
+  appVersion,
+  workspaceApi,
+  softwareApi,
+  externalApi,
+  storageApi,
+  systemApi,
+  updateApi,
+  onUpdateStatus
+} from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
 import './Settings.css'
+
+function formatUpdateSpeed(bytesPerSecond) {
+  const value = Number(bytesPerSecond) || 0
+  if (value < 1024) return `${Math.round(value)} B/s`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB/s`
+  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB/s`
+  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB/s`
+}
+
+function formatReleaseDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString()
+}
 
 export function Settings() {
   const t = useT()
@@ -27,12 +63,31 @@ export function Settings() {
   const [savingSetting, setSavingSetting] = useState('')
   const [systemMessage, setSystemMessage] = useState('')
   const [storageMessage, setStorageMessage] = useState('')
+  const [updateStatus, setUpdateStatus] = useState({ state: 'idle', progress: 0 })
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
       if (result?.error) setSystemMessage(result.error)
       else setSystemSettings(result)
     }).catch((error) => setSystemMessage(error.message))
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const unsubscribe = onUpdateStatus((status) => {
+      if (mounted) setUpdateStatus(status || { state: 'idle', progress: 0 })
+    })
+    updateApi.status()
+      .then((status) => {
+        if (mounted) setUpdateStatus(status || { state: 'idle', progress: 0 })
+      })
+      .catch((error) => {
+        if (mounted) setUpdateStatus({ state: 'error', error: error.message })
+      })
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -49,6 +104,53 @@ export function Settings() {
       setStorageMessage(error.message || t('settings.storageOpenFailed'))
     }
   }
+
+  const handleUpdateAction = async () => {
+    try {
+      if (updateStatus.state === 'available') {
+        await updateApi.download()
+      } else if (updateStatus.state === 'downloaded') {
+        await updateApi.install()
+      } else {
+        await updateApi.check()
+      }
+    } catch (error) {
+      setUpdateStatus((current) => ({
+        ...current,
+        state: 'error',
+        error: error.message || String(error)
+      }))
+    }
+  }
+
+  const updateBusy = ['checking', 'downloading', 'installing'].includes(updateStatus.state)
+  const updateMessage = (() => {
+    if (updateStatus.state === 'unsupported') {
+      const key = updateStatus.error === 'portable'
+        ? 'settings.updateUnsupportedPortable'
+        : updateStatus.error === 'development'
+          ? 'settings.updateUnsupportedDevelopment'
+          : 'settings.updateUnsupportedPlatform'
+      return t(key)
+    }
+    if (updateStatus.state === 'checking') return t('settings.updateChecking')
+    if (updateStatus.state === 'available') {
+      return t('settings.updateAvailable', { version: updateStatus.version || '' })
+    }
+    if (updateStatus.state === 'downloading') {
+      return t('settings.updateDownloading', {
+        progress: Math.round(updateStatus.progress || 0),
+        speed: formatUpdateSpeed(updateStatus.bytesPerSecond)
+      })
+    }
+    if (updateStatus.state === 'downloaded') {
+      return t('settings.updateDownloaded', { version: updateStatus.version || '' })
+    }
+    if (updateStatus.state === 'installing') return t('settings.updateInstalling')
+    if (updateStatus.state === 'up-to-date') return t('settings.updateUpToDate')
+    if (updateStatus.state === 'error') return updateStatus.error || t('settings.updateFailed')
+    return t('settings.updateIdle')
+  })()
 
   const updateSystemSetting = async (key, value) => {
     const setters = {
@@ -201,6 +303,55 @@ export function Settings() {
           </div>
         </div>
         {systemMessage && <div className="system-setting-message" role="status">{systemMessage}</div>}
+      </GlassCard>
+
+      <GlassCard className="settings-section update-card" hover={false}>
+        <div className="system-settings-heading">
+          <span className="system-settings-icon" aria-hidden="true"><Download size={22} /></span>
+          <div>
+            <h3>{t('settings.updates')}</h3>
+            <p>{t('settings.updatesDesc')}</p>
+          </div>
+          <span className="update-version">v{appVersion}</span>
+        </div>
+        <div className={`update-status update-status-${updateStatus.state}`} role="status" aria-live="polite">
+          {updateBusy && <LoaderCircle size={16} className="process-spin" />}
+          {!updateBusy && updateStatus.state === 'downloaded' && <CheckCircle2 size={16} />}
+          {!updateBusy && updateStatus.state === 'error' && <CircleAlert size={16} />}
+          <span>{updateMessage}</span>
+        </div>
+        {updateStatus.state === 'downloading' && (
+          <div className="update-progress" aria-label={updateMessage}>
+            <span style={{ width: `${Math.max(0, Math.min(100, updateStatus.progress || 0))}%` }} />
+          </div>
+        )}
+        {updateStatus.releaseNotes && ['available', 'downloading', 'downloaded'].includes(updateStatus.state) && (
+          <div className="update-release-notes">
+            <div className="update-release-notes-heading">
+              <strong>{t('settings.updateNotes')}</strong>
+              <span>
+                {[updateStatus.releaseName, formatReleaseDate(updateStatus.releaseDate)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
+            <div className="update-release-notes-body">{updateStatus.releaseNotes}</div>
+          </div>
+        )}
+        <div className="update-actions">
+          <GlowButton
+            variant="primary"
+            size="sm"
+            onClick={handleUpdateAction}
+            disabled={updateBusy || updateStatus.state === 'unsupported'}
+          >
+            {updateStatus.state === 'available'
+              ? t('settings.updateDownload')
+              : updateStatus.state === 'downloaded'
+                ? t('settings.updateInstall')
+                : t('settings.updateCheck')}
+          </GlowButton>
+        </div>
       </GlassCard>
 
       <GlassCard className="settings-section repository-card" hover={false}>

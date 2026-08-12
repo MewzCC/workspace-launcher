@@ -142,6 +142,109 @@
   font-size: 12px;
 }
 
+.update-card {
+  background:
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--brand-secondary) 12%, transparent), transparent 34%),
+    var(--brand-card);
+}
+
+.update-version {
+  padding: 5px 9px;
+  margin-left: auto;
+  color: var(--brand-muted-foreground);
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+  font-family: var(--brand-font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.update-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 11px;
+  color: var(--brand-muted-foreground);
+  background: color-mix(in srgb, var(--brand-card-solid) 52%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.update-status-available,
+.update-status-downloaded {
+  color: var(--brand-state-success);
+  border-color: color-mix(in srgb, var(--brand-state-success) 30%, transparent);
+}
+
+.update-status-error {
+  color: var(--brand-state-error);
+  border-color: color-mix(in srgb, var(--brand-state-error) 30%, transparent);
+}
+
+.update-progress {
+  height: 5px;
+  margin-top: 10px;
+  overflow: hidden;
+  background: var(--brand-muted);
+  border-radius: 999px;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.update-release-notes {
+  margin-top: 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  background: color-mix(in srgb, var(--brand-card-solid) 42%, transparent);
+  overflow: hidden;
+}
+
+.update-release-notes-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  color: var(--brand-foreground);
+  border-bottom: 1px solid var(--brand-border);
+  font-size: 12px;
+}
+
+.update-release-notes-heading span {
+  overflow: hidden;
+  color: var(--brand-muted-foreground);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-release-notes-body {
+  max-height: 190px;
+  padding: 11px;
+  overflow-y: auto;
+  color: var(--brand-muted-foreground);
+  font-family: var(--brand-font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .repository-card {
   display: flex;
   align-items: center;
@@ -197,6 +300,7 @@
 
   .system-settings-heading { align-items: flex-start; flex-wrap: wrap; }
   .tray-live-badge { margin-left: 56px; }
+  .update-version { margin-left: 56px; }
 }
 
 /* 设置区块：由 GlassCard 包裹，提供内边距 */

@@ -98,6 +98,13 @@ export const storageApi = {
   open: () => unwrap(api.storage.open())
 }
 
+export const updateApi = {
+  status: () => unwrap(api.update.status()),
+  check: () => unwrap(api.update.check()),
+  download: () => unwrap(api.update.download()),
+  install: () => unwrap(api.update.install())
+}
+
 // 对话框 API
 export const dialogApi = {
   openFile: (filters) => api.dialog.openFile(filters),
@@ -129,3 +136,4 @@ export const languageApi = {
 
 // 订阅工作空间启动进度，返回取消订阅函数
 export const onLaunchProgress = (callback) => api.onLaunchProgress(callback)
+export const onUpdateStatus = (callback) => api.onUpdateStatus(callback)

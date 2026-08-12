@@ -3,6 +3,7 @@ const path = require('path')
 const { setupAppMenu, refreshAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
 const shortcutService = require('./services/shortcutService.cjs')
+const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const { t } = require('./i18n.cjs')
 
@@ -129,6 +130,7 @@ if (!gotSingleInstanceLock) {
     })
     shortcutService.init({ showWindow: showMainWindow })
     shortcutService.syncShortcuts()
+    updateService.start()
 
     app.on('activate', showMainWindow)
   })
@@ -141,6 +143,7 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   trayService.destroyTray()
   shortcutService.unregisterAll()
+  updateService.stop()
 })
 
 app.on('window-all-closed', () => {

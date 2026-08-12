@@ -11,6 +11,7 @@ const systemPreferences = require('../services/systemPreferences.cjs')
 const trayService = require('../services/trayService.cjs')
 const shortcutService = require('../services/shortcutService.cjs')
 const storageService = require('../services/storageService.cjs')
+const updateService = require('../services/updateService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -312,6 +313,10 @@ function registerIpcHandlers() {
     })
   )
   ipcMain.handle('logs:listAll', (_e, limit) => wrap(() => logDao.listAll(limit)))
+  ipcMain.handle('update:status', () => wrap(() => updateService.getStatus()))
+  ipcMain.handle('update:check', () => wrap(() => updateService.checkForUpdates()))
+  ipcMain.handle('update:download', () => wrap(() => updateService.downloadUpdate()))
+  ipcMain.handle('update:install', () => wrap(() => updateService.installUpdate()))
   ipcMain.handle('storage:info', () => wrap(() => storageService.getInfo()))
   ipcMain.handle('storage:open', async () => wrap(async () => {
     const info = storageService.getInfo()

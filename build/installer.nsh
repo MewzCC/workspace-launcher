@@ -1,13 +1,17 @@
 ; LaunchPad NSIS 定制脚本
 ; 行为区分：
-; - 首次安装：保持完整向导（许可页 → 目录选择页 → 安装进度 → 完成页，默认勾选“运行 LaunchPad”）
-; - 更新（检测到已安装旧版本）：跳过许可页与目录选择页，直接进入安装进度界面，
-;   在原安装路径上更新，完成页不显示“运行 LaunchPad”；
+; - 安装模式：始终默认“仅为我安装”（per-user），跳过“为哪位用户安装”选择页。
+; - 首次安装：保留目录选择页 → 安装进度 → 完成页，完成页默认不勾选“运行 LaunchPad”。
+; - 更新（检测到已安装旧版本）：跳过许可/目录/完成页，直接进入安装进度界面，
+;   在原安装路径上更新，装完自动结束，不启动应用；
 ;   用户数据（LaunchPadData / userData / 注册表配置）始终保留。
 
-; 更新时跳过许可页/目录页由 electron-builder 内置 skipPageIfUpdated 处理；
-; 这里通过 customFinishPage 控制完成页的“运行应用”选项。
+; 强制“仅为我安装”，跳过安装模式选择页（被 multiUserUi.nsh 的 pre 回调调用）。
+!macro customInstallMode
+  StrCpy $isForceCurrentInstall "1"
+!macroend
 
+; 完成页：更新时整体跳过；首次安装显示完成页但默认不运行应用。
 !macro customFinishPage
   Function StartApp
     ${if} ${isUpdated}
@@ -20,13 +24,15 @@
 
   !define MUI_FINISHPAGE_RUN
   !define MUI_FINISHPAGE_RUN_FUNCTION "StartApp"
-  ; 提前展开接口宏，声明 $mui.FinishPage.Run 变量，供 pre 回调引用（宏有守卫，可重复调用）。
+  ; 首次安装也默认不勾选“运行 LaunchPad”。
+  !define MUI_FINISHPAGE_RUN_NOTCHECKED
+  ; 提前展开接口宏，声明 $mui.FinishPage.Run 变量（宏有守卫，可重复调用）。
   !insertmacro MUI_FINISHPAGE_INTERFACE
 
   Function launchpadFinishPre
-    ; 更新时隐藏“运行 LaunchPad”复选框，默认不启动应用。
+    ; 更新时跳过整个完成页：安装进度结束后直接结束，无任何向导页。
     ${if} ${isUpdated}
-      ShowWindow $mui.FinishPage.Run 0
+      Abort
     ${endif}
   FunctionEnd
 

@@ -1,5 +1,7 @@
 // 自动更新服务
 // 仅在已打包的 Windows 安装版中运行；开发环境和便携版不会发起更新下载。
+const fs = require('fs')
+const path = require('path')
 const { app, BrowserWindow } = require('electron')
 const { autoUpdater } = require('electron-updater')
 
@@ -44,6 +46,50 @@ function getUnsupportedReason() {
   return ''
 }
 
+// 上次成功安装的更新信息，重启后用于向用户展示“本次更新内容”。
+function getLastUpdateFile() {
+  return path.join(app.getPath('userData'), 'last-update.json')
+}
+
+function saveLastUpdate(info) {
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true })
+    fs.writeFileSync(
+      getLastUpdateFile(),
+      JSON.stringify({
+        version: info?.version || '',
+        releaseName: info?.releaseName || '',
+        releaseDate: info?.releaseDate || '',
+        releaseNotes: info?.releaseNotes || '',
+        installedAt: new Date().toISOString()
+      }, null, 2),
+      'utf8'
+    )
+  } catch (_) {
+    // 记录失败不影响更新流程。
+  }
+}
+
+function getLastUpdate() {
+  try {
+    const record = JSON.parse(fs.readFileSync(getLastUpdateFile(), 'utf8'))
+    if (!record || typeof record !== 'object' || !record.version) return null
+    // 只有版本与当前运行版本一致时，才认为是刚安装完成的更新。
+    if (record.version !== getCurrentVersion()) return null
+    return record
+  } catch (_) {
+    return null
+  }
+}
+
+function clearLastUpdate() {
+  try {
+    fs.unlinkSync(getLastUpdateFile())
+  } catch (_) {
+    // 文件不存在时无需处理。
+  }
+}
+
 function getStatus() {
   return { ...status, currentVersion: getCurrentVersion() }
 }
@@ -79,7 +125,8 @@ function configure() {
   if (configured) return
   configured = true
   autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = false
+  // 用户点击“重启并安装”或直接关闭应用时自动安装，不需要手动引导安装界面。
+  autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.allowPrerelease = false
 
   autoUpdater.on('checking-for-update', () => {
@@ -124,7 +171,7 @@ function configure() {
   })
   autoUpdater.on('update-downloaded', (info) => {
     checking = false
-    setStatus({
+    const downloaded = {
       state: 'downloaded',
       version: info?.version || status.version,
       releaseName: info?.releaseName || status.releaseName,
@@ -133,7 +180,10 @@ function configure() {
       progress: 100,
       error: '',
       checkedAt: Date.now()
-    })
+    }
+    setStatus(downloaded)
+    // 记录本次更新内容，供安装重启后弹窗展示。
+    saveLastUpdate(downloaded)
   })
   autoUpdater.on('error', (error) => {
     checking = false
@@ -222,5 +272,7 @@ module.exports = {
   getStatus,
   checkForUpdates,
   downloadUpdate,
-  installUpdate
+  installUpdate,
+  getLastUpdate,
+  clearLastUpdate
 }

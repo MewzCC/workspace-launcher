@@ -102,7 +102,9 @@ export const updateApi = {
   status: () => unwrap(api.update.status()),
   check: () => unwrap(api.update.check()),
   download: () => unwrap(api.update.download()),
-  install: () => unwrap(api.update.install())
+  install: () => unwrap(api.update.install()),
+  lastResult: () => unwrap(api.update.lastResult()),
+  clearLastResult: () => unwrap(api.update.clearLastResult())
 }
 
 // 对话框 API

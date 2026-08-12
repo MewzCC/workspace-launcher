@@ -60,6 +60,39 @@ function copyLegacyDatabase(sourceDirectory, targetDirectory) {
   return true
 }
 
+// 判断数据库里是否已有实际业务数据（避免把空库当成有效数据）。
+function countDatabaseRows(databasePath) {
+  try {
+    const Database = require('better-sqlite3')
+    const database = new Database(databasePath, { readonly: true })
+    try {
+      const workspaces = database.prepare('SELECT COUNT(*) AS count FROM workspaces').get()?.count || 0
+      const software = database.prepare('SELECT COUNT(*) AS count FROM software').get()?.count || 0
+      return workspaces + software
+    } finally {
+      database.close()
+    }
+  } catch (_) {
+    return -1
+  }
+}
+
+function migrateDatabase(sourceDirectory, targetDirectory) {
+  if (!sourceDirectory || samePath(sourceDirectory, targetDirectory)) return
+  const source = path.join(sourceDirectory, DATABASE_NAME)
+  const target = path.join(targetDirectory, DATABASE_NAME)
+  if (!fs.existsSync(source)) return
+  const sourceRows = countDatabaseRows(source)
+  if (sourceRows <= 0) return
+  // 目标已有真实数据时不覆盖，避免合并冲突。
+  if (fs.existsSync(target) && countDatabaseRows(target) > 0) return
+  try {
+    copyLegacyDatabase(sourceDirectory, targetDirectory)
+  } catch (_) {
+    // 迁移失败时保持源数据不动。
+  }
+}
+
 function readConfiguredDirectory() {
   try {
     const configPath = path.join(getLegacyDirectory(), CONFIG_NAME)
@@ -92,22 +125,28 @@ function resolveStorage() {
   const legacyDirectory = normalizeDirectory(getLegacyDirectory())
   const defaultDirectory = normalizeDirectory(getDefaultDirectory())
   const configuredDirectory = readConfiguredDirectory()
-  const candidates = [...new Set(
-    [configuredDirectory, defaultDirectory, legacyDirectory]
-      .filter(Boolean)
-      .map(normalizeDirectory)
-  )]
 
-  let directory = legacyDirectory
-  let fallback = true
-  for (const candidate of candidates) {
-    if (!canWrite(candidate)) continue
-    directory = candidate
-    fallback = !samePath(candidate, defaultDirectory)
-    if (!samePath(candidate, legacyDirectory)) {
-      try { copyLegacyDatabase(legacyDirectory, candidate) } catch (_) { /* 回退到已有目录 */ }
+  // 默认跟随当前安装目录（Setup 选择的路径 / 便携包所在目录）：
+  // 安装目录可写时始终优先使用它，避免旧配置把数据固定在已失效的路径。
+  let directory = defaultDirectory
+  let fallback = false
+  if (!canWrite(defaultDirectory)) {
+    // 安装目录不可写（如 Program Files）：回退到旧配置目录，最后才是用户数据目录。
+    if (configuredDirectory &&
+        !samePath(configuredDirectory, legacyDirectory) &&
+        canWrite(configuredDirectory)) {
+      directory = configuredDirectory
+    } else {
+      directory = legacyDirectory
     }
-    break
+    fallback = true
+  }
+
+  // 数据迁移：旧配置目录或旧用户数据目录中已有数据库时，迁移到新选定的目录。
+  const dataSources = [configuredDirectory, legacyDirectory]
+    .filter((source) => source && !samePath(source, directory))
+  for (const source of dataSources) {
+    migrateDatabase(source, directory)
   }
 
   writeConfiguredDirectory(directory)

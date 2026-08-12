@@ -317,6 +317,11 @@ function registerIpcHandlers() {
   ipcMain.handle('update:check', () => wrap(() => updateService.checkForUpdates()))
   ipcMain.handle('update:download', () => wrap(() => updateService.downloadUpdate()))
   ipcMain.handle('update:install', () => wrap(() => updateService.installUpdate()))
+  ipcMain.handle('update:lastResult', () => wrap(() => updateService.getLastUpdate()))
+  ipcMain.handle('update:clearLastResult', () => wrap(() => {
+    updateService.clearLastUpdate()
+    return { success: true }
+  }))
   ipcMain.handle('storage:info', () => wrap(() => storageService.getInfo()))
   ipcMain.handle('storage:open', async () => wrap(async () => {
     const info = storageService.getInfo()

@@ -130,3 +130,51 @@ textarea.form-input {
   cursor: pointer;
   accent-color: var(--brand-primary);
 }
+
+/* ===== 更新完成弹窗 ===== */
+.update-installed-intro {
+  margin: 0 0 12px;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.update-installed-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  margin-bottom: 12px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, transparent);
+  border-radius: var(--brand-radius-md);
+  font-size: 13px;
+}
+
+.update-installed-meta span {
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+}
+
+.update-installed-notes {
+  max-height: 320px;
+  padding: 12px;
+  overflow-y: auto;
+  color: var(--brand-muted-foreground);
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.update-installed-empty {
+  margin: 0;
+  color: var(--brand-muted-foreground);
+  font-size: 13px;
+}

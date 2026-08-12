@@ -1,6 +1,6 @@
 {
   "name": "workspace-launcher",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "LaunchPad：面向 Windows 的开源工作空间管理与软件一键启动工具",
   "author": "MewzCC",
   "license": "MIT",
@@ -114,7 +114,9 @@
       "shortcutName": "LaunchPad",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "artifactName": "LaunchPad-Setup-${version}-${arch}.${ext}"
+      "artifactName": "LaunchPad-Setup-${version}-${arch}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "LaunchPad-Portable-${version}-${arch}.${ext}"

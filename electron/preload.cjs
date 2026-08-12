@@ -86,7 +86,9 @@ contextBridge.exposeInMainWorld('api', {
     status: () => ipcRenderer.invoke('update:status'),
     check: () => ipcRenderer.invoke('update:check'),
     download: () => ipcRenderer.invoke('update:download'),
-    install: () => ipcRenderer.invoke('update:install')
+    install: () => ipcRenderer.invoke('update:install'),
+    lastResult: () => ipcRenderer.invoke('update:lastResult'),
+    clearLastResult: () => ipcRenderer.invoke('update:clearLastResult')
   },
   // 原生对话框
   dialog: {

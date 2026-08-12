@@ -30,6 +30,7 @@ import {
 } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
+import { renderMarkdown } from '../lib/markdown'
 import './Settings.css'
 
 function formatUpdateSpeed(bytesPerSecond) {
@@ -335,7 +336,10 @@ export function Settings() {
                   .join(' · ')}
               </span>
             </div>
-            <div className="update-release-notes-body">{updateStatus.releaseNotes}</div>
+            <div
+              className="update-release-notes-body md-render"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(updateStatus.releaseNotes) }}
+            />
           </div>
         )}
         <div className="update-actions">

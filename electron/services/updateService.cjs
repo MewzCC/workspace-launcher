@@ -1,5 +1,5 @@
 // 自动更新服务
-// 仅在已打包的 Windows 安装版中运行；开发环境和便携版不会发起更新下载。
+// 打包安装版走 electron-updater；开发环境通过 GitHub API 检查版本（只读，不下载）。
 const fs = require('fs')
 const path = require('path')
 const { app, BrowserWindow } = require('electron')
@@ -37,8 +37,9 @@ function getCurrentVersion() {
   }
 }
 
+// 开发模式也通过 electron-updater 的 GitHub provider 检查版本（读取 dev-app-update.yml），
+// 走 GitHub 下载通道，不受 API 限流影响；仅打包安装版支持下载与安装。
 function getUnsupportedReason() {
-  if (!app.isPackaged) return 'development'
   if (process.platform !== 'win32') return 'platform'
   if (process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR) {
     return 'portable'
@@ -121,6 +122,23 @@ function normalizeReleaseNotes(notes) {
     .trim()
 }
 
+// 简单 semver 比较：大于返回 1，等于 0，小于 -1
+function compareVersions(left, right) {
+  const parse = (value) => String(value || '')
+    .replace(/^v/i, '')
+    .split(/[.-]/)
+    .map((part) => Number.parseInt(part, 10) || 0)
+  const a = parse(left)
+  const b = parse(right)
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const av = a[index] || 0
+    const bv = b[index] || 0
+    if (av > bv) return 1
+    if (av < bv) return -1
+  }
+  return 0
+}
+
 function configure() {
   if (configured) return
   configured = true
@@ -128,6 +146,8 @@ function configure() {
   // 用户点击“重启并安装”或直接关闭应用时自动安装，不需要手动引导安装界面。
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.allowPrerelease = false
+  // 开发模式允许读取 dev-app-update.yml 并执行检查（打包模式忽略此配置）。
+  autoUpdater.forceDevUpdateConfig = true
 
   autoUpdater.on('checking-for-update', () => {
     checking = true
@@ -196,9 +216,10 @@ function configure() {
 }
 
 async function checkForUpdates() {
+  if (checking) return getStatus()
+
   const unsupported = getUnsupportedReason()
   if (unsupported) return setStatus({ state: 'unsupported', error: unsupported })
-  if (checking) return getStatus()
 
   configure()
   checking = true
@@ -217,6 +238,9 @@ async function checkForUpdates() {
 }
 
 async function downloadUpdate() {
+  if (!app.isPackaged) {
+    return setStatus({ state: 'unsupported', error: 'development' })
+  }
   const unsupported = getUnsupportedReason()
   if (unsupported) return setStatus({ state: 'unsupported', error: unsupported })
   if (status.state !== 'available') return getStatus()
@@ -236,6 +260,7 @@ async function downloadUpdate() {
 }
 
 function installUpdate() {
+  if (!app.isPackaged) return getStatus()
   if (status.state !== 'downloaded') return getStatus()
   setStatus({ state: 'installing' })
   autoUpdater.quitAndInstall(false, true)
@@ -245,14 +270,16 @@ function installUpdate() {
 function start() {
   if (started) return
   started = true
-  configure()
 
+  // 开发环境不自动检查，仅支持设置页手动检查。
+  if (!app.isPackaged) return
   const unsupported = getUnsupportedReason()
   if (unsupported) {
     setStatus({ state: 'unsupported', error: unsupported })
     return
   }
 
+  configure()
   startupTimer = setTimeout(() => { checkForUpdates() }, STARTUP_CHECK_DELAY)
   startupTimer.unref?.()
   intervalTimer = setInterval(() => { checkForUpdates() }, CHECK_INTERVAL)

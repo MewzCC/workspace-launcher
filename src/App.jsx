@@ -6,6 +6,7 @@ import Modal from './components/Modal'
 import { useStore } from './store/useStore'
 import { useT } from './hooks/useT'
 import { workspaceApi, softwareApi, onLaunchProgress, updateApi } from './lib/ipc'
+import { renderMarkdown } from './lib/markdown'
 
 function App() {
   const t = useT()
@@ -82,7 +83,10 @@ function App() {
             </div>
           )}
           {lastUpdate.releaseNotes ? (
-            <div className="update-installed-notes">{lastUpdate.releaseNotes}</div>
+            <div
+              className="update-installed-notes md-render"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(lastUpdate.releaseNotes) }}
+            />
           ) : (
             <p className="update-installed-empty">{t('settings.updateNoNotes')}</p>
           )}

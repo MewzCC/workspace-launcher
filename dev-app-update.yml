@@ -1,0 +1,6 @@
+# 开发模式更新配置
+# 仅本地开发时使用（electron-updater 在非打包模式读取此文件），不会打包进安装包。
+# 生产环境使用 electron-builder 生成的 app-update.yml。
+provider: github
+owner: MewzCC
+repo: workspace-launcher

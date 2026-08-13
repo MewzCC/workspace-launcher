@@ -362,6 +362,13 @@
   font-size: 12px;
 }
 
+.data-transfer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 /* 危险操作区：红色边框警示 */
 .danger-zone {
   border: 1px solid color-mix(in srgb, var(--brand-state-error) 50%, transparent);

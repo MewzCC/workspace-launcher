@@ -98,6 +98,12 @@ export const storageApi = {
   open: () => unwrap(api.storage.open())
 }
 
+export const dataApi = {
+  clearAll: () => unwrap(api.data.clearAll()),
+  export: (filePath) => unwrap(api.data.export(filePath)),
+  import: (filePath) => unwrap(api.data.import(filePath))
+}
+
 export const updateApi = {
   status: () => unwrap(api.update.status()),
   check: () => unwrap(api.update.check()),
@@ -113,7 +119,8 @@ export const updateApi = {
 export const dialogApi = {
   openFile: (filters) => api.dialog.openFile(filters),
   openFiles: (filters) => api.dialog.openFiles(filters),
-  openDirectory: () => api.dialog.openDirectory()
+  openDirectory: () => api.dialog.openDirectory(),
+  saveFile: (options) => api.dialog.saveFile(options)
 }
 
 export const externalApi = {

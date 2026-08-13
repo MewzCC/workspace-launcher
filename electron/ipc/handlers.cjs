@@ -12,6 +12,7 @@ const trayService = require('../services/trayService.cjs')
 const shortcutService = require('../services/shortcutService.cjs')
 const storageService = require('../services/storageService.cjs')
 const updateService = require('../services/updateService.cjs')
+const dataTransferService = require('../services/dataTransferService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -338,6 +339,14 @@ function registerIpcHandlers() {
     if (error) throw new Error(error)
     return { success: true, path: info.directory }
   }))
+  ipcMain.handle('data:export', (_e, filePath) => wrap(() => {
+    if (!filePath) throw new Error(t('errors.dataPathRequired'))
+    return dataTransferService.exportToFile(String(filePath))
+  }))
+  ipcMain.handle('data:import', (_e, filePath) => wrap(() => {
+    if (!filePath) throw new Error(t('errors.dataPathRequired'))
+    return dataTransferService.importFromFile(String(filePath))
+  }))
 
   // ===== 对话框 =====
   ipcMain.handle('dialog:openFile', async (_e, filters) => {
@@ -363,6 +372,19 @@ function registerIpcHandlers() {
         return []
       }
       return result.filePaths
+    })
+  })
+  // 选择保存文件路径（导出 JSON 备份等）
+  ipcMain.handle('dialog:saveFile', async (_e, options) => {
+    return wrap(async () => {
+      const opts = options || {}
+      const result = await dialog.showSaveDialog({
+        title: opts.title,
+        defaultPath: opts.defaultPath || '',
+        filters: opts.filters || [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (result.canceled || !result.filePath) return null
+      return result.filePath
     })
   })
   // 选择目录（用于盘符扫描时选择子目录）

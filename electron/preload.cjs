@@ -82,6 +82,11 @@ contextBridge.exposeInMainWorld('api', {
     info: () => ipcRenderer.invoke('storage:info'),
     open: () => ipcRenderer.invoke('storage:open')
   },
+  data: {
+    clearAll: () => ipcRenderer.invoke('data:clearAll'),
+    export: (filePath) => ipcRenderer.invoke('data:export', filePath),
+    import: (filePath) => ipcRenderer.invoke('data:import', filePath)
+  },
   update: {
     status: () => ipcRenderer.invoke('update:status'),
     check: () => ipcRenderer.invoke('update:check'),
@@ -96,7 +101,8 @@ contextBridge.exposeInMainWorld('api', {
   dialog: {
     openFile: (filters) => ipcRenderer.invoke('dialog:openFile', filters),
     openFiles: (filters) => ipcRenderer.invoke('dialog:openFiles', filters),
-    openDirectory: () => ipcRenderer.invoke('dialog:openDirectory')
+    openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+    saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options)
   },
   external: {
     open: (url) => ipcRenderer.invoke('external:open', url)

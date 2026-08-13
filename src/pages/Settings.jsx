@@ -7,6 +7,7 @@ import {
   Code2,
   Download,
   ExternalLink,
+  FileInput,
   FolderOpen,
   History,
   LoaderCircle,
@@ -28,6 +29,8 @@ import {
   storageApi,
   systemApi,
   updateApi,
+  dataApi,
+  dialogApi,
   onUpdateStatus
 } from '../lib/ipc'
 import { useStore } from '../store/useStore'
@@ -68,6 +71,8 @@ export function Settings() {
   const [storageMessage, setStorageMessage] = useState('')
   const [updateStatus, setUpdateStatus] = useState({ state: 'idle', progress: 0 })
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [transferring, setTransferring] = useState('')
+  const [dataMessage, setDataMessage] = useState('')
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
@@ -106,6 +111,63 @@ export function Settings() {
       setStorageMessage(t('settings.storageOpened'))
     } catch (error) {
       setStorageMessage(error.message || t('settings.storageOpenFailed'))
+    }
+  }
+
+  const refreshData = async () => {
+    const [freshWorkspaces, freshSoftware] = await Promise.all([
+      workspaceApi.list(),
+      softwareApi.list()
+    ])
+    setWorkspaces(freshWorkspaces)
+    setSoftware(freshSoftware)
+  }
+
+  const handleExportData = async () => {
+    setDataMessage('')
+    try {
+      const filePath = await dialogApi.saveFile({
+        title: t('settings.exportData'),
+        defaultPath: `launchpad-backup-${new Date().toISOString().slice(0, 10)}.json`
+      })
+      if (!filePath) return
+      setTransferring('export')
+      await dataApi.export(filePath)
+      setDataMessage(t('settings.exportSuccess', { path: filePath }))
+    } catch (error) {
+      setDataMessage(t('settings.exportFailed') + (error?.message || error))
+    } finally {
+      setTransferring('')
+    }
+  }
+
+  const handleImportData = async () => {
+    setDataMessage('')
+    try {
+      const filePath = await dialogApi.openFile([{ name: 'JSON', extensions: ['json'] }])
+      if (!filePath) return
+      const confirmed = await confirm({
+        title: t('settings.importData'),
+        message: t('settings.importConfirm'),
+        confirmText: t('settings.importData'),
+        tone: 'warning',
+        icon: 'warning'
+      })
+      if (!confirmed) return
+      setTransferring('import')
+      const result = await dataApi.import(filePath)
+      await refreshData()
+      const stats = result?.stats || {}
+      setDataMessage(t('settings.importSuccess', {
+        workspaces: stats.workspaces || 0,
+        software: stats.software || 0,
+        scripts: stats.batScripts || 0,
+        skipped: (stats.softwareSkipped || 0) + (stats.batScriptsSkipped || 0)
+      }))
+    } catch (error) {
+      setDataMessage(t('settings.importFailed') + (error?.message || error))
+    } finally {
+      setTransferring('')
     }
   }
 
@@ -428,6 +490,17 @@ export function Settings() {
           <span className="info-label">{t('settings.swCount')}</span>
           <span className="info-value">{software.length}</span>
         </div>
+        <div className="data-transfer-actions">
+          <GlowButton variant="secondary" size="sm" onClick={handleExportData} disabled={transferring}>
+            {transferring === 'export' ? <LoaderCircle size={14} className="process-spin" /> : <Download size={14} />}
+            {t('settings.exportData')}
+          </GlowButton>
+          <GlowButton variant="secondary" size="sm" onClick={handleImportData} disabled={transferring}>
+            {transferring === 'import' ? <LoaderCircle size={14} className="process-spin" /> : <FileInput size={14} />}
+            {t('settings.importData')}
+          </GlowButton>
+        </div>
+        {dataMessage && <div className="system-setting-message" role="status">{dataMessage}</div>}
       </GlassCard>
 
       {/* 危险操作区 */}

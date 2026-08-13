@@ -3,6 +3,7 @@
 const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
+const { t } = require('../i18n.cjs')
 
 const DATA_DIR_NAME = 'LaunchPadData'
 const DATABASE_NAME = 'workspace-launcher.db'
@@ -106,17 +107,13 @@ function readConfiguredDirectory() {
 }
 
 function writeConfiguredDirectory(directory) {
-  try {
-    const legacyDirectory = getLegacyDirectory()
-    fs.mkdirSync(legacyDirectory, { recursive: true })
-    fs.writeFileSync(
-      path.join(legacyDirectory, CONFIG_NAME),
-      JSON.stringify({ directory, updatedAt: new Date().toISOString() }, null, 2),
-      'utf8'
-    )
-  } catch (_) {
-    // 路径配置写入失败不影响数据库继续使用。
-  }
+  const legacyDirectory = getLegacyDirectory()
+  fs.mkdirSync(legacyDirectory, { recursive: true })
+  fs.writeFileSync(
+    path.join(legacyDirectory, CONFIG_NAME),
+    JSON.stringify({ directory, updatedAt: new Date().toISOString() }, null, 2),
+    'utf8'
+  )
 }
 
 function resolveStorage() {
@@ -126,19 +123,12 @@ function resolveStorage() {
   const defaultDirectory = normalizeDirectory(getDefaultDirectory())
   const configuredDirectory = readConfiguredDirectory()
 
-  // 默认跟随当前安装目录（Setup 选择的路径 / 便携包所在目录）：
-  // 安装目录可写时始终优先使用它，避免旧配置把数据固定在已失效的路径。
-  let directory = defaultDirectory
+  // 用户明确选择的目录优先；未配置时才跟随安装目录。
+  let directory = configuredDirectory || defaultDirectory
   let fallback = false
-  if (!canWrite(defaultDirectory)) {
-    // 安装目录不可写（如 Program Files）：回退到旧配置目录，最后才是用户数据目录。
-    if (configuredDirectory &&
-        !samePath(configuredDirectory, legacyDirectory) &&
-        canWrite(configuredDirectory)) {
-      directory = configuredDirectory
-    } else {
-      directory = legacyDirectory
-    }
+  if (!canWrite(directory)) {
+    // 已配置目录失效时优先尝试默认目录，最后回退 Electron 用户目录。
+    directory = canWrite(defaultDirectory) ? defaultDirectory : legacyDirectory
     fallback = true
   }
 
@@ -169,4 +159,31 @@ function getInfo() {
   return { ...resolveStorage() }
 }
 
-module.exports = { getDatabasePath, getInfo }
+function relocate(targetDirectory) {
+  const current = resolveStorage()
+  const target = normalizeDirectory(targetDirectory)
+  if (!targetDirectory || !target) throw new Error(t('errors.storagePathRequired'))
+  if (samePath(current.directory, target)) return { ...current, changed: false }
+  if (!canWrite(target)) throw new Error(t('errors.storagePathNotWritable'))
+
+  const sourceDatabase = current.databasePath
+  const targetDatabase = path.join(target, DATABASE_NAME)
+  if (fs.existsSync(targetDatabase) && countDatabaseRows(targetDatabase) > 0) {
+    throw new Error(t('errors.storageTargetHasData'))
+  }
+
+  fs.mkdirSync(target, { recursive: true })
+  if (fs.existsSync(sourceDatabase)) fs.copyFileSync(sourceDatabase, targetDatabase)
+  writeConfiguredDirectory(target)
+  resolved = {
+    directory: target,
+    databasePath: targetDatabase,
+    defaultDirectory: current.defaultDirectory,
+    legacyDirectory: current.legacyDirectory,
+    fallback: false,
+    writable: true
+  }
+  return { ...resolved, changed: true, previousDirectory: current.directory }
+}
+
+module.exports = { getDatabasePath, getInfo, relocate }

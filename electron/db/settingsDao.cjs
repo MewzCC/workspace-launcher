@@ -12,6 +12,7 @@ const DEFAULTS = {
   petEnabled: true,
   petPosition: null,
   petModelId: 'builtin-launchbot',
+  petModelsDirectory: '',
   petScale: 0.9,
   petOpacity: 1,
   petRoaming: true,

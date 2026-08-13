@@ -30,6 +30,7 @@ import {
   softwareApi,
   externalApi,
   storageApi,
+  petApi,
   systemApi,
   updateApi,
   dataApi,
@@ -70,6 +71,8 @@ export function Settings() {
   const [clearing, setClearing] = useState(false)
   const [systemSettings, setSystemSettings] = useState(null)
   const [storageInfo, setStorageInfo] = useState(null)
+  const [modelStorageInfo, setModelStorageInfo] = useState(null)
+  const [movingStorage, setMovingStorage] = useState('')
   const [savingSetting, setSavingSetting] = useState('')
   const [systemMessage, setSystemMessage] = useState('')
   const [storageMessage, setStorageMessage] = useState('')
@@ -107,8 +110,11 @@ export function Settings() {
   }, [])
 
   useEffect(() => {
-    storageApi.info()
-      .then((info) => setStorageInfo(info))
+    Promise.all([storageApi.info(), petApi.getModelsStorage()])
+      .then(([info, modelInfo]) => {
+        setStorageInfo(info)
+        setModelStorageInfo(modelInfo)
+      })
       .catch((error) => setStorageMessage(error.message || t('settings.storageLoadFailed')))
   }, [])
 
@@ -197,6 +203,62 @@ export function Settings() {
       setDiagnosticMessage(error.message || t('settings.reportCopyFailed'))
     } finally {
       setCopyingReport(false)
+    }
+  }
+
+  const openModelStorageDirectory = async () => {
+    try {
+      await petApi.openModelsStorage()
+      setStorageMessage(t('settings.modelStorageOpened'))
+    } catch (error) {
+      setStorageMessage(error.message || t('settings.modelStorageOpenFailed'))
+    }
+  }
+
+  const changeDataDirectory = async () => {
+    const directory = await dialogApi.openDirectory()
+    if (!directory || directory === storageInfo?.directory) return
+    const confirmed = await confirm({
+      title: t('settings.changeDataDirectory'),
+      message: t('settings.changeDataConfirm'),
+      confirmText: t('settings.changeStorage'),
+      tone: 'warning',
+      icon: 'warning'
+    })
+    if (!confirmed) return
+    setMovingStorage('data')
+    setStorageMessage('')
+    try {
+      const result = await storageApi.relocate(directory)
+      setStorageInfo(result)
+      setStorageMessage(result.changed ? t('settings.storageRestarting') : '')
+    } catch (error) {
+      setStorageMessage(`${t('settings.storageChangeFailed')}：${error.message || error}`)
+      setMovingStorage('')
+    }
+  }
+
+  const changeModelDirectory = async () => {
+    const directory = await dialogApi.openDirectory()
+    if (!directory || directory === modelStorageInfo?.directory) return
+    const confirmed = await confirm({
+      title: t('settings.changeModelDirectory'),
+      message: t('settings.changeModelConfirm'),
+      confirmText: t('settings.changeStorage'),
+      tone: 'warning',
+      icon: 'warning'
+    })
+    if (!confirmed) return
+    setMovingStorage('models')
+    setStorageMessage('')
+    try {
+      const result = await petApi.setModelsStorage(directory)
+      setModelStorageInfo(result)
+      setStorageMessage(t('settings.modelStorageChanged', { count: result.migratedModels || 0 }))
+    } catch (error) {
+      setStorageMessage(`${t('settings.modelStorageChangeFailed')}：${error.message || error}`)
+    } finally {
+      setMovingStorage('')
     }
   }
 
@@ -546,15 +608,43 @@ export function Settings() {
       {/* 数据信息 */}
       <GlassCard className="settings-section" hover={false}>
         <h3>{t('settings.dataInfo')}</h3>
-        <div className="info-row">
-          <span className="info-label">{t('settings.dataDirectory')}</span>
-          <span className="info-value info-path" title={storageInfo?.directory}>
+        <div className="storage-location-row">
+          <div className="storage-location-copy">
+            <strong>{t('settings.dataDirectory')}</strong>
+            <span>{t('settings.dataDirectoryDesc')}</span>
+          </div>
+          <code className="storage-location-path" title={storageInfo?.directory}>
             {storageInfo?.directory || t('settings.storageLoading')}
-          </span>
-          <GlowButton variant="ghost" size="sm" onClick={openStorageDirectory} disabled={!storageInfo}>
-            <FolderOpen size={14} />
-            {t('settings.openStorage')}
-          </GlowButton>
+          </code>
+          <div className="storage-location-actions">
+            <GlowButton variant="ghost" size="sm" onClick={openStorageDirectory} disabled={!storageInfo || movingStorage}>
+              <FolderOpen size={14} />
+              {t('settings.openStorage')}
+            </GlowButton>
+            <GlowButton variant="ghost" size="sm" onClick={changeDataDirectory} disabled={!storageInfo || movingStorage}>
+              {movingStorage === 'data' ? <LoaderCircle size={14} className="process-spin" /> : <RefreshCcw size={14} />}
+              {movingStorage === 'data' ? t('settings.storageChanging') : t('settings.changeStorage')}
+            </GlowButton>
+          </div>
+        </div>
+        <div className="storage-location-row">
+          <div className="storage-location-copy">
+            <strong>{t('settings.modelDirectory')}</strong>
+            <span>{t('settings.modelDirectoryDesc')}</span>
+          </div>
+          <code className="storage-location-path" title={modelStorageInfo?.directory}>
+            {modelStorageInfo?.directory || t('settings.storageLoading')}
+          </code>
+          <div className="storage-location-actions">
+            <GlowButton variant="ghost" size="sm" onClick={openModelStorageDirectory} disabled={!modelStorageInfo || movingStorage}>
+              <FolderOpen size={14} />
+              {t('settings.openStorage')}
+            </GlowButton>
+            <GlowButton variant="ghost" size="sm" onClick={changeModelDirectory} disabled={!modelStorageInfo || movingStorage}>
+              {movingStorage === 'models' ? <LoaderCircle size={14} className="process-spin" /> : <RefreshCcw size={14} />}
+              {movingStorage === 'models' ? t('settings.storageChanging') : t('settings.changeStorage')}
+            </GlowButton>
+          </div>
         </div>
         <div className="info-row">
           <span className="info-label">{t('settings.dbPath')}</span>

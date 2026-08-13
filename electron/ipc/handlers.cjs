@@ -364,6 +364,18 @@ function registerIpcHandlers() {
     if (error) throw new Error(error)
     return { success: true, path: info.directory }
   }))
+  ipcMain.handle('storage:relocate', (_e, directory) => wrap(() => {
+    // 把 WAL 内容同步回主数据库后再复制；旧目录保留，重启后切换到新位置。
+    db.getDb().pragma('wal_checkpoint(TRUNCATE)')
+    const result = storageService.relocate(String(directory || ''))
+    if (result.changed) {
+      setTimeout(() => {
+        app.relaunch()
+        app.exit(0)
+      }, 600)
+    }
+    return result
+  }))
   ipcMain.handle('data:export', (_e, filePath) => wrap(() => {
     if (!filePath) throw new Error(t('errors.dataPathRequired'))
     return dataTransferService.exportToFile(String(filePath))

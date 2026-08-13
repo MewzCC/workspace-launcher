@@ -14,9 +14,71 @@ const BUILTIN_ID = 'builtin-launchbot'
 let dataUrlCache = new Map()
 
 function petsRoot() {
-  const root = path.join(app.getPath('userData'), 'pets')
+  const configured = String(settingsDao.get('petModelsDirectory') || '').trim()
+  const root = configured ? path.resolve(configured) : path.join(app.getPath('userData'), 'pets')
   fs.mkdirSync(root, { recursive: true })
   return root
+}
+
+function defaultPetsRoot() {
+  return path.join(app.getPath('userData'), 'pets')
+}
+
+function samePath(left, right) {
+  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase()
+}
+
+function pathsOverlap(left, right) {
+  const a = `${path.resolve(left).toLowerCase()}${path.sep}`
+  const b = `${path.resolve(right).toLowerCase()}${path.sep}`
+  return a.startsWith(b) || b.startsWith(a)
+}
+
+function ensureWritable(directory) {
+  fs.mkdirSync(directory, { recursive: true })
+  const probe = path.join(directory, `.write-test-${process.pid}-${Date.now()}`)
+  try {
+    fs.writeFileSync(probe, '')
+    fs.unlinkSync(probe)
+  } catch (_) {
+    try { fs.unlinkSync(probe) } catch (_) {}
+    throw new Error(t('pet.modelsPathNotWritable'))
+  }
+}
+
+function getStorageInfo() {
+  const directory = petsRoot()
+  return {
+    directory,
+    defaultDirectory: defaultPetsRoot(),
+    customized: !samePath(directory, defaultPetsRoot())
+  }
+}
+
+function setStorageDirectory(targetDirectory) {
+  const source = petsRoot()
+  const target = path.resolve(String(targetDirectory || '').trim())
+  if (!targetDirectory || !target) throw new Error(t('pet.modelsPathRequired'))
+  if (samePath(source, target)) return getStorageInfo()
+  if (pathsOverlap(source, target)) throw new Error(t('pet.modelsPathOverlap'))
+  ensureWritable(target)
+
+  const entries = fs.readdirSync(source, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+  for (const entry of entries) {
+    if (fs.existsSync(path.join(target, entry.name))) {
+      throw new Error(t('pet.modelsTargetConflict', { name: entry.name }))
+    }
+  }
+  for (const entry of entries) {
+    fs.cpSync(path.join(source, entry.name), path.join(target, entry.name), {
+      recursive: true,
+      errorOnExist: true,
+      force: false
+    })
+  }
+  settingsDao.set('petModelsDirectory', target)
+  dataUrlCache.clear()
+  return { ...getStorageInfo(), previousDirectory: source, migratedModels: entries.length }
 }
 
 function safeId(value) {
@@ -189,4 +251,4 @@ function openFolder() {
   return petsRoot()
 }
 
-module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, BUILTIN_ID }
+module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, setStorageDirectory, BUILTIN_ID }

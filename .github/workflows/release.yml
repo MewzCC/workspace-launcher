@@ -46,7 +46,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = node -p "require('./package.json').version"
-          $notes = "RELEASE_NOTES_$version.md"
+          $notes = Join-Path "release-notes" "v$version.md"
           gh release edit "v$version" --title "LaunchPad v$version"
           if (Test-Path $notes) {
             gh release edit "v$version" --notes-file $notes

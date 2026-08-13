@@ -265,6 +265,27 @@ function registerPetIpc() {
   })
   ipcMain.handle('pet:getConfig', () => getRuntimeConfig())
   ipcMain.handle('pet:listModels', () => petModelService.list())
+  ipcMain.handle('pet:getModelsStorage', () => petModelService.getStorageInfo())
+  ipcMain.handle('pet:setModelsStorage', (_event, directory) => {
+    try {
+      const result = petModelService.setStorageDirectory(String(directory || ''))
+      refresh()
+      return result
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  })
+  ipcMain.handle('pet:openModelsStorage', async () => {
+    try {
+      const directory = petModelService.openFolder()
+      const { shell } = require('electron')
+      const error = await shell.openPath(directory)
+      if (error) throw new Error(error)
+      return { success: true, path: directory }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  })
   ipcMain.handle('pet:importModel', (_event, manifestPath) => {
     try {
       const result = petModelService.importFromManifest(String(manifestPath || ''))

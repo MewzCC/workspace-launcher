@@ -96,7 +96,8 @@ export const logsApi = {
 
 export const storageApi = {
   info: () => unwrap(api.storage.info()),
-  open: () => unwrap(api.storage.open())
+  open: () => unwrap(api.storage.open()),
+  relocate: (directory) => unwrap(api.storage.relocate(directory))
 }
 
 export const dataApi = {
@@ -157,6 +158,9 @@ export const petApi = {
   home: () => unwrap(api.pet.home()),
   getConfig: () => unwrap(api.pet.getConfig()),
   listModels: () => unwrap(api.pet.listModels()),
+  getModelsStorage: () => unwrap(api.pet.getModelsStorage()),
+  setModelsStorage: (directory) => unwrap(api.pet.setModelsStorage(directory)),
+  openModelsStorage: () => unwrap(api.pet.openModelsStorage()),
   importModel: (manifestPath) => unwrap(api.pet.importModel(manifestPath)),
   selectModel: (id) => unwrap(api.pet.selectModel(id)),
   removeModel: (id) => unwrap(api.pet.removeModel(id)),

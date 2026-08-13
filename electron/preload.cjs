@@ -81,7 +81,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   storage: {
     info: () => ipcRenderer.invoke('storage:info'),
-    open: () => ipcRenderer.invoke('storage:open')
+    open: () => ipcRenderer.invoke('storage:open'),
+    relocate: (directory) => ipcRenderer.invoke('storage:relocate', directory)
   },
   data: {
     clearAll: () => ipcRenderer.invoke('data:clearAll'),
@@ -135,6 +136,9 @@ contextBridge.exposeInMainWorld('api', {
     home: () => ipcRenderer.invoke('pet:home'),
     getConfig: () => ipcRenderer.invoke('pet:getConfig'),
     listModels: () => ipcRenderer.invoke('pet:listModels'),
+    getModelsStorage: () => ipcRenderer.invoke('pet:getModelsStorage'),
+    setModelsStorage: (directory) => ipcRenderer.invoke('pet:setModelsStorage', directory),
+    openModelsStorage: () => ipcRenderer.invoke('pet:openModelsStorage'),
     importModel: (manifestPath) => ipcRenderer.invoke('pet:importModel', manifestPath),
     selectModel: (id) => ipcRenderer.invoke('pet:selectModel', id),
     removeModel: (id) => ipcRenderer.invoke('pet:removeModel', id),

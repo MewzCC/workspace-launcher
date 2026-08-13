@@ -127,10 +127,33 @@ contextBridge.exposeInMainWorld('api', {
   },
   pet: {
     move: (x, y) => ipcRenderer.send('pet:move', { x, y }),
+    setMousePassthrough: (passthrough) => ipcRenderer.send('pet:setMousePassthrough', passthrough),
     savePosition: () => ipcRenderer.send('pet:savePosition'),
+    performAction: (action) => ipcRenderer.send('pet:performAction', action),
     openMain: () => ipcRenderer.invoke('pet:openMain'),
     showMenu: () => ipcRenderer.invoke('pet:showMenu'),
-    home: () => ipcRenderer.invoke('pet:home')
+    home: () => ipcRenderer.invoke('pet:home'),
+    getConfig: () => ipcRenderer.invoke('pet:getConfig'),
+    listModels: () => ipcRenderer.invoke('pet:listModels'),
+    importModel: (manifestPath) => ipcRenderer.invoke('pet:importModel', manifestPath),
+    selectModel: (id) => ipcRenderer.invoke('pet:selectModel', id),
+    removeModel: (id) => ipcRenderer.invoke('pet:removeModel', id),
+    updateSettings: (settings) => ipcRenderer.invoke('pet:updateSettings', settings),
+    onConfigChanged: (callback) => {
+      const handler = (_event, config) => callback(config)
+      ipcRenderer.on('pet:configChanged', handler)
+      return () => ipcRenderer.removeListener('pet:configChanged', handler)
+    },
+    onAction: (callback) => {
+      const handler = (_event, action) => callback(action)
+      ipcRenderer.on('pet:action', handler)
+      return () => ipcRenderer.removeListener('pet:action', handler)
+    }
+  },
+  ai: {
+    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
+    saveConfig: (config) => ipcRenderer.invoke('ai:saveConfig', config),
+    chat: (messages) => ipcRenderer.invoke('ai:chat', messages)
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {
@@ -151,5 +174,10 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event, status) => callback(status)
     ipcRenderer.on('update:status', handler)
     return () => ipcRenderer.removeListener('update:status', handler)
+  },
+  onNavigate: (callback) => {
+    const handler = (_event, view) => callback(view)
+    ipcRenderer.on('app:navigate', handler)
+    return () => ipcRenderer.removeListener('app:navigate', handler)
   }
 })

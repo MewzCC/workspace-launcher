@@ -187,6 +187,30 @@
   gap: 8px;
 }
 
+.quick-card-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.quick-card-close {
+  color: var(--brand-muted-foreground);
+}
+
+.quick-card-close:hover:not(:disabled) {
+  color: var(--brand-state-error);
+  border-color: color-mix(in srgb, var(--brand-state-error) 32%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-state-error) 7%, var(--brand-background-elevated));
+}
+
+@media (max-width: 520px) {
+  .quick-card-footer { align-items: stretch; }
+  .quick-card-actions { flex: 1; }
+  .quick-card-actions .glow-btn--primary { flex: 1; }
+}
+
 .quick-edit-hint {
   margin: 0 0 14px;
   color: var(--brand-muted-foreground);

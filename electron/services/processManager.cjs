@@ -208,56 +208,33 @@ function terminateByExecutablePath(exePath) {
   })
 }
 
+// 查询一组 EXE 路径的运行状态。
+// 复用进程基表缓存（getProcessBase），避免每次调用都全量执行 PowerShell；
+// 多个页面（启动台/空间管理/监控）的轮询会命中同一份缓存。
 function getExecutableStatuses(exePaths = []) {
-  return new Promise((resolve, reject) => {
-    const targets = [...new Set(
-      (Array.isArray(exePaths) ? exePaths : [])
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-    )]
+  const targets = [...new Set(
+    (Array.isArray(exePaths) ? exePaths : [])
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+  )]
 
-    if (targets.length === 0) {
-      resolve({})
-      return
+  if (targets.length === 0) {
+    return Promise.resolve({})
+  }
+
+  if (process.platform !== 'win32') {
+    return Promise.resolve(Object.fromEntries(targets.map((target) => [target, false])))
+  }
+
+  return getProcessBase().then((holder) => {
+    const base = Array.isArray(holder?.value) ? holder.value : []
+    const byPath = new Map()
+    for (const item of base) {
+      const lower = String(item.path || '').toLowerCase()
+      if (lower) byPath.set(lower, true)
     }
-
-    if (process.platform !== 'win32') {
-      resolve(Object.fromEntries(targets.map((target) => [target, false])))
-      return
-    }
-
-    const script = [
-      "$targets = ConvertFrom-Json $env:LAUNCHPAD_PROCESS_PATHS",
-      "$running = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath } | ForEach-Object { $_.ExecutablePath })",
-      "$result = [ordered]@{}",
-      "foreach ($target in $targets) { $result[[string]$target] = @($running | Where-Object { [string]::Equals($_, [string]$target, [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0 }",
-      "$result | ConvertTo-Json -Compress"
-    ].join('; ')
-
-    execFile(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', script],
-      {
-        windowsHide: true,
-        timeout: 10000,
-        env: {
-          ...process.env,
-          LAUNCHPAD_PROCESS_PATHS: JSON.stringify(targets)
-        }
-      },
-      (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(t('errors.processStatusFailed', { message: String(stderr || err.message).trim() })))
-          return
-        }
-
-        try {
-          const parsed = JSON.parse(String(stdout || '{}').trim() || '{}')
-          resolve(Object.fromEntries(targets.map((target) => [target, Boolean(parsed[target])])))
-        } catch (parseError) {
-          reject(new Error(t('errors.parseProcessFailed', { message: parseError.message })))
-        }
-      }
+    return Object.fromEntries(
+      targets.map((target) => [target, Boolean(byPath.get(target.toLowerCase()))])
     )
   })
 }
@@ -293,7 +270,7 @@ function isProtectedProcess(item) {
 // 每次请求时合并两层数据；端口表中新出现、但基表尚未覆盖的 PID（新进程），
 // 通过一次性过滤查询补齐进程信息，保证新监听进程立即可见。
 
-const PROCESS_BASE_TTL_MS = 30000
+const PROCESS_BASE_TTL_MS = 15000
 const PORT_MAP_TTL_MS = 4000
 const MAX_ORPHAN_RESOLVE = 50
 
@@ -325,7 +302,7 @@ function listProcessesBase() {
     }
 
     const script = [
-      "$processes = @(Get-CimInstance Win32_Process -ErrorAction Stop | ForEach-Object { [ordered]@{ pid = [int]$_.ProcessId; name = [string]$_.Name; path = [string]$_.ExecutablePath; workingSetBytes = [long]$_.WorkingSetSize } })",
+      "$processes = @(Get-CimInstance Win32_Process -Property ProcessId,Name,ExecutablePath,WorkingSetSize -ErrorAction Stop | ForEach-Object { [ordered]@{ pid = [int]$_.ProcessId; name = [string]$_.Name; path = [string]$_.ExecutablePath; workingSetBytes = [long]$_.WorkingSetSize } })",
       "ConvertTo-Json -InputObject $processes -Depth 3 -Compress"
     ].join('; ')
 

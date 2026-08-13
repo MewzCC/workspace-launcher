@@ -16,6 +16,7 @@ const dataTransferService = require('../services/dataTransferService.cjs')
 const crashLogger = require('../services/crashLogger.cjs')
 const diagnosticService = require('../services/diagnosticService.cjs')
 const petService = require('../services/petService.cjs')
+const aiService = require('../services/aiService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -55,6 +56,9 @@ async function runSoftwareScan(task) {
 
 // 注册所有 IPC 处理器（在 app ready 时调用一次）
 function registerIpcHandlers() {
+  ipcMain.handle('ai:getConfig', () => wrap(() => aiService.getConfig()))
+  ipcMain.handle('ai:saveConfig', (_e, config) => wrap(() => aiService.saveConfig(config)))
+  ipcMain.handle('ai:chat', (_e, messages) => wrap(() => aiService.chat(messages)))
   // ===== 工作空间 =====
   ipcMain.handle('workspace:list', () => wrap(() => workspaceDao.list()))
   ipcMain.handle('workspace:get', (_e, id) => wrap(() => workspaceDao.get(id)))

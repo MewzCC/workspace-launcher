@@ -1,97 +1,186 @@
-// 桌宠组件（P1 MVP）
-// codex 风格小机器人：SVG 绘制；支持拖拽、双击打开主窗口、右键菜单；
-// idle 呼吸动画 + 随机漫游（walk 摆动），漫游与拖拽结束均持久化位置。
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { petApi } from '../lib/ipc'
+import PetSprite from './PetSprite'
+import { useT } from '../hooks/useT'
 import './Pet.css'
 
-const MOVE_TICK = 60
-const ROAM_DURATION = 1600
-const IDLE_MIN = 12000
-const IDLE_MAX = 30000
+const MOVE_TICK = 36
+const ROAM_DURATION = 1500
+const IDLE_MIN = 14000
+const IDLE_MAX = 32000
+const AMBIENT_MIN = 9000
+const AMBIENT_MAX = 18000
+const AMBIENT_ACTIONS = [
+  { state: 'wave', duration: 1600 },
+  { state: 'jump', duration: 1500 },
+  { state: 'waiting', duration: 2200 },
+  { state: 'review', duration: 2400 }
+]
 
 function Pet() {
+  const t = useT()
+  const [config, setConfig] = useState(null)
+  const [petState, setPetState] = useState('idle')
+  const [bubble, setBubble] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [walking, setWalking] = useState(false)
   const dragRef = useRef(null)
+  const draggingRef = useRef(false)
   const stateRef = useRef('idle')
-  const timersRef = useRef([])
+  const roamTimerRef = useRef(null)
+  const walkTimerRef = useRef(null)
+  const ambientTimerRef = useRef(null)
+  const actionTimerRef = useRef(null)
+  const scheduleRoamRef = useRef(null)
+  const scheduleAmbientRef = useRef(null)
 
-  const setState = useCallback((next) => {
+  const changeState = useCallback((next) => {
     stateRef.current = next
-    setDragging(next === 'drag')
-    setWalking(next === 'walk')
+    setPetState(next)
   }, [])
 
-  // 随机漫游：渲染层计算目标（窗口内像素偏移），通过 IPC 移动窗口。
+  const stopMotion = useCallback(() => {
+    clearTimeout(roamTimerRef.current)
+    clearInterval(walkTimerRef.current)
+    walkTimerRef.current = null
+  }, [])
+
+  const performAction = useCallback((action = {}) => {
+    if (draggingRef.current) return
+    stopMotion()
+    clearTimeout(ambientTimerRef.current)
+    clearTimeout(actionTimerRef.current)
+    changeState(action.state || 'idle')
+    setBubble(String(action.bubble || ''))
+    actionTimerRef.current = setTimeout(() => {
+      changeState('idle')
+      setBubble('')
+      scheduleRoamRef.current?.()
+      scheduleAmbientRef.current?.()
+    }, Math.max(800, Number(action.duration) || 1800))
+  }, [changeState, stopMotion])
+
+  useEffect(() => {
+    let mounted = true
+    petApi.getConfig().then((value) => mounted && setConfig(value)).catch(() => {})
+    const unsubscribe = petApi.onConfigChanged((value) => setConfig(value))
+    const unsubscribeAction = petApi.onAction(performAction)
+    return () => {
+      mounted = false
+      unsubscribe()
+      unsubscribeAction()
+      petApi.setMousePassthrough(true)
+    }
+  }, [performAction])
+
+  const scheduleAmbient = useCallback(() => {
+    clearTimeout(ambientTimerRef.current)
+    const delay = AMBIENT_MIN + Math.random() * (AMBIENT_MAX - AMBIENT_MIN)
+    ambientTimerRef.current = setTimeout(() => {
+      if (stateRef.current !== 'idle' || draggingRef.current || walkTimerRef.current) {
+        scheduleAmbient()
+        return
+      }
+      const action = AMBIENT_ACTIONS[Math.floor(Math.random() * AMBIENT_ACTIONS.length)]
+      performAction(action)
+    }, delay)
+  }, [performAction])
+
   const scheduleRoam = useCallback(() => {
+    clearTimeout(roamTimerRef.current)
+    if (!config?.settings?.roaming) return
     const delay = IDLE_MIN + Math.random() * (IDLE_MAX - IDLE_MIN)
-    const timer = setTimeout(() => {
-      if (stateRef.current !== 'idle') return
-      const targetX = -60 + Math.random() * 120
-      const targetY = -40 + Math.random() * 80
+    roamTimerRef.current = setTimeout(() => {
+      if (stateRef.current !== 'idle') {
+        scheduleRoam()
+        return
+      }
+      const startX = window.screenX
+      const startY = window.screenY
+      const deltaX = -90 + Math.random() * 180
+      const deltaY = -55 + Math.random() * 100
       const steps = Math.max(1, Math.round(ROAM_DURATION / MOVE_TICK))
+      const direction = deltaX >= 0 ? 'walkRight' : 'walkLeft'
       let step = 0
-      setState('walk')
-      const walkTimer = setInterval(() => {
+      changeState(direction)
+      walkTimerRef.current = setInterval(() => {
         step += 1
+        const progress = Math.min(1, step / steps)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased))
         if (step >= steps) {
-          clearInterval(walkTimer)
-          setState('idle')
+          clearInterval(walkTimerRef.current)
+          walkTimerRef.current = null
+          changeState('idle')
           petApi.savePosition()
           scheduleRoam()
-          return
         }
-        petApi.move(
-          window.screenX + Math.round((targetX * step) / steps),
-          window.screenY + Math.round((targetY * step) / steps)
-        )
       }, MOVE_TICK)
-      timersRef.current.push(walkTimer)
     }, delay)
-    timersRef.current.push(timer)
-  }, [setState])
+  }, [changeState, config?.settings?.roaming])
+
+  scheduleRoamRef.current = scheduleRoam
+  scheduleAmbientRef.current = scheduleAmbient
 
   useEffect(() => {
     scheduleRoam()
+    scheduleAmbient()
     return () => {
-      timersRef.current.forEach((timer) => {
-        clearTimeout(timer)
-        clearInterval(timer)
-      })
-      timersRef.current = []
+      clearTimeout(roamTimerRef.current)
+      clearInterval(walkTimerRef.current)
+      clearTimeout(ambientTimerRef.current)
+      clearTimeout(actionTimerRef.current)
     }
-  }, [scheduleRoam])
+  }, [scheduleAmbient, scheduleRoam])
 
   const handleMouseDown = (event) => {
     if (event.button !== 0) return
+    petApi.setMousePassthrough(false)
+    stopMotion()
+    clearTimeout(ambientTimerRef.current)
+    clearTimeout(actionTimerRef.current)
+    draggingRef.current = true
+    setDragging(true)
     dragRef.current = {
-      offsetX: event.screenX - window.screenX,
-      offsetY: event.screenY - window.screenY,
+      pointerX: event.screenX,
+      pointerY: event.screenY,
+      originX: window.screenX,
+      originY: window.screenY,
       moved: false
     }
-    setState('drag')
+    changeState('idle')
   }
 
   useEffect(() => {
     const handleMove = (event) => {
       if (!dragRef.current) return
-      const dx = event.screenX - dragRef.current.offsetX - window.screenX
-      const dy = event.screenY - dragRef.current.offsetY - window.screenY
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true
-      petApi.move(event.screenX - dragRef.current.offsetX, event.screenY - dragRef.current.offsetY)
+      const deltaX = event.screenX - dragRef.current.pointerX
+      const deltaY = event.screenY - dragRef.current.pointerY
+      const nextX = dragRef.current.originX + deltaX
+      const nextY = dragRef.current.originY + deltaY
+      if (Math.hypot(deltaX, deltaY) > 3) dragRef.current.moved = true
+      petApi.move(nextX, nextY)
     }
-    const handleUp = () => {
+    const handleUp = (event) => {
       if (!dragRef.current) return
       const moved = dragRef.current.moved
       dragRef.current = null
+      draggingRef.current = false
+      setDragging(false)
       petApi.savePosition()
       if (!moved) {
-        // 单击反馈：回到 idle
-        setState('idle')
-        return
+        const clickActions = [
+          { state: 'wave', bubble: t('petCenter.petBubbleReady'), duration: 1800 },
+          { state: 'jump', bubble: t('petCenter.petBubbleCheer'), duration: 1500 },
+          { state: 'waiting', bubble: t('petCenter.petBubbleNext'), duration: 1900 }
+        ]
+        performAction(clickActions[Math.floor(Math.random() * clickActions.length)])
+      } else {
+        changeState('idle')
       }
-      setState('idle')
+      scheduleRoam()
+      scheduleAmbient()
+      const element = document.elementFromPoint(event.clientX, event.clientY)
+      if (!element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true)
     }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
@@ -99,45 +188,28 @@ function Pet() {
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [setState])
+  }, [changeState, performAction, scheduleAmbient, scheduleRoam, t])
 
-  const handleDoubleClick = () => {
-    petApi.openMain().catch(() => {})
-  }
-
-  const handleContextMenu = (event) => {
-    event.preventDefault()
-    petApi.showMenu().catch(() => {})
-  }
+  const spriteSize = config?.settings?.dimensions?.spriteWidth || 116
 
   return (
     <div
-      className={`pet-root ${dragging ? 'dragging' : ''} ${walking ? 'walking' : ''}`}
-      onMouseDown={handleMouseDown}
-      onDoubleClick={handleDoubleClick}
-      onContextMenu={handleContextMenu}
+      className={`pet-root pet-root--${petState}${dragging ? ' pet-root--dragging' : ''}`}
     >
-      <svg className="pet-svg" viewBox="0 0 120 120" aria-hidden="true">
-        {/* 天线 */}
-        <line x1="60" y1="14" x2="60" y2="26" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" />
-        <circle cx="60" cy="10" r="5" fill="#22d3ee" />
-        {/* 身体（codex 风格圆角方块） */}
-        <rect x="26" y="30" width="68" height="64" rx="16" fill="#6366f1" />
-        <rect x="34" y="38" width="52" height="48" rx="12" fill="#4f46e5" />
-        {/* 眼睛（可眨眼） */}
-        <circle cx="48" cy="58" r="7" fill="#0f172a" />
-        <circle cx="72" cy="58" r="7" fill="#0f172a" />
-        <circle cx="50" cy="55" r="2.4" fill="#e0f2fe" />
-        <circle cx="74" cy="55" r="2.4" fill="#e0f2fe" />
-        {/* 嘴 */}
-        <path d="M52 74 Q60 80 68 74" stroke="#0f172a" strokeWidth="3" fill="none" strokeLinecap="round" />
-        {/* 脚 */}
-        <rect className="pet-foot pet-foot-l" x="38" y="94" width="16" height="8" rx="4" fill="#4f46e5" />
-        <rect className="pet-foot pet-foot-r" x="66" y="94" width="16" height="8" rx="4" fill="#4f46e5" />
-      </svg>
-      {walking && (
-        <div className="pet-shadow" />
-      )}
+      {bubble && <div className="pet-bubble">{bubble}</div>}
+      <div
+        className="pet-interaction-zone"
+        onMouseEnter={() => petApi.setMousePassthrough(false)}
+        onMouseLeave={() => {
+          if (!draggingRef.current) petApi.setMousePassthrough(true)
+        }}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={() => petApi.openMain().catch(() => {})}
+        onContextMenu={(event) => { event.preventDefault(); petApi.showMenu().catch(() => {}) }}
+      >
+        <PetSprite model={config?.model} state={petState} size={spriteSize} />
+      </div>
+      <div className="pet-shadow" />
     </div>
   )
 }

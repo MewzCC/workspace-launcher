@@ -149,10 +149,26 @@ export const systemApi = {
 
 export const petApi = {
   move: (x, y) => api.pet.move(x, y),
+  setMousePassthrough: (passthrough) => api.pet.setMousePassthrough(passthrough),
   savePosition: () => api.pet.savePosition(),
+  performAction: (action) => api.pet.performAction(action),
   openMain: () => unwrap(api.pet.openMain()),
   showMenu: () => unwrap(api.pet.showMenu()),
-  home: () => unwrap(api.pet.home())
+  home: () => unwrap(api.pet.home()),
+  getConfig: () => unwrap(api.pet.getConfig()),
+  listModels: () => unwrap(api.pet.listModels()),
+  importModel: (manifestPath) => unwrap(api.pet.importModel(manifestPath)),
+  selectModel: (id) => unwrap(api.pet.selectModel(id)),
+  removeModel: (id) => unwrap(api.pet.removeModel(id)),
+  updateSettings: (settings) => unwrap(api.pet.updateSettings(settings)),
+  onConfigChanged: (callback) => api.pet.onConfigChanged(callback),
+  onAction: (callback) => api.pet.onAction(callback)
+}
+
+export const aiApi = {
+  getConfig: () => unwrap(api.ai.getConfig()),
+  saveConfig: (config) => unwrap(api.ai.saveConfig(config)),
+  chat: (messages) => unwrap(api.ai.chat(messages))
 }
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色
@@ -168,3 +184,4 @@ export const languageApi = {
 // 订阅工作空间启动进度，返回取消订阅函数
 export const onLaunchProgress = (callback) => api.onLaunchProgress(callback)
 export const onUpdateStatus = (callback) => api.onUpdateStatus(callback)
+export const onNavigate = (callback) => api.onNavigate(callback)

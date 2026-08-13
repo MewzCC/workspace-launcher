@@ -10,6 +10,7 @@ import ScanCenter from '../pages/ScanCenter'
 import Monitor from '../pages/Monitor'
 import Settings from '../pages/Settings'
 import ProcessManager from '../pages/ProcessManager'
+import PetCenter from '../pages/PetCenter'
 import './Layout.css'
 
 // 页面映射：key 对应 store.currentView，value 为页面组件
@@ -21,6 +22,7 @@ const PAGES = {
   scan: ScanCenter,
   monitor: Monitor,
   processes: ProcessManager,
+  'pet-center': PetCenter,
   settings: Settings,
 }
 

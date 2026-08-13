@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { softwareApi } from '../lib/ipc'
 
-export function useProcessStatuses(softwareItems, refreshKey, intervalMs = 3000) {
+export function useProcessStatuses(softwareItems, refreshKey, intervalMs = 5000) {
   const paths = useMemo(
     () => [...new Set(
       (softwareItems || [])

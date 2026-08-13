@@ -6,7 +6,7 @@ import Modal from './components/Modal'
 import GlowButton from './components/ui/GlowButton'
 import { useStore } from './store/useStore'
 import { useT } from './hooks/useT'
-import { workspaceApi, softwareApi, onLaunchProgress, updateApi, diagnosticsApi, systemApi, onUpdateStatus } from './lib/ipc'
+import { workspaceApi, softwareApi, onLaunchProgress, updateApi, diagnosticsApi, systemApi, onUpdateStatus, onNavigate } from './lib/ipc'
 import { renderMarkdown } from './lib/markdown'
 
 function App() {
@@ -16,6 +16,7 @@ function App() {
   const updateLaunchProgress = useStore((s) => s.updateLaunchProgress)
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
+  const setCurrentView = useStore((s) => s.setCurrentView)
   // 刚完成自动更新时展示“本次更新内容”弹窗
   const [lastUpdate, setLastUpdate] = useState(null)
   // 检测到新版本时展示提示弹窗（更新/跳过此版本/取消）
@@ -32,6 +33,8 @@ function App() {
       })
       .catch((err) => console.error('初始化数据加载失败:', err))
   }, [])
+
+  useEffect(() => onNavigate((view) => setCurrentView(view)), [setCurrentView])
 
   useEffect(() => {
     // 初始同步主题到主进程，使原生菜单栏/标题栏跟随应用主题

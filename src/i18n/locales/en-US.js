@@ -33,6 +33,7 @@ export default {
     savingFailed: 'Save failed: '
   },
   nav: {
+    petCenter: 'Pet Companion',
     dashboard: 'Dashboard',
     workspaces: 'Space Management',
     software: 'Software Library',
@@ -50,6 +51,20 @@ export default {
     lightMode: 'Light mode',
     darkMode: 'Dark mode',
     version: 'Version'
+  },
+  petCenter: {
+    title: 'Pet Workbench', subtitle: 'Manage your work companion, chat personality, and Codex v1 / v2 animation models.', tutorial: 'Tutorial',
+    tabCompanion: 'Companion Chat', tabModels: 'Model Wardrobe', tabSettings: 'Pet Settings', greeting: "Hi, I'm ready. What shall we finish first today?",
+    loading: 'Waking your pet…', importSuccess: 'Imported and switched to the new pet.', removeConfirm: 'Delete this imported pet model?',
+    bubbleThinking: 'Thinking carefully…', bubbleFailed: 'Connection failed. Please try again.', aiConnectFailed: 'Could not connect to AI: {message}', aiSaved: 'AI chat settings saved.',
+    companion: 'Work Companion', conciseMode: 'Concise companion mode', aiConnected: 'AI connected', awaitingConfig: 'Setup required', chatPlaceholder: 'Tell your companion what you want to finish…', send: 'Send',
+    importTitle: 'Bring a new companion home', importDescriptionBefore: 'Choose', importDescriptionAfter: ' from a model folder. Codex v1 (1536×1872) and v2 (1536×2288) are detected automatically and copied into the secure local library.',
+    chooseFolder: 'Choose pet folder', chooseManifest: 'Choose pet.json', contractV1: 'v1: 8×9 animation atlas', contractV2: 'v2: 8×11 animation atlas', contractLegacy: 'Legacy manifests may omit spriteVersionNumber', contractImage: 'Transparent PNG / WebP',
+    modelLibrary: 'Model Wardrobe', customPetDescription: 'Custom Codex v{version} pet', inUse: 'In use', setAsPet: 'Set as pet',
+    desktopBehavior: 'Desktop Behavior', showPet: 'Show pet', showPetDesc: 'Show the transparent always-on-top work companion', roaming: 'Random roaming', roamingDesc: 'Occasionally wander nearby while idle', alwaysOnTop: 'Always on top', alwaysOnTopDesc: 'Keep the pet above other windows', petSize: 'Pet size', opacity: 'Opacity',
+    chatCapability: 'Chat Capability', provider: 'Model provider', providerCustom: 'Custom provider', apiFormat: 'API format', chatCompletionsDesc: 'Universal OpenAI-compatible format', responsesDesc: 'OpenAI Responses format', model: 'Model', customModelOption: 'Custom model…', customModelId: 'Custom model ID', customModelPlaceholder: 'Enter the model ID supplied by the provider', awaitingModel: 'Model required', apiAddress: 'API address', companionName: 'Companion name', keySaved: 'Key saved for this provider; leave blank to keep it', keyPlaceholder: "Enter this provider's API key", personality: 'Personality prompt', keySecurity: 'The key is read only by the Electron main process and encrypted with system secure storage.', saveAi: 'Save AI settings',
+    petBubbleReady: 'Ready to work together?', petBubbleCheer: "Let's do our best today!", petBubbleNext: "What's next?",
+    animation: { idle: 'Idle', walkRight: 'Walk right', walkLeft: 'Walk left', wave: 'Wave', jump: 'Jump', failed: 'Failed', waiting: 'Waiting', working: 'Working', review: 'Review' }
   },
   dashboard: {
     subtitle: 'Ready to get into your workflow',

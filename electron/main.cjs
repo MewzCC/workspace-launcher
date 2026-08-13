@@ -136,7 +136,14 @@ if (!gotSingleInstanceLock) {
     shortcutService.init({ showWindow: showMainWindow })
     shortcutService.syncShortcuts()
     updateService.start()
-    petService.init({ showWindow: showMainWindow })
+    petService.init({
+      showWindow: showMainWindow,
+      openPetCenter: () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('app:navigate', 'pet-center')
+        }
+      }
+    })
 
     app.on('activate', showMainWindow)
   })

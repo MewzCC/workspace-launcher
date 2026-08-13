@@ -16,7 +16,8 @@ import {
   X,
   Globe,
   ChevronDown,
-  Check
+  Check,
+  Cat
 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
@@ -109,6 +110,7 @@ function Sidebar() {
     { key: 'scan', icon: ScanLine, label: t('nav.scan') },
     { key: 'monitor', icon: Activity, label: t('nav.monitor') },
     { key: 'processes', icon: ListTree, label: t('nav.processes') },
+    { key: 'pet-center', icon: Cat, label: t('nav.petCenter') },
     { key: 'settings', icon: SettingsIcon, label: t('nav.settings') }
   ]
   // 从 store 读取状态与 action

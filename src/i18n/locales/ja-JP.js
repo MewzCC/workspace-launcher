@@ -33,6 +33,7 @@ export default {
     savingFailed: '保存失敗: '
   },
   nav: {
+    petCenter: 'ペットワークベンチ',
     dashboard: 'ダッシュボード',
     workspaces: 'スペース管理',
     software: 'ソフトウェアライブラリ',
@@ -50,6 +51,20 @@ export default {
     lightMode: 'ライトモード',
     darkMode: 'ダークモード',
     version: 'バージョン'
+  },
+  petCenter: {
+    title: 'ペットワークベンチ', subtitle: '仕事仲間、会話の性格、Codex v1 / v2 アニメーションモデルを管理します。', tutorial: '使い方',
+    tabCompanion: 'コンパニオン会話', tabModels: 'モデル衣装棚', tabSettings: 'ペット設定', greeting: '準備できました。今日は何から終わらせますか？',
+    loading: 'ペットを起こしています…', importSuccess: 'インポートし、新しいペットに切り替えました。', removeConfirm: 'このインポート済みペットモデルを削除しますか？',
+    bubbleThinking: 'じっくり考えています…', bubbleFailed: '接続できませんでした。もう一度お試しください。', aiConnectFailed: 'AI に接続できませんでした：{message}', aiSaved: 'AI 会話設定を保存しました。',
+    companion: '仕事仲間', conciseMode: '簡潔なコンパニオンモード', aiConnected: 'AI 接続済み', awaitingConfig: '設定待ち', chatPlaceholder: '今から終わらせたいことを伝えてください…', send: '送信',
+    importTitle: '新しい仲間を迎える', importDescriptionBefore: 'モデルフォルダーの', importDescriptionAfter: 'を選択します。Codex v1（1536×1872）と v2（1536×2288）を自動判別し、安全なローカルライブラリへコピーします。',
+    chooseFolder: 'ペットフォルダーを選択', chooseManifest: 'pet.json を選択', contractV1: 'v1：8×9 アニメーションアトラス', contractV2: 'v2：8×11 アニメーションアトラス', contractLegacy: '旧形式は spriteVersionNumber を省略可能', contractImage: '透過 PNG / WebP',
+    modelLibrary: 'モデル衣装棚', customPetDescription: 'Codex v{version} カスタムペット', inUse: '使用中', setAsPet: 'ペットに設定',
+    desktopBehavior: 'デスクトップ動作', showPet: 'ペットを表示', showPetDesc: '透明な最前面の仕事仲間をデスクトップに表示', roaming: 'ランダム移動', roamingDesc: '待機中に近くを時々歩きます', alwaysOnTop: '常に最前面', alwaysOnTopDesc: 'ほかのウィンドウより上に表示', petSize: 'ペットの大きさ', opacity: '不透明度',
+    chatCapability: '会話機能', provider: 'モデル提供元', providerCustom: 'カスタム提供元', apiFormat: 'API 形式', chatCompletionsDesc: '汎用 OpenAI 互換形式', responsesDesc: 'OpenAI Responses 形式', model: 'モデル', customModelOption: 'カスタムモデル…', customModelId: 'カスタムモデル ID', customModelPlaceholder: '提供元が指定するモデル ID を入力', awaitingModel: 'モデルを入力してください', apiAddress: 'API アドレス', companionName: '仲間の名前', keySaved: 'この提供元の Key は保存済みです。空欄なら変更しません', keyPlaceholder: 'この提供元の API Key を入力', personality: '性格プロンプト', keySecurity: 'Key は Electron のメインプロセスのみが読み取り、システムの安全なストレージで暗号化されます。', saveAi: 'AI 設定を保存',
+    petBubbleReady: '一緒に作業する準備はできましたか？', petBubbleCheer: '今日も頑張りましょう！', petBubbleNext: '次は何をしますか？',
+    animation: { idle: '待機', walkRight: '右へ移動', walkLeft: '左へ移動', wave: '手を振る', jump: 'ジャンプ', failed: '失敗', waiting: '入力待ち', working: '作業中', review: '確認' }
   },
   dashboard: {
     subtitle: 'あなたのワークフローを始めましょう',

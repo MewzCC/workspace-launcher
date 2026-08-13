@@ -33,6 +33,7 @@ export default {
     savingFailed: '保存失败：'
   },
   nav: {
+    petCenter: '桌宠工作台',
     dashboard: '启动台',
     workspaces: '空间管理',
     software: '软件库',
@@ -50,6 +51,20 @@ export default {
     lightMode: '亮色模式',
     darkMode: '暗色模式',
     version: '版本'
+  },
+  petCenter: {
+    title: '桌宠工作台', subtitle: '管理你的工作伙伴、对话人格与 Codex v1 / v2 动画模型。', tutorial: '使用教程',
+    tabCompanion: '陪伴对话', tabModels: '模型衣橱', tabSettings: '桌宠设置', greeting: '嗨，我已经准备好了。今天我们先完成哪件事？',
+    loading: '正在唤醒桌宠…', importSuccess: '导入成功，已切换为新桌宠。', removeConfirm: '确定删除这个已导入的桌宠模型吗？',
+    bubbleThinking: '正在认真思考…', bubbleFailed: '连接失败了，再试一次吧', aiConnectFailed: '暂时没能连接到 AI：{message}', aiSaved: 'AI 对话设置已保存。',
+    companion: '工作伙伴', conciseMode: '简短陪伴模式', aiConnected: 'AI 已连接', awaitingConfig: '等待配置', chatPlaceholder: '告诉它你现在准备完成什么…', send: '发送',
+    importTitle: '把新的伙伴带回家', importDescriptionBefore: '选择模型目录中的', importDescriptionAfter: '。系统会自动识别 Codex v1（1536×1872）或 v2（1536×2288），再复制到安全的本地模型库。',
+    chooseFolder: '选择桌宠文件夹', chooseManifest: '选择 pet.json', contractV1: 'v1：8×9 动画图集', contractV2: 'v2：8×11 动画图集', contractLegacy: '旧版可省略 spriteVersionNumber', contractImage: 'PNG / WebP 透明背景',
+    modelLibrary: '模型衣橱', customPetDescription: 'Codex v{version} 自定义桌宠', inUse: '使用中', setAsPet: '设为桌宠',
+    desktopBehavior: '桌面行为', showPet: '显示桌宠', showPetDesc: '在桌面显示透明置顶的工作伙伴', roaming: '随机漫游', roamingDesc: '空闲时偶尔在附近走动', alwaysOnTop: '保持置顶', alwaysOnTopDesc: '让桌宠显示在其他窗口上方', petSize: '桌宠大小', opacity: '透明度',
+    chatCapability: '对话能力', provider: '模型厂商', providerCustom: '自定义厂商', apiFormat: '接口方式', chatCompletionsDesc: 'OpenAI Compatible 通用格式', responsesDesc: 'OpenAI 新版响应格式', model: '模型', customModelOption: '自定义模型…', customModelId: '自定义模型 ID', customModelPlaceholder: '请输入厂商提供的模型 ID', awaitingModel: '等待填写模型', apiAddress: 'API 地址', companionName: '伙伴名字', keySaved: '该厂商 Key 已保存，留空不修改', keyPlaceholder: '填写该厂商的 API Key', personality: '性格提示', keySecurity: 'Key 仅由 Electron 主进程读取，并使用系统安全存储加密。', saveAi: '保存 AI 设置',
+    petBubbleReady: '准备好一起工作了吗？', petBubbleCheer: '今天也要加油！', petBubbleNext: '下一件事是什么？',
+    animation: { idle: '待机', walkRight: '右行', walkLeft: '左行', wave: '招手', jump: '跳跃', failed: '失败', waiting: '等待', working: '工作', review: '检查' }
   },
   dashboard: {
     subtitle: '准备进入你的工作状态',

@@ -1,117 +1,147 @@
 <div align="center">
 
-# 🚀 LaunchPad
+# LaunchPad
 
-### 把每天重复打开的软件，变成真正的「一键启动」
+### 一键进入工作状态，也让一只 AI 桌宠陪你完成它
 
-一款简洁、开源、专为 Windows 打造的工作空间管理与软件启动器。  
-自由组合开发、办公、创作或游戏应用，设置启动顺序与延迟，一次点击进入状态。
+面向 Windows 的开源工作空间启动器与工作陪伴工具。
+批量启动应用、管理进程与自动化任务，并通过可导入的动态桌宠获得轻量 AI 对话陪伴。
 
 [![Release](https://img.shields.io/github/v/release/MewzCC/workspace-launcher?style=for-the-badge&logo=github&color=635bff)](https://github.com/MewzCC/workspace-launcher/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/MewzCC/workspace-launcher/total?style=for-the-badge&logo=windows&color=06b6d4)](https://github.com/MewzCC/workspace-launcher/releases)
 [![License](https://img.shields.io/github/license/MewzCC/workspace-launcher?style=for-the-badge&color=22c55e)](LICENSE)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/MewzCC/workspace-launcher/releases/latest)
 
-[⬇️ 下载最新版](https://github.com/MewzCC/workspace-launcher/releases/latest) ·
-[✨ 功能亮点](#-为什么选择-launchpad) ·
-[🛠️ 本地开发](#️-本地开发) ·
-[💬 反馈建议](https://github.com/MewzCC/workspace-launcher/issues)
+[下载最新版](https://github.com/MewzCC/workspace-launcher/releases/latest) ·
+[查看功能](#核心能力) ·
+[桌宠模型导入](#导入-codex-桌宠模型) ·
+[本地开发](#本地开发) ·
+[反馈问题](https://github.com/MewzCC/workspace-launcher/issues)
+
+**界面语言：简体中文 · English · 日本語**
 
 </div>
 
-![LaunchPad 空间管理与一键启动界面](docs/images/workspace-management.png)
+![LaunchPad 工作空间管理界面](docs/images/workspace-management.png)
 
-## 🆕 v1.4.2：更新体验与数据路径完善
+## LaunchPad 是什么？
 
-- 🔎 **输入即搜索**：无需先执行扫描，直接通过 Everything 与 Windows 应用索引查找软件。
-- ⏹️ **扫描可取消**：标准、盘符和目录扫描均可随时停止，切换界面或盘符不会再丢失已有结果。
-- 🧠 **进程管理控制台**：按应用名称、PID 或监听端口定位进程，分页浏览并安全结束目标进程。
-- 🔄 **自动更新**：安装版自动检查 GitHub Releases，下载完成后点击“重启并安装”或关闭应用即自动安装。
-- 📝 **更新日志弹窗**：更新完成后展示本次更新内容。
-- 📁 **用户数据路径**：数据目录跟随安装路径，更新与卸载始终保留工作空间和设置。
+LaunchPad 把每天重复打开的软件、脚本和工具组织成“工作空间”。设置一次启动顺序与延迟，之后只需点击一次，就能进入工作、学习、创作或游戏状态。
 
-[查看 v1.4.2 完整更新日志](CHANGELOG.md#142---2026-08-12)
+从 v1.5.0 开始，LaunchPad 也提供独立的“桌宠工作台”：你可以导入 Codex v1/v2 动画桌宠、调整它在桌面的行为，并连接自己选择的 AI 服务，让桌宠成为安静、低打扰的工作伙伴。
 
-## 💡 LaunchPad 是什么？
+应用配置与工作空间数据保存在本机 SQLite 数据库中，无需注册 LaunchPad 账号。
 
-每天开始工作时，你是否需要依次打开编辑器、浏览器、聊天工具、终端和文档？玩游戏前，又要逐个启动平台、加速器与辅助工具？
+## 核心能力
 
-**LaunchPad 把这些重复操作收进一个工作空间。** 选择需要的软件、调整启动顺序和间隔，之后只需点击一次「一键启动」，就能快速进入工作、学习、创作或游戏状态。
+### 工作空间与效率工具
 
-数据保存在本机 SQLite 数据库中，不依赖云端账号，开箱即用。
+- 将多个 Windows 应用组合为工作空间并一键批量启动。
+- 自定义应用启动顺序、延迟、参数和启动前后脚本。
+- 在启动台查看运行状态，并一键关闭工作空间中的应用。
+- 通过系统托盘驻留、开机启动和全局快捷键快速进入工作状态。
+- 使用 Everything 即时搜索或扫描磁盘、目录和开始菜单中的软件。
+- 管理软件库、BAT/CMD 脚本与本地自动化任务。
+- 按名称、PID 或端口定位进程，查看资源占用并结束目标进程。
+- 查看 CPU、内存、磁盘 I/O、网络与进程资源状态。
+- 支持浅色/深色主题，以及简体中文、English、日本語三种界面语言。
 
-## ✨ 为什么选择 LaunchPad？
+### 工作陪伴型桌宠
 
-| 功能 | 说明 |
-| --- | --- |
-| 🚀 **一键启动** | 将多个 Windows 软件组合为工作空间，一次点击批量启动 |
-| 🛰️ **系统托盘** | 关闭窗口后继续驻留，可从托盘显示窗口或直接一键启动工作空间 |
-| ⚡ **开机启动** | 登录 Windows 后自动运行，并可选择静默驻留系统托盘 |
-| 🧩 **自由编排** | 为每个软件设置启动顺序和延迟，减少开机拥堵 |
-| 🔍 **智能扫描** | 扫描开始菜单、Program Files、指定磁盘或目录；支持取消并保留扫描结果 |
-| 🔎 **即时搜索** | 无需预扫描，按应用名称实时查询 Everything 与 Windows 应用索引 |
-| 📦 **软件库** | 集中管理可执行文件、启动参数、图标和描述 |
-| 🧠 **进程管理** | 按应用名称、PID 或监听端口搜索进程，分页查看资源占用并结束目标进程 |
-| 🛡️ **启动验证** | 添加前实际测试程序；启动失败、权限受限或路径异常的软件不会写入软件库 |
-| 🖥️ **BAT 脚本库** | 管理并一键运行本地 `.bat` / `.cmd` 自动化脚本 |
-| ⚙️ **自动化脚本** | 支持启动前后命令，并可在软件启动后按顺序自动运行脚本库中的 BAT/CMD |
-| 🔄 **进程重启策略** | 可在启动工作空间前按完整 EXE 路径结束已有实例，再重新启动软件 |
-| 📈 **状态与日志** | 查看启动进度、运行状态和历史记录 |
-| 🔁 **自动更新** | 安装版自动检查 GitHub Releases，支持下载进度与重启安装 |
-| 🌗 **明暗主题** | 现代化浅色/深色界面，适配不同使用环境 |
-| 🌍 **多语言** | 支持简体中文、English 和日本語，菜单与系统托盘同步切换 |
-| 🔒 **本地优先** | 配置与数据存储在本机，无需注册登录 |
+- 独立桌宠工作台，集中管理陪伴对话、模型衣橱与桌宠设置。
+- 兼容 Codex v1 与 v2 精灵图模型，并自动识别旧版清单。
+- 支持待机、行走、工作、庆祝、休息等多种动画状态。
+- 可调整桌宠大小、透明度、自由移动和窗口置顶行为。
+- 桌宠窗口会随模型动态调整，不用大面积透明窗口遮挡其他应用。
+- 支持拖拽移动；拖拽区域跟随桌宠，不会因持续拖动不断放大窗口。
+- 对话气泡自适应内容与桌面边界，避免文字被窗口裁切。
 
-## 📸 界面预览
+### 可配置 AI 对话
 
-### 🧭 工作空间管理
+- 内置 OpenAI、DeepSeek、Kimi/月之暗面、智谱 GLM 厂商预设。
+- 支持自定义 API 地址和模型 ID。
+- 可在 Chat Completions 与 Responses API 两种接口格式中选择。
+- 每个厂商可保存独立 API Key，Key 由 Electron 主进程读取并通过系统安全存储加密。
+- AI 默认使用当前界面语言回答：简体中文、English 或日本語。
+- 可自定义桌宠名字和性格提示，让回复方式符合自己的工作习惯。
 
-将常用软件按场景分组：开发、办公、游戏、直播或学习，都可以拥有自己的启动方案。
+> AI 对话请求会发送到你配置的模型服务商。请阅读对应服务商的隐私政策与计费规则，不要在对话中提交密码、令牌或其他敏感信息。
+
+## 桌宠快速开始
+
+1. 打开侧边栏中的“桌宠工作台”。
+2. 在“模型衣橱”选择内置桌宠，或导入自己的 Codex 桌宠模型。
+3. 在“桌宠设置”调整大小、透明度、漫游与置顶行为。
+4. 在 AI 设置中选择厂商、接口方式与模型，填写 API Key 后保存。
+5. 回到“陪伴对话”，桌宠便会按照当前界面语言与你交流。
+
+### 导入 Codex 桌宠模型
+
+可选择包含 `pet.json` 的完整模型文件夹，也可直接选择 `pet.json`。导入时模型会复制到 LaunchPad 的本地模型库，源文件不会被修改。
+
+支持的动画图集：
+
+| 版本 | 图集布局 | 图集尺寸 | 清单识别 |
+| --- | --- | --- | --- |
+| Codex v1 | 8 × 9 | 1536 × 1872 | `spriteVersionNumber: 1`，旧模型可省略该字段 |
+| Codex v2 | 8 × 11 | 1536 × 2288 | `spriteVersionNumber: 2` |
+
+模型目录至少应包含：
+
+```text
+my-pet/
+├── pet.json
+└── spritesheet.png
+```
+
+图集支持透明背景 PNG 或 WebP。导入器会检查清单、图片路径与图集尺寸；如果校验失败，会在当前界面语言中显示具体原因。
+
+## 界面预览
+
+### 工作空间管理
+
+将开发、办公、创作或游戏应用按场景分组，创建自己的启动方案。
 
 ![工作空间管理](docs/images/workspace-management.png)
 
-### ➕ 添加软件
+### 添加与管理软件
 
-支持选择可执行文件、设置启动参数与图标，常用工具统一收纳。
+选择可执行文件、启动参数和图标，将常用工具集中收纳。
 
 ![添加软件](docs/images/add-software.png)
 
-### 🔎 扫描中心
+### 扫描中心
 
-无需预扫描即可搜索应用；也支持标准扫描、盘符扫描和目录扫描，扫描过程中可随时取消，已有结果会持续保留。
+通过 Everything 即时查找应用，或按磁盘与目录执行可取消的扫描。
 
 ![扫描中心](docs/images/scan-center.png)
 
-### 🧠 进程管理
+### 进程管理
 
-按应用名称、PID 或监听端口快速定位进程，以固定分页列表查看内存占用和监听状态，并可结束不再需要的进程。
+按应用名称、PID 或端口定位进程，查看资源状态并结束不再需要的任务。
 
 ![进程管理](docs/images/process-manager.png)
 
-### ⚙️ 设置与本地数据
+### 设置与本地数据
 
-清楚展示版本、技术栈和本地数据状态，所有配置都由你掌控。
+管理主题、语言、更新方式、数据路径和诊断信息。
 
 ![设置页面](docs/images/settings.png)
 
-## 📥 下载与安装
+## 下载与安装
 
 前往 [GitHub Releases](https://github.com/MewzCC/workspace-launcher/releases/latest) 下载：
 
-- **`LaunchPad-Setup-1.4.6-x64.exe`**：推荐，大多数用户选择此安装包；支持自选安装目录，并创建桌面与开始菜单快捷方式。
-- **`LaunchPad-Portable-1.4.6-x64.exe`**：免安装便携版，双击即可运行。
+- `LaunchPad-Setup-<version>-x64.exe`：推荐，支持自选安装目录，并创建桌面与开始菜单快捷方式。
+- `LaunchPad-Portable-<version>-x64.exe`：免安装便携版，下载后可直接运行。
 
-> 当前版本面向 Windows 10/11 x64。安装包暂未购买商业代码签名证书，Windows SmartScreen 可能显示未知发布者；请仅从本仓库 Release 页面下载。
+当前版本面向 Windows 10/11 x64。项目暂未使用商业代码签名证书，Windows SmartScreen 可能显示未知发布者；请只从本仓库 Releases 页面下载。
 
-## 🚀 三步开始一键启动
+安装版支持检查 GitHub Releases 更新。工作空间、设置和桌宠模型保存在用户数据目录中，正常升级不会清除这些数据。
 
-1. 在「扫描中心」自动发现软件，或在「软件库」手动添加程序。
-2. 新建工作空间，选择软件并设置启动顺序、延迟时间。
-3. 回到「启动台」或「空间管理」，点击 **一键启动**。
+## 本地开发
 
-## 🛠️ 本地开发
-
-环境要求：Node.js 18+、npm、Windows。
+环境要求：Windows、Node.js 18+、npm。
 
 ```bash
 git clone https://github.com/MewzCC/workspace-launcher.git
@@ -120,67 +150,48 @@ npm install
 npm run dev
 ```
 
-构建生产版本：
+构建与打包：
 
 ```bash
-# 仅构建应用
+# 构建 Electron 应用
 npm run build
 
-# 构建 Windows 安装包与便携版
+# 生成 Windows 安装包与便携版
 npm run dist:win
 ```
 
-构建产物会输出到 `release/`。
+打包产物输出到 `release/`。推送与 `package.json` 版本一致的 `v*` Tag 后，GitHub Actions 会自动构建并发布 Windows 产物。
 
-## 🧱 技术栈
+## 技术栈
 
-- ⚛️ React 18 + Zustand
-- ⚡ Vite + Electron Vite
-- 🖥️ Electron 31
-- 🗃️ SQLite / better-sqlite3
-- 🎨 Lucide React + 原生 CSS
-- 📦 electron-builder + NSIS
+- Electron 31 + Electron Vite
+- React 18 + Zustand
+- SQLite + better-sqlite3
+- Chart.js + Lucide React
+- electron-builder + NSIS
 
-## 🗺️ 开发日程
+## 数据与安全
 
-### ✅ v1.4.1 已完成
+- 工作空间、设置和桌宠配置默认保存在本机。
+- API Key 不会提供给渲染页面明文读取，由 Electron 主进程使用系统安全存储加密。
+- 自定义模型导入前会校验清单与精灵图，随后复制到应用管理的本地目录。
+- 结束进程、关闭工作空间等操作只针对用户明确配置或选择的目标。
 
-- [x] 系统托盘、开机启动与静默驻留
-- [x] 进程管理、PID/端口检索与分页加载
-- [x] Everything 即时应用搜索、扫描缓存与取消扫描
-- [x] 工作空间运行状态识别与启动日志优化
-- [x] 简体中文、English、日本語多语言支持
-- [x] Windows 主程序、安装包与托盘图标更新
-- [x] 安装版自动更新检查、下载进度与重启安装
-- [x] 更新日志预览、安装目录数据存储和动态版本展示
+## 参与贡献
 
-### 🎯 下一阶段
-
-- [ ] 一键关闭工作空间（记录启动 PID，整体关闭）
-- [ ] 启动条件编排（端口检测 / 进程就绪 / 失败重试）
-- [ ] 数据库自动备份与恢复
-- [ ] 每进程网络流量、性能历史持久化、资源告警
-- [ ] 更新渠道切换（稳定版 / 测试版）
-- [ ] 全局命令面板、工作空间拖拽排序、快捷键管理
-
-> 详细规划见 [ROADMAP.md](ROADMAP.md)。
-
-欢迎在 [Issues](https://github.com/MewzCC/workspace-launcher/issues) 提交建议或问题，也欢迎贡献代码。
-
-## 🤝 参与贡献
-
-1. Fork 本仓库并创建功能分支。
-2. 提交清晰、聚焦的改动。
+1. Fork 仓库并创建功能分支。
+2. 提交聚焦且易于审查的改动。
 3. 确认 `npm run build` 通过。
-4. 发起 Pull Request，并说明改动动机与测试方式。
+4. 发起 Pull Request，说明改动动机与验证方式。
 
-## 📄 开源协议
+欢迎通过 [Issues](https://github.com/MewzCC/workspace-launcher/issues) 报告问题、提出建议或补充翻译。
+
+## 开源协议
 
 本项目基于 [MIT License](LICENSE) 开源。
 
 <div align="center">
 
-如果 LaunchPad 帮你少点几次鼠标，欢迎点亮一个 ⭐  
-你的 Star 会让更多需要「Windows 一键启动」和「工作空间管理」的用户发现它。
+如果 LaunchPad 帮你更快进入状态，欢迎点亮一个 Star。
 
 </div>

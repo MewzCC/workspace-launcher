@@ -7,6 +7,7 @@ import './styles/theme.css'
 import './styles/global.css'
 
 const isPetWindow = window.location.hash === '#/pet'
+if (isPetWindow) document.body.classList.add('pet-window-body')
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   isPetWindow ? <Pet /> : <App />

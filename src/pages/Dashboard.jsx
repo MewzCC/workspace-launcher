@@ -344,30 +344,33 @@ function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit, on
           <Pencil size={14} />
           {t('dashboard.quickEdit')}
         </GlowButton>
-        {runningCount > 0 && (
+        <div className="quick-card-actions">
+          {runningCount > 0 && (
+            <GlowButton
+              variant="ghost"
+              size="sm"
+              className="quick-card-close"
+              disabled={closing}
+              onClick={() => onClose(workspace)}
+            >
+              {closing ? <LoaderCircle size={14} className="process-spin" /> : <CircleStop size={14} />}
+              {t('workspaces.close')}
+            </GlowButton>
+          )}
           <GlowButton
-            variant="ghost"
+            variant="primary"
             size="sm"
-            disabled={closing}
-            onClick={() => onClose(workspace)}
+            disabled={isLaunching}
+            onClick={() => onLaunch(workspace, allRunning)}
           >
-            {closing ? <LoaderCircle size={14} className="process-spin" /> : <CircleStop size={14} />}
-            {t('workspaces.close')}
+            {allRunning ? <RotateCcw size={14} /> : <Play size={14} />}
+            {isLaunching
+              ? t('common.starting')
+              : allRunning
+                ? t('dashboard.relaunch')
+                : t('dashboard.launch')}
           </GlowButton>
-        )}
-        <GlowButton
-          variant="primary"
-          size="sm"
-          disabled={isLaunching}
-          onClick={() => onLaunch(workspace, allRunning)}
-        >
-          {allRunning ? <RotateCcw size={14} /> : <Play size={14} />}
-          {isLaunching
-            ? t('common.starting')
-            : allRunning
-              ? t('dashboard.relaunch')
-              : t('dashboard.launch')}
-        </GlowButton>
+        </div>
       </div>
     </GlassCard>
   )

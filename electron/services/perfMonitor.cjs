@@ -194,7 +194,7 @@ function getSlowStats() {
 //   （适配卡显存无此计数器集时退回 \GPU Local Adapter Memory(*)\Local Usage）
 // - 每进程 CPU 使用率来自 Win32_PerfFormattedData_PerfProc_Process（任务管理器同源），
 //   % Processor Time 按逻辑核数归一化，上限 100%。
-const GPU_TTL_MS = 2000
+const GPU_TTL_MS = 3000
 const gpuHolder = { value: null, updatedAt: 0, pending: null }
 
 function loadGpuStats() {

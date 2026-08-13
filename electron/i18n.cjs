@@ -38,7 +38,11 @@ const MESSAGES = {
     pet: {
       openLaunchpad: '打开 LaunchPad',
       goHome: '回家',
-      hide: '隐藏桌宠'
+      hide: '隐藏桌宠',
+      defaultPersonality: '你是一只安静、友善的工作陪伴型桌宠。回答简短自然，优先鼓励用户拆分任务、专注工作和适时休息。',
+      responseLanguageRule: '始终使用简体中文回复。即使用户使用其他语言，也默认保持当前界面语言；只有用户明确要求翻译或切换语言时才改变。',
+      defaultName: '桌宠', systemInstruction: '你的名字是{name}。{personality}\n你是工作陪伴型桌宠，每次回复尽量控制在120字以内。', invalidProvider: 'AI 厂商无效', invalidApiFormat: '接口格式无效', httpsRequired: 'AI 接口必须使用 HTTPS；本地 localhost 可使用 HTTP', invalidModel: '模型名称无效', keyRequired: '请先在桌宠设置中填写 API Key', messageRequired: '请输入消息', requestFailed: 'AI 请求失败（{status}）', emptyResponse: 'AI 没有返回可显示的文本', invalidWebpChunk: 'WebP 数据块不完整', unknownWebpSize: '无法识别 WebP 图像尺寸', invalidImage: '仅支持有效的 PNG 或 WebP 精灵图',
+      invalidId: '桌宠 ID 无效，请使用 1-64 位字母、数字、短横线或下划线', invalidManifest: 'pet.json 内容无效', invalidVersion: 'spriteVersionNumber 仅支持 1 或 2（旧版清单可省略该字段）', invalidSpritePath: 'spritesheetPath 必须指向 PNG 或 WebP 文件', spriteNotFound: '找不到精灵图：{name}', spriteUnreadable: '精灵图无法读取：{message}', invalidAtlasSize: 'Codex v{version} 精灵图必须为 {width}×{height}，当前为 {actualWidth}×{actualHeight}', pathMissing: '选择的桌宠路径不存在', choosePetPath: '请选择桌宠文件夹，或该文件夹中的 pet.json', manifestMissing: '桌宠文件夹中缺少 pet.json：{path}', manifestValidationFailed: 'pet.json 校验失败：{message}', spriteValidationFailed: '{name} 校验失败：{message}', modelUnavailable: '桌宠模型不存在或已损坏', builtinCannotDelete: '内置桌宠不能删除', invalidPetPath: '桌宠路径无效', builtinDescription: 'LaunchPad 内置的轻量工作伙伴'
     },
     menu: {
       file: '文件',
@@ -171,7 +175,11 @@ const MESSAGES = {
     pet: {
       openLaunchpad: 'Open LaunchPad',
       goHome: 'Go home',
-      hide: 'Hide pet'
+      hide: 'Hide pet',
+      defaultPersonality: 'You are a calm, friendly work-companion desktop pet. Reply naturally and concisely, encourage breaking tasks down, focused work, and timely breaks.',
+      responseLanguageRule: 'Always reply in English. Even if the user writes in another language, keep the current interface language unless they explicitly request a translation or language change.',
+      defaultName: 'Pet', systemInstruction: 'Your name is {name}. {personality}\nYou are a work-companion desktop pet. Keep each reply within about 120 words.', invalidProvider: 'Invalid AI provider', invalidApiFormat: 'Invalid API format', httpsRequired: 'The AI endpoint must use HTTPS; localhost may use HTTP', invalidModel: 'Invalid model name', keyRequired: 'Add an API key in Pet Settings first', messageRequired: 'Enter a message', requestFailed: 'AI request failed ({status})', emptyResponse: 'The AI returned no displayable text', invalidWebpChunk: 'Incomplete WebP data chunk', unknownWebpSize: 'Could not determine WebP image dimensions', invalidImage: 'Only valid PNG or WebP spritesheets are supported',
+      invalidId: 'Invalid pet ID. Use 1-64 letters, numbers, hyphens, or underscores', invalidManifest: 'Invalid pet.json content', invalidVersion: 'spriteVersionNumber must be 1 or 2 (legacy manifests may omit it)', invalidSpritePath: 'spritesheetPath must point to a PNG or WebP file', spriteNotFound: 'Spritesheet not found: {name}', spriteUnreadable: 'Could not read spritesheet: {message}', invalidAtlasSize: 'Codex v{version} spritesheet must be {width}×{height}; received {actualWidth}×{actualHeight}', pathMissing: 'The selected pet path does not exist', choosePetPath: 'Choose a pet folder or its pet.json file', manifestMissing: 'The pet folder has no pet.json: {path}', manifestValidationFailed: 'pet.json validation failed: {message}', spriteValidationFailed: '{name} validation failed: {message}', modelUnavailable: 'The pet model is missing or damaged', builtinCannotDelete: 'The built-in pet cannot be deleted', invalidPetPath: 'Invalid pet path', builtinDescription: "LaunchPad's lightweight built-in work companion"
     },
     menu: {
       file: 'File',
@@ -304,7 +312,11 @@ const MESSAGES = {
     pet: {
       openLaunchpad: 'LaunchPad を開く',
       goHome: '家に帰る',
-      hide: 'ペットを隠す'
+      hide: 'ペットを隠す',
+      defaultPersonality: 'あなたは静かで親しみやすい仕事仲間のデスクトップペットです。簡潔で自然に答え、タスクの分割、集中、適度な休憩を勧めます。',
+      responseLanguageRule: '常に日本語で返答してください。ユーザーが別の言語を使っても、翻訳や言語変更を明示的に依頼しない限り、現在の画面言語を維持してください。',
+      defaultName: 'ペット', systemInstruction: 'あなたの名前は{name}です。{personality}\nあなたは仕事を支えるデスクトップペットです。返答はできるだけ120文字以内にしてください。', invalidProvider: 'AI 提供元が無効です', invalidApiFormat: 'API 形式が無効です', httpsRequired: 'AI エンドポイントには HTTPS が必要です。localhost は HTTP を使用できます', invalidModel: 'モデル名が無効です', keyRequired: '先にペット設定で API Key を入力してください', messageRequired: 'メッセージを入力してください', requestFailed: 'AI リクエストに失敗しました（{status}）', emptyResponse: 'AI から表示可能なテキストが返されませんでした', invalidWebpChunk: 'WebP データチャンクが不完全です', unknownWebpSize: 'WebP 画像のサイズを判定できません', invalidImage: '有効な PNG または WebP スプライトシートのみ対応しています',
+      invalidId: 'ペット ID が無効です。1〜64 文字の英数字、ハイフン、アンダースコアを使用してください', invalidManifest: 'pet.json の内容が無効です', invalidVersion: 'spriteVersionNumber は 1 または 2 のみ対応します（旧形式は省略可能）', invalidSpritePath: 'spritesheetPath は PNG または WebP を指定してください', spriteNotFound: 'スプライトシートが見つかりません：{name}', spriteUnreadable: 'スプライトシートを読み取れません：{message}', invalidAtlasSize: 'Codex v{version} スプライトシートは {width}×{height} が必要です。現在は {actualWidth}×{actualHeight} です', pathMissing: '選択したペットパスが存在しません', choosePetPath: 'ペットフォルダーまたはその pet.json を選択してください', manifestMissing: 'ペットフォルダーに pet.json がありません：{path}', manifestValidationFailed: 'pet.json の検証に失敗しました：{message}', spriteValidationFailed: '{name} の検証に失敗しました：{message}', modelUnavailable: 'ペットモデルが存在しないか破損しています', builtinCannotDelete: '内蔵ペットは削除できません', invalidPetPath: 'ペットパスが無効です', builtinDescription: 'LaunchPad 内蔵の軽量な仕事仲間'
     },
     menu: {
       file: 'ファイル',

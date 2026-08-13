@@ -37,6 +37,35 @@
   -webkit-backdrop-filter: blur(var(--brand-blur));
 }
 
+.greeting-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  color: var(--brand-muted-foreground);
+  background: var(--brand-card);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-md);
+  backdrop-filter: blur(var(--brand-blur));
+  -webkit-backdrop-filter: blur(var(--brand-blur));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--brand-transition);
+}
+
+.tutorial-trigger:hover {
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--brand-card));
+}
+
 /* 工作空间卡片网格：响应式自适应列数 */
 .workspace-grid {
   display: grid;

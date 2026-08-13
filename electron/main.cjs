@@ -6,6 +6,7 @@ const shortcutService = require('./services/shortcutService.cjs')
 const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const crashLogger = require('./services/crashLogger.cjs')
+const petService = require('./services/petService.cjs')
 const { t } = require('./i18n.cjs')
 
 let mainWindow = null
@@ -135,6 +136,7 @@ if (!gotSingleInstanceLock) {
     shortcutService.init({ showWindow: showMainWindow })
     shortcutService.syncShortcuts()
     updateService.start()
+    petService.init({ showWindow: showMainWindow })
 
     app.on('activate', showMainWindow)
   })
@@ -148,6 +150,7 @@ app.on('will-quit', () => {
   trayService.destroyTray()
   shortcutService.unregisterAll()
   updateService.stop()
+  petService.destroyPetWindow()
 })
 
 app.on('window-all-closed', () => {

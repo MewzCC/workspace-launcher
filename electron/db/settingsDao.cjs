@@ -8,7 +8,9 @@ const DEFAULTS = {
   language: 'zh-CN',
   updateNotify: true,
   updateMode: 'background',
-  skippedVersion: ''
+  skippedVersion: '',
+  petEnabled: true,
+  petPosition: null
 }
 
 let stmts = null

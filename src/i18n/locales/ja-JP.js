@@ -383,6 +383,8 @@ export default {
     updateModeManual: '通知のみ（手動更新）',
     updateModeBackground: 'バックグラウンドで静かにダウンロード',
     updateModeAuto: '自動ダウンロードして再起動',
+    petEnabled: 'デスクトップペット',
+    petEnabledDesc: 'デスクトップにドラッグ可能なペットを表示。ダブルクリックで LaunchPad を開き、右クリックでメニュー表示',
     updateSkipped: 'v{version} をスキップしました。手動チェックで更新できます。',
     updateNotes: '更新履歴',
     updateHistory: '更新履歴',
@@ -452,6 +454,12 @@ export default {
     clearAll: 'すべてのデータを消去',
     clearing: '消去中...',
     clearConfirm: 'すべてのデータを消去しますか？この操作は元に戻せません！'
+  },
+  tutorial: {
+    title: 'チュートリアル',
+    subtitle: 'LaunchPad の各モジュールの操作ガイド',
+    short: 'ガイド',
+    sections: 'カテゴリ'
   },
   launch: {
     title: 'ワークスペース',

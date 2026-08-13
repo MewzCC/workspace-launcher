@@ -15,6 +15,7 @@ const updateService = require('../services/updateService.cjs')
 const dataTransferService = require('../services/dataTransferService.cjs')
 const crashLogger = require('../services/crashLogger.cjs')
 const diagnosticService = require('../services/diagnosticService.cjs')
+const petService = require('../services/petService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -469,6 +470,11 @@ function registerIpcHandlers() {
   ipcMain.handle('system:setUpdateMode', (_e, mode) =>
     wrap(() => systemPreferences.setUpdateMode(mode))
   )
+  ipcMain.handle('system:setPetEnabled', (_e, enabled) => wrap(() => {
+    const result = systemPreferences.setPetEnabled(enabled)
+    petService.refresh()
+    return result
+  }))
 }
 
 module.exports = { registerIpcHandlers }

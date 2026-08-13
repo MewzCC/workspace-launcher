@@ -143,7 +143,16 @@ export const systemApi = {
   setCloseToTray: (enabled) => api.system.setCloseToTray(enabled),
   setKillBeforeLaunch: (enabled) => api.system.setKillBeforeLaunch(enabled),
   setUpdateNotify: (enabled) => api.system.setUpdateNotify(enabled),
-  setUpdateMode: (mode) => api.system.setUpdateMode(mode)
+  setUpdateMode: (mode) => api.system.setUpdateMode(mode),
+  setPetEnabled: (enabled) => api.system.setPetEnabled(enabled)
+}
+
+export const petApi = {
+  move: (x, y) => api.pet.move(x, y),
+  savePosition: () => api.pet.savePosition(),
+  openMain: () => unwrap(api.pet.openMain()),
+  showMenu: () => unwrap(api.pet.showMenu()),
+  home: () => unwrap(api.pet.home())
 }
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色

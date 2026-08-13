@@ -1,6 +1,6 @@
 // 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
 import React, { useEffect, useMemo, useState } from 'react'
-import { Play, ArrowRight, Check, Pencil, Search, X, RotateCcw, CircleStop, LoaderCircle } from 'lucide-react'
+import { Play, ArrowRight, Check, Pencil, Search, X, RotateCcw, CircleStop, LoaderCircle, HelpCircle } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -8,6 +8,7 @@ import SoftwareIcon from '../components/SoftwareIcon'
 import SoftwareOverflowPreview from '../components/SoftwareOverflowPreview'
 import ShortcutInput from '../components/ShortcutInput'
 import { useConfirmDialog } from '../components/ConfirmDialog'
+import TutorialDrawer from '../components/TutorialDrawer'
 import { workspaceApi } from '../lib/ipc'
 import { useStore } from '../store/useStore'
 import { useT } from '../hooks/useT'
@@ -52,6 +53,7 @@ export function Dashboard() {
 
   // 实时时钟，每秒刷新一次
   const [now, setNow] = useState(() => new Date())
+  const [tutorialOpen, setTutorialOpen] = useState(false)
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
@@ -136,14 +138,28 @@ export function Dashboard() {
 
   return (
     <div className="dashboard">
-      {/* 顶部问候区：左侧问候语 + 副标题，右侧实时时钟 */}
+      {/* 顶部问候区：左侧问候语 + 副标题，右侧时钟 + 教程入口 */}
       <section className="page-header greeting">
         <div className="page-header-left">
           <h1 className="page-title greeting-title">{greeting}</h1>
           <p className="page-subtitle">{t('dashboard.subtitle')}</p>
         </div>
-        <div className="clock">{formatTime(now)}</div>
+        <div className="greeting-actions">
+          <button
+            type="button"
+            className="tutorial-trigger"
+            onClick={() => setTutorialOpen(true)}
+            aria-label={t('tutorial.title')}
+            title={t('tutorial.title')}
+          >
+            <HelpCircle size={16} />
+            <span>{t('tutorial.short')}</span>
+          </button>
+          <div className="clock">{formatTime(now)}</div>
+        </div>
       </section>
+
+      {tutorialOpen && <TutorialDrawer onClose={() => setTutorialOpen(false)} />}
 
       {/* 区块标题 */}
       <div className="section-title">

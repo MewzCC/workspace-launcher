@@ -167,6 +167,11 @@ function setUpdateMode(mode) {
   return getPreferences()
 }
 
+function setPetEnabled(enabled) {
+  settingsDao.set('petEnabled', Boolean(enabled))
+  return getPreferences()
+}
+
 function syncLoginItem() {
   const prefs = settingsDao.getAll()
   if (prefs.openAtLogin && process.platform === 'win32' && app.isPackaged) {
@@ -182,5 +187,6 @@ module.exports = {
   setKillBeforeLaunch,
   setUpdateNotify,
   setUpdateMode,
+  setPetEnabled,
   syncLoginItem
 }

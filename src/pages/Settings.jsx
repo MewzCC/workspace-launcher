@@ -16,6 +16,7 @@ import {
   Power,
   RefreshCcw,
   Rocket,
+  Sparkles,
   Star
 } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
@@ -253,7 +254,8 @@ export function Settings() {
       closeToTray: systemApi.setCloseToTray,
       killBeforeLaunch: systemApi.setKillBeforeLaunch,
       updateNotify: systemApi.setUpdateNotify,
-      updateMode: systemApi.setUpdateMode
+      updateMode: systemApi.setUpdateMode,
+      petEnabled: systemApi.setPetEnabled
     }
     setSavingSetting(key)
     setSystemMessage('')
@@ -420,6 +422,20 @@ export function Settings() {
               disabled={!systemSettings || savingSetting === 'killBeforeLaunch'}
               onChange={(event) => updateSystemSetting('killBeforeLaunch', event.target.checked)}
               ariaLabel={t('settings.killBeforeLaunch')}
+            />
+          </div>
+
+          <div className="system-setting-row">
+            <span className="system-setting-symbol"><Sparkles size={18} /></span>
+            <div className="system-setting-copy">
+              <strong>{t('settings.petEnabled')}</strong>
+              <span>{t('settings.petEnabledDesc')}</span>
+            </div>
+            <Toggle
+              checked={Boolean(systemSettings?.petEnabled)}
+              disabled={!systemSettings || savingSetting === 'petEnabled'}
+              onChange={(event) => updateSystemSetting('petEnabled', event.target.checked)}
+              ariaLabel={t('settings.petEnabled')}
             />
           </div>
         </div>

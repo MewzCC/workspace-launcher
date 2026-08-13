@@ -122,7 +122,15 @@ contextBridge.exposeInMainWorld('api', {
     setCloseToTray: (enabled) => ipcRenderer.invoke('system:setCloseToTray', enabled),
     setKillBeforeLaunch: (enabled) => ipcRenderer.invoke('system:setKillBeforeLaunch', enabled),
     setUpdateNotify: (enabled) => ipcRenderer.invoke('system:setUpdateNotify', enabled),
-    setUpdateMode: (mode) => ipcRenderer.invoke('system:setUpdateMode', mode)
+    setUpdateMode: (mode) => ipcRenderer.invoke('system:setUpdateMode', mode),
+    setPetEnabled: (enabled) => ipcRenderer.invoke('system:setPetEnabled', enabled)
+  },
+  pet: {
+    move: (x, y) => ipcRenderer.send('pet:move', { x, y }),
+    savePosition: () => ipcRenderer.send('pet:savePosition'),
+    openMain: () => ipcRenderer.invoke('pet:openMain'),
+    showMenu: () => ipcRenderer.invoke('pet:showMenu'),
+    home: () => ipcRenderer.invoke('pet:home')
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {

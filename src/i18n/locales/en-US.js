@@ -383,6 +383,8 @@ export default {
     updateModeManual: 'Alert only (manual update)',
     updateModeBackground: 'Download silently in background',
     updateModeAuto: 'Download and restart automatically',
+    petEnabled: 'Desktop pet',
+    petEnabledDesc: 'Show a draggable pet on the desktop. Double-click opens LaunchPad, right-click shows the menu',
     updateSkipped: 'Skipped v{version}. Manual check can still update it.',
     updateNotes: 'Release Notes',
     updateHistory: 'Release History',
@@ -452,6 +454,12 @@ export default {
     clearAll: 'Clear All Data',
     clearing: 'Clearing...',
     clearConfirm: 'Clear all data? This cannot be undone!'
+  },
+  tutorial: {
+    title: 'Tutorials',
+    subtitle: 'Complete guides for every LaunchPad module',
+    short: 'Guide',
+    sections: 'Tutorial sections'
   },
   launch: {
     title: 'Workspace',

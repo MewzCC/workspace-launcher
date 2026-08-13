@@ -35,6 +35,11 @@ const MESSAGES = {
       restartNow: '重启并安装',
       later: '稍后'
     },
+    pet: {
+      openLaunchpad: '打开 LaunchPad',
+      goHome: '回家',
+      hide: '隐藏桌宠'
+    },
     menu: {
       file: '文件',
       edit: '编辑',
@@ -163,6 +168,11 @@ const MESSAGES = {
       restartNow: 'Restart and install',
       later: 'Later'
     },
+    pet: {
+      openLaunchpad: 'Open LaunchPad',
+      goHome: 'Go home',
+      hide: 'Hide pet'
+    },
     menu: {
       file: 'File',
       edit: 'Edit',
@@ -290,6 +300,11 @@ const MESSAGES = {
       backgroundDetail: '再起動後に更新がインストールされ、LaunchPad が自動的に起動します。',
       restartNow: '再起動してインストール',
       later: '後で'
+    },
+    pet: {
+      openLaunchpad: 'LaunchPad を開く',
+      goHome: '家に帰る',
+      hide: 'ペットを隠す'
     },
     menu: {
       file: 'ファイル',

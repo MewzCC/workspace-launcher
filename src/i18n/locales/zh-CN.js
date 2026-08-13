@@ -53,8 +53,7 @@ export default {
   },
   dashboard: {
     subtitle: '准备进入你的工作状态',
-    quickLaunch: '快速启动',
-    workspaceCount: '{count} 个工作空间',
+    quickLaunch: '快速启动',    workspaceCount: '{count} 个工作空间',
     empty: '还没有工作空间，去空间管理页面创建一个吧',
     goManage: '前往空间管理',
     quickEditTitle: '快速编辑 · {name}',
@@ -383,6 +382,8 @@ export default {
     updateModeManual: '仅提示（手动更新）',
     updateModeBackground: '后台静默下载',
     updateModeAuto: '自动下载并重启',
+    petEnabled: '桌面宠物',
+    petEnabledDesc: '在桌面显示可拖拽的桌面宠物，双击打开 LaunchPad，右键查看菜单',
     updateSkipped: '已跳过 v{version}，手动检查更新仍可更新',
     updateNotes: '更新日志',
     updateHistory: '更新日志',
@@ -452,6 +453,12 @@ export default {
     clearAll: '清除所有数据',
     clearing: '清除中...',
     clearConfirm: '确定要清除所有数据吗？此操作不可恢复！'
+  },
+  tutorial: {
+    title: '使用教程',
+    subtitle: '了解 LaunchPad 各模块的完整操作指南',
+    short: '教程',
+    sections: '教程分类'
   },
   launch: {
     title: '工作空间',

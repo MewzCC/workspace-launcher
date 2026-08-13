@@ -40,8 +40,12 @@
   !insertmacro MUI_PAGE_FINISH
 !macroend
 
-; 安装完成后不删除任何用户数据（升级/覆盖安装保留工作空间与设置）。
+; 安装完成后不删除任何用户数据（升级/覆盖安装保留工作空间与设置）；
+; 更新（覆盖安装）完成后自动启动应用；首次安装不自动启动。
 !macro customInstall
+  ${if} ${isUpdated}
+    Exec '"$INSTDIR\LaunchPad.exe"'
+  ${endif}
 !macroend
 
 ; 卸载时保留用户数据。

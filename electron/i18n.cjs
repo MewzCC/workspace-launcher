@@ -28,6 +28,13 @@ const MESSAGES = {
       restart: '重新运行',
       cancel: '取消'
     },
+    update: {
+      backgroundTitle: '更新已就绪',
+      backgroundMessage: 'LaunchPad v{version} 已下载完成',
+      backgroundDetail: '重启后自动安装更新，安装完成后 LaunchPad 会自动打开。',
+      restartNow: '重启并安装',
+      later: '稍后'
+    },
     menu: {
       file: '文件',
       edit: '编辑',
@@ -149,6 +156,13 @@ const MESSAGES = {
       restart: 'Relaunch',
       cancel: 'Cancel'
     },
+    update: {
+      backgroundTitle: 'Update ready',
+      backgroundMessage: 'LaunchPad v{version} has been downloaded',
+      backgroundDetail: 'The update will be installed after restart, and LaunchPad will open automatically.',
+      restartNow: 'Restart and install',
+      later: 'Later'
+    },
     menu: {
       file: 'File',
       edit: 'Edit',
@@ -269,6 +283,13 @@ const MESSAGES = {
       restartDetail: '続行するとアプリを終了してから、ワークスペース全体を再実行します。',
       restart: '再実行',
       cancel: 'キャンセル'
+    },
+    update: {
+      backgroundTitle: '更新の準備ができました',
+      backgroundMessage: 'LaunchPad v{version} のダウンロードが完了しました',
+      backgroundDetail: '再起動後に更新がインストールされ、LaunchPad が自動的に起動します。',
+      restartNow: '再起動してインストール',
+      later: '後で'
     },
     menu: {
       file: 'ファイル',

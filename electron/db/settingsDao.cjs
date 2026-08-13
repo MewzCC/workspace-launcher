@@ -5,7 +5,10 @@ const DEFAULTS = {
   openAtLogin: false,
   startMinimized: true,
   killBeforeLaunch: false,
-  language: 'zh-CN'
+  language: 'zh-CN',
+  updateNotify: true,
+  updateMode: 'background',
+  skippedVersion: ''
 }
 
 let stmts = null

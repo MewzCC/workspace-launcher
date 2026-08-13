@@ -12,7 +12,8 @@ contextBridge.exposeInMainWorld('api', {
     create: (data) => ipcRenderer.invoke('workspace:create', data),
     update: (id, data) => ipcRenderer.invoke('workspace:update', id, data),
     delete: (id) => ipcRenderer.invoke('workspace:delete', id),
-    launch: (id, options) => ipcRenderer.invoke('workspace:launch', id, options)
+    launch: (id, options) => ipcRenderer.invoke('workspace:launch', id, options),
+    close: (id) => ipcRenderer.invoke('workspace:close', id)
   },
   shortcut: {
     status: () => ipcRenderer.invoke('shortcut:status'),
@@ -98,6 +99,7 @@ contextBridge.exposeInMainWorld('api', {
     check: () => ipcRenderer.invoke('update:check'),
     download: () => ipcRenderer.invoke('update:download'),
     install: () => ipcRenderer.invoke('update:install'),
+    skip: () => ipcRenderer.invoke('update:skip'),
     lastResult: () => ipcRenderer.invoke('update:lastResult'),
     clearLastResult: () => ipcRenderer.invoke('update:clearLastResult'),
     releases: () => ipcRenderer.invoke('releases:list'),
@@ -118,7 +120,9 @@ contextBridge.exposeInMainWorld('api', {
     setOpenAtLogin: (enabled) => ipcRenderer.invoke('system:setOpenAtLogin', enabled),
     setStartMinimized: (enabled) => ipcRenderer.invoke('system:setStartMinimized', enabled),
     setCloseToTray: (enabled) => ipcRenderer.invoke('system:setCloseToTray', enabled),
-    setKillBeforeLaunch: (enabled) => ipcRenderer.invoke('system:setKillBeforeLaunch', enabled)
+    setKillBeforeLaunch: (enabled) => ipcRenderer.invoke('system:setKillBeforeLaunch', enabled),
+    setUpdateNotify: (enabled) => ipcRenderer.invoke('system:setUpdateNotify', enabled),
+    setUpdateMode: (mode) => ipcRenderer.invoke('system:setUpdateMode', mode)
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {

@@ -1,7 +1,7 @@
 // 空间管理页面：工作空间 CRUD + 一键启动动画
 // 视觉对齐设计稿：页头(标题+副标题+CTA) + 卡片网格 + 模态表单
 import React, { useMemo, useRef, useState } from 'react'
-import { Plus, Pencil, Trash2, Play, PackageOpen, Search, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Play, PackageOpen, Search, X, CircleStop, LoaderCircle } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -210,6 +210,28 @@ function Workspaces() {
     }
   }
 
+  // 一键关闭工作空间：按路径结束工作空间内全部软件进程
+  const [closingId, setClosingId] = useState(null)
+  const handleClose = async (workspace) => {
+    const confirmed = await confirm({
+      title: t('workspaces.close'),
+      message: t('workspaces.closeConfirm', { name: workspace.name }),
+      confirmText: t('workspaces.close'),
+      tone: 'warning',
+      icon: 'warning'
+    })
+    if (!confirmed) return
+    setClosingId(workspace.id)
+    try {
+      await workspaceApi.close(workspace.id)
+    } catch (err) {
+      console.error('关闭工作空间失败:', err)
+      window.alert(t('workspaces.closeFailed') + (err?.message || err))
+    } finally {
+      setClosingId(null)
+    }
+  }
+
   // 当前启动的工作空间对象
   const launchingWorkspace = useMemo(() => {
     if (!launching) return null
@@ -309,6 +331,17 @@ function Workspaces() {
                     <Play size={14} />
                     {isLaunching ? t('common.starting') : t('workspaces.launch')}
                   </GlowButton>
+                  {isRunning && (
+                    <GlowButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleClose(ws)}
+                      disabled={closingId === ws.id}
+                    >
+                      {closingId === ws.id ? <LoaderCircle size={14} className="process-spin" /> : <CircleStop size={14} />}
+                      {t('workspaces.close')}
+                    </GlowButton>
+                  )}
                   <GlowButton
                     variant="ghost"
                     size="sm"

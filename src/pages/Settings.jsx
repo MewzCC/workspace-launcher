@@ -251,7 +251,9 @@ export function Settings() {
       openAtLogin: systemApi.setOpenAtLogin,
       startMinimized: systemApi.setStartMinimized,
       closeToTray: systemApi.setCloseToTray,
-      killBeforeLaunch: systemApi.setKillBeforeLaunch
+      killBeforeLaunch: systemApi.setKillBeforeLaunch,
+      updateNotify: systemApi.setUpdateNotify,
+      updateMode: systemApi.setUpdateMode
     }
     setSavingSetting(key)
     setSystemMessage('')
@@ -485,6 +487,37 @@ export function Settings() {
                 ? t('settings.updateInstall')
                 : t('settings.updateCheck')}
           </GlowButton>
+        </div>
+        <div className="update-settings-list">
+          <div className="update-setting-row">
+            <div className="system-setting-copy">
+              <strong>{t('settings.updateNotify')}</strong>
+              <span>{t('settings.updateNotifyDesc')}</span>
+            </div>
+            <Toggle
+              checked={Boolean(systemSettings?.updateNotify)}
+              disabled={!systemSettings || savingSetting === 'updateNotify'}
+              onChange={(event) => updateSystemSetting('updateNotify', event.target.checked)}
+              ariaLabel={t('settings.updateNotify')}
+            />
+          </div>
+          <div className="update-setting-row">
+            <div className="system-setting-copy">
+              <strong>{t('settings.updateMode')}</strong>
+              <span>{t('settings.updateModeDesc')}</span>
+            </div>
+            <select
+              className="update-mode-select"
+              value={systemSettings?.updateMode || 'background'}
+              disabled={!systemSettings || savingSetting === 'updateMode'}
+              onChange={(event) => updateSystemSetting('updateMode', event.target.value)}
+              aria-label={t('settings.updateMode')}
+            >
+              <option value="manual">{t('settings.updateModeManual')}</option>
+              <option value="background">{t('settings.updateModeBackground')}</option>
+              <option value="auto">{t('settings.updateModeAuto')}</option>
+            </select>
+          </div>
         </div>
       </GlassCard>
 

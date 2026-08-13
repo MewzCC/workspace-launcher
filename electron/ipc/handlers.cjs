@@ -126,6 +126,23 @@ function registerIpcHandlers() {
       return { success: true }
     })
   })
+  // 一键关闭工作空间：按完整 EXE 路径结束工作空间内全部软件进程
+  ipcMain.handle('workspace:close', (_e, id) => wrap(async () => {
+    const workspace = workspaceDao.get(Number(id))
+    if (!workspace) throw new Error(t('engine.notFound', { id }))
+    const software = (workspace.software || []).filter((item) => item.path)
+    let killed = 0
+    const failed = []
+    for (const item of software) {
+      try {
+        const result = await processManager.terminateByExecutablePath(item.path)
+        killed += result.killed || 0
+      } catch (error) {
+        failed.push({ name: item.name, message: error.message })
+      }
+    }
+    return { success: true, killed, failed }
+  }))
   ipcMain.handle('shortcut:status', () => wrap(() => shortcutService.getStatus()))
   ipcMain.handle('shortcut:validate', (_e, accelerator, workspaceId) =>
     wrap(() => shortcutService.checkShortcutAvailability(accelerator, workspaceId ?? null))
@@ -320,6 +337,7 @@ function registerIpcHandlers() {
   ipcMain.handle('update:check', () => wrap(() => updateService.checkForUpdates()))
   ipcMain.handle('update:download', () => wrap(() => updateService.downloadUpdate()))
   ipcMain.handle('update:install', () => wrap(() => updateService.installUpdate()))
+  ipcMain.handle('update:skip', () => wrap(() => updateService.skipVersion()))
   ipcMain.handle('update:lastResult', () => wrap(() => updateService.getLastUpdate()))
   ipcMain.handle('update:clearLastResult', () => wrap(() => {
     updateService.clearLastUpdate()
@@ -444,6 +462,12 @@ function registerIpcHandlers() {
   )
   ipcMain.handle('system:setKillBeforeLaunch', (_e, enabled) =>
     wrap(() => systemPreferences.setKillBeforeLaunch(enabled))
+  )
+  ipcMain.handle('system:setUpdateNotify', (_e, enabled) =>
+    wrap(() => systemPreferences.setUpdateNotify(enabled))
+  )
+  ipcMain.handle('system:setUpdateMode', (_e, mode) =>
+    wrap(() => systemPreferences.setUpdateMode(mode))
   )
 }
 

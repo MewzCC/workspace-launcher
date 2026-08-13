@@ -156,6 +156,17 @@ function setKillBeforeLaunch(enabled) {
   return getPreferences()
 }
 
+function setUpdateNotify(enabled) {
+  settingsDao.set('updateNotify', Boolean(enabled))
+  return getPreferences()
+}
+
+function setUpdateMode(mode) {
+  const value = ['manual', 'background', 'auto'].includes(mode) ? mode : 'background'
+  settingsDao.set('updateMode', value)
+  return getPreferences()
+}
+
 function syncLoginItem() {
   const prefs = settingsDao.getAll()
   if (prefs.openAtLogin && process.platform === 'win32' && app.isPackaged) {
@@ -169,5 +180,7 @@ module.exports = {
   setStartMinimized,
   setCloseToTray,
   setKillBeforeLaunch,
+  setUpdateNotify,
+  setUpdateMode,
   syncLoginItem
 }

@@ -1,11 +1,12 @@
 // 应用根组件：初始化加载工作空间与软件数据，订阅全局启动进度，渲染主布局
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Layout } from './components/Layout'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import Modal from './components/Modal'
+import GlowButton from './components/ui/GlowButton'
 import { useStore } from './store/useStore'
 import { useT } from './hooks/useT'
-import { workspaceApi, softwareApi, onLaunchProgress, updateApi, diagnosticsApi } from './lib/ipc'
+import { workspaceApi, softwareApi, onLaunchProgress, updateApi, diagnosticsApi, systemApi, onUpdateStatus } from './lib/ipc'
 import { renderMarkdown } from './lib/markdown'
 
 function App() {
@@ -17,6 +18,10 @@ function App() {
   const setTheme = useStore((s) => s.setTheme)
   // 刚完成自动更新时展示“本次更新内容”弹窗
   const [lastUpdate, setLastUpdate] = useState(null)
+  // 检测到新版本时展示提示弹窗（更新/跳过此版本/取消）
+  const [availableUpdate, setAvailableUpdate] = useState(null)
+  const [notifyEnabled, setNotifyEnabled] = useState(true)
+  const dismissedVersionRef = useRef('')
 
   useEffect(() => {
     // 初始化加载工作空间和软件数据
@@ -57,6 +62,50 @@ function App() {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    // 读取“新版本提醒”开关；检测到新版本时按开关决定是否弹窗。
+    let mounted = true
+    systemApi.getPreferences()
+      .then((prefs) => {
+        if (mounted && prefs && typeof prefs.updateNotify === 'boolean') {
+          setNotifyEnabled(prefs.updateNotify)
+        }
+      })
+      .catch(() => {})
+    const unsubscribe = onUpdateStatus((update) => {
+      if (!mounted || !update) return
+      if (
+        update.state === 'available' &&
+        notifyEnabled &&
+        update.version &&
+        dismissedVersionRef.current !== update.version
+      ) {
+        setAvailableUpdate(update)
+      }
+      if (update.state === 'skipped') setAvailableUpdate(null)
+    })
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
+  }, [notifyEnabled])
+
+  const handleUpdateNow = () => {
+    setAvailableUpdate(null)
+    updateApi.download().catch(() => {})
+  }
+
+  const handleSkipVersion = () => {
+    dismissedVersionRef.current = availableUpdate?.version || ''
+    setAvailableUpdate(null)
+    updateApi.skip().catch(() => {})
+  }
+
+  const handleDismissUpdate = () => {
+    dismissedVersionRef.current = availableUpdate?.version || ''
+    setAvailableUpdate(null)
+  }
 
   useEffect(() => {
     // 渲染层异常上报到本地崩溃日志，便于用户反馈时复制诊断信息。
@@ -123,6 +172,31 @@ function App() {
           ) : (
             <p className="update-installed-empty">{t('settings.updateNoNotes')}</p>
           )}
+        </Modal>
+      )}
+      {availableUpdate && !lastUpdate && (
+        <Modal
+          title={t('settings.updateAvailableTitle', { version: availableUpdate.version })}
+          onClose={handleDismissUpdate}
+        >
+          <p className="update-installed-intro">{t('settings.updateAvailableIntro')}</p>
+          {availableUpdate.releaseNotes && (
+            <div
+              className="update-installed-notes md-render"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(availableUpdate.releaseNotes) }}
+            />
+          )}
+          <div className="update-available-actions">
+            <GlowButton variant="ghost" size="sm" onClick={handleDismissUpdate}>
+              {t('settings.updateCancel')}
+            </GlowButton>
+            <GlowButton variant="ghost" size="sm" onClick={handleSkipVersion}>
+              {t('settings.updateSkipVersion')}
+            </GlowButton>
+            <GlowButton variant="primary" size="sm" onClick={handleUpdateNow}>
+              {t('settings.updateNow')}
+            </GlowButton>
+          </div>
         </Modal>
       )}
     </ConfirmDialogProvider>

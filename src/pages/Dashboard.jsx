@@ -1,6 +1,6 @@
 // 启动台（原 Dashboard）：问候语 + 实时时钟 + 快速启动卡片网格
 import React, { useEffect, useMemo, useState } from 'react'
-import { Play, ArrowRight, Check, Pencil, Search, X, RotateCcw } from 'lucide-react'
+import { Play, ArrowRight, Check, Pencil, Search, X, RotateCcw, CircleStop, LoaderCircle } from 'lucide-react'
 import GlassCard from '../components/ui/GlassCard'
 import GlowButton from '../components/ui/GlowButton'
 import Modal from '../components/Modal'
@@ -262,7 +262,7 @@ export function Dashboard() {
 }
 
 // 快速启动卡片：工作空间图标与名称 + 软件列表 + 启动按钮
-function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit }) {
+function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit, onClose, closing }) {
   const t = useT()
   const software = workspace.software || []
   // 仅展示前 3 个软件，超出部分以 +N 形式提示
@@ -328,6 +328,17 @@ function QuickCard({ workspace, launching, processStatuses, onLaunch, onEdit }) 
           <Pencil size={14} />
           {t('dashboard.quickEdit')}
         </GlowButton>
+        {runningCount > 0 && (
+          <GlowButton
+            variant="ghost"
+            size="sm"
+            disabled={closing}
+            onClick={() => onClose(workspace)}
+          >
+            {closing ? <LoaderCircle size={14} className="process-spin" /> : <CircleStop size={14} />}
+            {t('workspaces.close')}
+          </GlowButton>
+        )}
         <GlowButton
           variant="primary"
           size="sm"

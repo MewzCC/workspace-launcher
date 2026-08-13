@@ -1,9 +1,13 @@
 // 自动更新服务
-// 打包安装版走 electron-updater；开发环境通过 GitHub API 检查版本（只读，不下载）。
+// 打包安装版走 electron-updater；开发环境读取 dev-app-update.yml 检查版本（只读，不下载）。
+// 前台：检测到新版本时渲染层弹窗（更新/跳过此版本/取消）；
+// 后台（窗口隐藏于托盘）：静默下载，完成后询问是否重启安装。
 const fs = require('fs')
 const path = require('path')
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
+const { settingsDao } = require('../db/index.cjs')
+const { t } = require('../i18n.cjs')
 
 const STARTUP_CHECK_DELAY = 15000
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000
@@ -14,6 +18,7 @@ let checking = false
 let startupTimer = null
 let intervalTimer = null
 let releasesCache = null
+let installing = false
 
 const status = {
   state: 'idle',
@@ -36,6 +41,10 @@ function getCurrentVersion() {
   } catch (_) {
     return '0.0.0'
   }
+}
+
+function hasVisibleWindow() {
+  return BrowserWindow.getAllWindows().some((win) => !win.isDestroyed() && win.isVisible() && !win.isMinimized())
 }
 
 // 开发模式也通过 electron-updater 的 GitHub provider 检查版本（读取 dev-app-update.yml），
@@ -156,9 +165,25 @@ function configure() {
   })
   autoUpdater.on('update-available', (info) => {
     checking = false
+    const version = info?.version || ''
+    // 用户选择跳过该版本时不再提示/下载，直到出现更高版本。
+    const skipped = settingsDao.get('skippedVersion')
+    if (skipped && version && String(skipped) === String(version)) {
+      setStatus({
+        state: 'skipped',
+        version,
+        releaseName: info?.releaseName || '',
+        releaseDate: info?.releaseDate || '',
+        releaseNotes: normalizeReleaseNotes(info?.releaseNotes),
+        progress: 0,
+        error: '',
+        checkedAt: Date.now()
+      })
+      return
+    }
     setStatus({
       state: 'available',
-      version: info?.version || '',
+      version,
       releaseName: info?.releaseName || '',
       releaseDate: info?.releaseDate || '',
       releaseNotes: normalizeReleaseNotes(info?.releaseNotes),
@@ -166,6 +191,11 @@ function configure() {
       error: '',
       checkedAt: Date.now()
     })
+    // 后台静默更新：窗口隐藏在托盘时按更新方式自动下载，不打扰用户。
+    const updateMode = settingsDao.get('updateMode')
+    if (!hasVisibleWindow() && updateMode !== 'manual') {
+      downloadUpdate()
+    }
   })
   autoUpdater.on('update-not-available', () => {
     checking = false
@@ -205,6 +235,29 @@ function configure() {
     setStatus(downloaded)
     // 记录本次更新内容，供安装重启后弹窗展示。
     saveLastUpdate(downloaded)
+    // 后台更新完成：全自动直接重启安装；后台静默则询问用户是否立即重启。
+    if (!hasVisibleWindow() && !installing) {
+      const updateMode = settingsDao.get('updateMode')
+      if (updateMode === 'auto') {
+        installUpdate()
+        return
+      }
+      const parent = BrowserWindow.getAllWindows()[0]
+      const options = {
+        type: 'question',
+        title: t('updateBackgroundTitle'),
+        message: t('updateBackgroundMessage', { version: downloaded.version }),
+        detail: t('updateBackgroundDetail'),
+        buttons: [t('updateRestartNow'), t('updateLater')],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true
+      }
+      const promise = parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options)
+      promise.then((result) => {
+        if (result.response === 0) installUpdate()
+      }).catch(() => {})
+    }
   })
   autoUpdater.on('error', (error) => {
     checking = false
@@ -263,9 +316,17 @@ async function downloadUpdate() {
 function installUpdate() {
   if (!app.isPackaged) return getStatus()
   if (status.state !== 'downloaded') return getStatus()
+  installing = true
   setStatus({ state: 'installing' })
   autoUpdater.quitAndInstall(false, true)
   return getStatus()
+}
+
+// 跳过当前版本：记录版本号，该版本不再提示（更高版本仍会正常提示）。
+function skipVersion() {
+  if (!status.version) return getStatus()
+  settingsDao.set('skippedVersion', String(status.version))
+  return setStatus({ state: 'skipped' })
 }
 
 function start() {
@@ -336,6 +397,7 @@ module.exports = {
   checkForUpdates,
   downloadUpdate,
   installUpdate,
+  skipVersion,
   getLastUpdate,
   clearLastUpdate,
   getReleaseHistory

@@ -20,7 +20,8 @@ export const workspaceApi = {
   create: (data) => unwrap(api.workspace.create(data)),
   update: (id, data) => unwrap(api.workspace.update(id, data)),
   remove: (id) => unwrap(api.workspace.delete(id)),
-  launch: (id, options) => unwrap(api.workspace.launch(id, options))
+  launch: (id, options) => unwrap(api.workspace.launch(id, options)),
+  close: (id) => unwrap(api.workspace.close(id))
 }
 
 export const shortcutApi = {
@@ -116,6 +117,7 @@ export const updateApi = {
   check: () => unwrap(api.update.check()),
   download: () => unwrap(api.update.download()),
   install: () => unwrap(api.update.install()),
+  skip: () => unwrap(api.update.skip()),
   lastResult: () => unwrap(api.update.lastResult()),
   clearLastResult: () => unwrap(api.update.clearLastResult()),
   releases: () => unwrap(api.update.releases()),
@@ -139,7 +141,9 @@ export const systemApi = {
   setOpenAtLogin: (enabled) => api.system.setOpenAtLogin(enabled),
   setStartMinimized: (enabled) => api.system.setStartMinimized(enabled),
   setCloseToTray: (enabled) => api.system.setCloseToTray(enabled),
-  setKillBeforeLaunch: (enabled) => api.system.setKillBeforeLaunch(enabled)
+  setKillBeforeLaunch: (enabled) => api.system.setKillBeforeLaunch(enabled),
+  setUpdateNotify: (enabled) => api.system.setUpdateNotify(enabled),
+  setUpdateMode: (mode) => api.system.setUpdateMode(mode)
 }
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色

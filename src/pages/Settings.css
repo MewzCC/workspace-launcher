@@ -369,6 +369,18 @@
   margin-top: 14px;
 }
 
+.diagnostics-card {
+  flex-wrap: wrap;
+}
+
+.diagnostics-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 /* 危险操作区：红色边框警示 */
 .danger-zone {
   border: 1px solid color-mix(in srgb, var(--brand-state-error) 50%, transparent);

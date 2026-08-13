@@ -5,11 +5,14 @@ const trayService = require('./services/trayService.cjs')
 const shortcutService = require('./services/shortcutService.cjs')
 const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
+const crashLogger = require('./services/crashLogger.cjs')
 const { t } = require('./i18n.cjs')
 
 let mainWindow = null
 let isQuitting = false
 let trayHintShown = false
+
+crashLogger.initialize()
 
 function getAppIconPath() {
   return app.isPackaged
@@ -60,6 +63,7 @@ function createWindow({ startHidden = false } = {}) {
     }
   })
   mainWindow = win
+  crashLogger.attachWindow(win)
 
   win.once('ready-to-show', () => {
     if (!startHidden) win.show()

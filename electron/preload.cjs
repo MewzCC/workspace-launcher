@@ -87,6 +87,12 @@ contextBridge.exposeInMainWorld('api', {
     export: (filePath) => ipcRenderer.invoke('data:export', filePath),
     import: (filePath) => ipcRenderer.invoke('data:import', filePath)
   },
+  diagnostics: {
+    getReport: () => ipcRenderer.invoke('diagnostics:getReport'),
+    copyReport: () => ipcRenderer.invoke('diagnostics:copyReport'),
+    openLogs: () => ipcRenderer.invoke('diagnostics:openLogs'),
+    report: (eventName, details) => ipcRenderer.send('diagnostics:report', eventName, details)
+  },
   update: {
     status: () => ipcRenderer.invoke('update:status'),
     check: () => ipcRenderer.invoke('update:check'),

@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   AppWindow,
+  Bug,
   CheckCircle2,
   CircleAlert,
+  ClipboardCopy,
   Code2,
   Download,
   ExternalLink,
@@ -31,6 +33,7 @@ import {
   updateApi,
   dataApi,
   dialogApi,
+  diagnosticsApi,
   onUpdateStatus
 } from '../lib/ipc'
 import { useStore } from '../store/useStore'
@@ -73,6 +76,8 @@ export function Settings() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [transferring, setTransferring] = useState('')
   const [dataMessage, setDataMessage] = useState('')
+  const [copyingReport, setCopyingReport] = useState(false)
+  const [diagnosticMessage, setDiagnosticMessage] = useState('')
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
@@ -168,6 +173,28 @@ export function Settings() {
       setDataMessage(t('settings.importFailed') + (error?.message || error))
     } finally {
       setTransferring('')
+    }
+  }
+
+  const handleOpenLogs = async () => {
+    try {
+      await diagnosticsApi.openLogs()
+      setDiagnosticMessage(t('settings.logsOpened'))
+    } catch (error) {
+      setDiagnosticMessage(error.message || t('settings.logsOpenFailed'))
+    }
+  }
+
+  const handleCopyReport = async () => {
+    setCopyingReport(true)
+    setDiagnosticMessage('')
+    try {
+      await diagnosticsApi.copyReport()
+      setDiagnosticMessage(t('settings.reportCopied'))
+    } catch (error) {
+      setDiagnosticMessage(error.message || t('settings.reportCopyFailed'))
+    } finally {
+      setCopyingReport(false)
     }
   }
 
@@ -491,16 +518,42 @@ export function Settings() {
           <span className="info-value">{software.length}</span>
         </div>
         <div className="data-transfer-actions">
-          <GlowButton variant="secondary" size="sm" onClick={handleExportData} disabled={transferring}>
+          <GlowButton variant="ghost" size="sm" onClick={handleExportData} disabled={transferring}>
             {transferring === 'export' ? <LoaderCircle size={14} className="process-spin" /> : <Download size={14} />}
             {t('settings.exportData')}
           </GlowButton>
-          <GlowButton variant="secondary" size="sm" onClick={handleImportData} disabled={transferring}>
+          <GlowButton variant="ghost" size="sm" onClick={handleImportData} disabled={transferring}>
             {transferring === 'import' ? <LoaderCircle size={14} className="process-spin" /> : <FileInput size={14} />}
             {t('settings.importData')}
           </GlowButton>
         </div>
         {dataMessage && <div className="system-setting-message" role="status">{dataMessage}</div>}
+      </GlassCard>
+
+      {/* 诊断与崩溃日志 */}
+      <GlassCard className="settings-section diagnostics-card" hover={false}>
+        <div className="repository-copy">
+          <span className="repository-icon" aria-hidden="true"><FolderOpen size={24} /></span>
+          <div>
+            <h3>{t('settings.diagnostics')}</h3>
+            <p className="repository-desc">{t('settings.diagnosticsDesc')}</p>
+          </div>
+        </div>
+        <div className="diagnostics-actions">
+          <GlowButton variant="ghost" size="sm" onClick={handleOpenLogs}>
+            <FolderOpen size={14} />
+            {t('settings.openLogs')}
+          </GlowButton>
+          <GlowButton variant="ghost" size="sm" onClick={handleCopyReport} disabled={copyingReport}>
+            {copyingReport ? <LoaderCircle size={14} className="process-spin" /> : <ClipboardCopy size={14} />}
+            {t('settings.copyReport')}
+          </GlowButton>
+          <GlowButton variant="ghost" size="sm" onClick={() => externalApi.open(`${repositoryUrl}/issues`)}>
+            <Bug size={14} />
+            {t('settings.reportIssue')}
+          </GlowButton>
+        </div>
+        {diagnosticMessage && <div className="system-setting-message" role="status">{diagnosticMessage}</div>}
       </GlassCard>
 
       {/* 危险操作区 */}

@@ -13,6 +13,8 @@ const shortcutService = require('../services/shortcutService.cjs')
 const storageService = require('../services/storageService.cjs')
 const updateService = require('../services/updateService.cjs')
 const dataTransferService = require('../services/dataTransferService.cjs')
+const crashLogger = require('../services/crashLogger.cjs')
+const diagnosticService = require('../services/diagnosticService.cjs')
 
 const { workspaceDao, softwareDao, batScriptDao, scriptDao, logDao } = db
 const { t } = require('../i18n.cjs')
@@ -347,6 +349,21 @@ function registerIpcHandlers() {
     if (!filePath) throw new Error(t('errors.dataPathRequired'))
     return dataTransferService.importFromFile(String(filePath))
   }))
+  ipcMain.handle('diagnostics:getReport', () => wrap(() => diagnosticService.getReport()))
+  ipcMain.handle('diagnostics:copyReport', () => wrap(() => {
+    const { clipboard } = require('electron')
+    clipboard.writeText(diagnosticService.buildReportText())
+    return { success: true }
+  }))
+  ipcMain.handle('diagnostics:openLogs', async () => wrap(async () => {
+    const logDir = crashLogger.getLogDir()
+    const error = await shell.openPath(logDir)
+    if (error) throw new Error(error)
+    return { success: true, path: logDir }
+  }))
+  ipcMain.on('diagnostics:report', (_event, eventName, details) => {
+    crashLogger.log(`renderer-${String(eventName || 'error')}`, details, { source: 'renderer' })
+  })
 
   // ===== 对话框 =====
   ipcMain.handle('dialog:openFile', async (_e, filters) => {

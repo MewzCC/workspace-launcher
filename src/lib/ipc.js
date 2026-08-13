@@ -104,6 +104,13 @@ export const dataApi = {
   import: (filePath) => unwrap(api.data.import(filePath))
 }
 
+export const diagnosticsApi = {
+  getReport: () => unwrap(api.diagnostics.getReport()),
+  copyReport: () => unwrap(api.diagnostics.copyReport()),
+  openLogs: () => unwrap(api.diagnostics.openLogs()),
+  report: (eventName, details) => api.diagnostics.report(eventName, details)
+}
+
 export const updateApi = {
   status: () => unwrap(api.update.status()),
   check: () => unwrap(api.update.check()),

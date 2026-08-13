@@ -5,7 +5,7 @@ import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import Modal from './components/Modal'
 import { useStore } from './store/useStore'
 import { useT } from './hooks/useT'
-import { workspaceApi, softwareApi, onLaunchProgress, updateApi } from './lib/ipc'
+import { workspaceApi, softwareApi, onLaunchProgress, updateApi, diagnosticsApi } from './lib/ipc'
 import { renderMarkdown } from './lib/markdown'
 
 function App() {
@@ -55,6 +55,39 @@ function App() {
       })
     return () => {
       mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    // 渲染层异常上报到本地崩溃日志，便于用户反馈时复制诊断信息。
+    const report = (eventName, details) => {
+      try {
+        diagnosticsApi.report(eventName, details)
+      } catch (_) {
+        // 上报失败不能影响渲染层。
+      }
+    }
+    const handleError = (event) => {
+      report('error', {
+        message: event.message,
+        source: event.filename,
+        line: event.lineno,
+        column: event.colno,
+        stack: event.error?.stack
+      })
+    }
+    const handleRejection = (event) => {
+      const reason = event.reason
+      report('unhandled-rejection', {
+        message: reason?.message || String(reason),
+        stack: reason?.stack
+      })
+    }
+    window.addEventListener('error', handleError)
+    window.addEventListener('unhandledrejection', handleRejection)
+    return () => {
+      window.removeEventListener('error', handleError)
+      window.removeEventListener('unhandledrejection', handleRejection)
     }
   }, [])
 

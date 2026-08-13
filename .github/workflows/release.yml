@@ -39,3 +39,15 @@ jobs:
         run: npm run dist:win -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fill release notes and title
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          $notes = "RELEASE_NOTES_$version.md"
+          gh release edit "v$version" --title "LaunchPad v$version"
+          if (Test-Path $notes) {
+            gh release edit "v$version" --notes-file $notes
+          }

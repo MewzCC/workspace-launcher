@@ -348,6 +348,10 @@ export default {
   settings: {
     title: '設定',
     subtitle: 'システムトレイ・起動動作・プロセスポリシー・ローカルデータを管理',
+    tabGeneral: '一般',
+    tabUpdates: '更新',
+    tabData: 'データ',
+    tabDiagnostics: '診断',
     appInfo: 'アプリ情報',
     name: '名前',
     version: 'バージョン',

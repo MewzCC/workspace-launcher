@@ -78,6 +78,7 @@ export function Settings() {
   const [dataMessage, setDataMessage] = useState('')
   const [copyingReport, setCopyingReport] = useState(false)
   const [diagnosticMessage, setDiagnosticMessage] = useState('')
+  const [activeTab, setActiveTab] = useState('general')
 
   useEffect(() => {
     systemApi.getPreferences().then((result) => {
@@ -302,6 +303,13 @@ export function Settings() {
     }
   }
 
+  const settingsTabs = [
+    { key: 'general', label: t('settings.tabGeneral'), icon: Rocket },
+    { key: 'updates', label: t('settings.tabUpdates'), icon: Download },
+    { key: 'data', label: t('settings.tabData'), icon: FolderOpen },
+    { key: 'diagnostics', label: t('settings.tabDiagnostics'), icon: Bug }
+  ]
+
   return (
     <div className="settings">
       <section className="page-header">
@@ -311,6 +319,24 @@ export function Settings() {
         </div>
       </section>
 
+      <div className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
+        {settingsTabs.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            className={`settings-tab ${activeTab === key ? 'active' : ''}`}
+            onClick={() => setActiveTab(key)}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'general' && (
+      <>
       {/* 应用信息 */}
       <GlassCard className="settings-section" hover={false}>
         <h3>{t('settings.appInfo')}</h3>
@@ -397,7 +423,11 @@ export function Settings() {
         </div>
         {systemMessage && <div className="system-setting-message" role="status">{systemMessage}</div>}
       </GlassCard>
+      </>
+      )}
 
+      {activeTab === 'updates' && (
+      <>
       <GlassCard className="settings-section update-card" hover={false}>
         <div className="system-settings-heading">
           <span className="system-settings-icon" aria-hidden="true"><Download size={22} /></span>
@@ -459,31 +489,11 @@ export function Settings() {
       </GlassCard>
 
       {historyOpen && <UpdateHistoryModal onClose={() => setHistoryOpen(false)} />}
+      </>
+      )}
 
-      <GlassCard className="settings-section repository-card" hover={false}>
-        <div className="repository-copy">
-          <span className="repository-icon" aria-hidden="true">
-            <Code2 size={24} />
-          </span>
-          <div>
-            <h3>{t('settings.repo')}</h3>
-            <p className="repository-desc">
-              {t('settings.repoDesc')}
-            </p>
-            <code className="repository-path">MewzCC/workspace-launcher</code>
-          </div>
-        </div>
-        <GlowButton
-          variant="primary"
-          size="md"
-          onClick={() => externalApi.open(repositoryUrl)}
-        >
-          <Star size={15} />
-          {t('settings.github')}
-          <ExternalLink size={14} />
-        </GlowButton>
-      </GlassCard>
-
+      {activeTab === 'data' && (
+      <>
       {/* 数据信息 */}
       <GlassCard className="settings-section" hover={false}>
         <h3>{t('settings.dataInfo')}</h3>
@@ -530,6 +540,29 @@ export function Settings() {
         {dataMessage && <div className="system-setting-message" role="status">{dataMessage}</div>}
       </GlassCard>
 
+      {/* 危险操作区 */}
+      <GlassCard className="settings-section" hover={false}>
+        <h3>{t('settings.danger')}</h3>
+        <div className="danger-zone">
+          <p className="danger-desc">
+            {t('settings.dangerDesc')}
+          </p>
+          <GlowButton
+            variant="ghost"
+            size="md"
+            className="danger-btn"
+            disabled={clearing}
+            onClick={handleClearAll}
+          >
+            {clearing ? t('settings.clearing') : t('settings.clearAll')}
+          </GlowButton>
+        </div>
+      </GlassCard>
+      </>
+      )}
+
+      {activeTab === 'diagnostics' && (
+      <>
       {/* 诊断与崩溃日志 */}
       <GlassCard className="settings-section diagnostics-card" hover={false}>
         <div className="repository-copy">
@@ -556,24 +589,32 @@ export function Settings() {
         {diagnosticMessage && <div className="system-setting-message" role="status">{diagnosticMessage}</div>}
       </GlassCard>
 
-      {/* 危险操作区 */}
-      <GlassCard className="settings-section" hover={false}>
-        <h3>{t('settings.danger')}</h3>
-        <div className="danger-zone">
-          <p className="danger-desc">
-            {t('settings.dangerDesc')}
-          </p>
-          <GlowButton
-            variant="ghost"
-            size="md"
-            className="danger-btn"
-            disabled={clearing}
-            onClick={handleClearAll}
-          >
-            {clearing ? t('settings.clearing') : t('settings.clearAll')}
-          </GlowButton>
+      {/* 开源仓库 */}
+      <GlassCard className="settings-section repository-card" hover={false}>
+        <div className="repository-copy">
+          <span className="repository-icon" aria-hidden="true">
+            <Code2 size={24} />
+          </span>
+          <div>
+            <h3>{t('settings.repo')}</h3>
+            <p className="repository-desc">
+              {t('settings.repoDesc')}
+            </p>
+            <code className="repository-path">MewzCC/workspace-launcher</code>
+          </div>
         </div>
+        <GlowButton
+          variant="primary"
+          size="md"
+          onClick={() => externalApi.open(repositoryUrl)}
+        >
+          <Star size={15} />
+          {t('settings.github')}
+          <ExternalLink size={14} />
+        </GlowButton>
       </GlassCard>
+      </>
+      )}
 
       {/* 底部版权信息 */}
       <p className="copyright">LaunchPad © 2026</p>

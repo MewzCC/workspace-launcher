@@ -348,6 +348,10 @@ export default {
   settings: {
     title: 'Settings',
     subtitle: 'Manage system tray, startup behavior, process policy and local data',
+    tabGeneral: 'General',
+    tabUpdates: 'Updates',
+    tabData: 'Data',
+    tabDiagnostics: 'Diagnostics',
     appInfo: 'App Info',
     name: 'Name',
     version: 'Version',

@@ -348,6 +348,10 @@ export default {
   settings: {
     title: '设置',
     subtitle: '管理系统托盘、开机启动、进程策略与本地数据',
+    tabGeneral: '通用',
+    tabUpdates: '更新',
+    tabData: '数据',
+    tabDiagnostics: '诊断',
     appInfo: '应用信息',
     name: '名称',
     version: '版本',

@@ -1,5 +1,5 @@
 // 本地崩溃与运行异常日志
-// 主进程/渲染进程/子进程异常写入按日滚动的 JSONL 文件；
+// 主进程/渲染进程/子进程异常写入按日滚动的 .txt 文本文件（人类可读，便于用户直接查看）；
 // 原生崩溃由 crashReporter 保存到同一日志目录下的 crashes 子目录。
 // 同时保留最近 50 条错误在内存中，供诊断报告使用。
 const fs = require('fs')
@@ -33,7 +33,7 @@ function ensureLogDir() {
 
 function getLogFile() {
   const day = new Date().toISOString().slice(0, 10)
-  return path.join(ensureLogDir(), `launchpad-${day}.jsonl`)
+  return path.join(ensureLogDir(), `launchpad-${day}.txt`)
 }
 
 function stringifyDetails(value) {
@@ -60,6 +60,23 @@ function rotateIfNeeded(filePath) {
   }
 }
 
+// 人类可读的日志行：时间 + 进程类型 + 事件 + 消息，堆栈逐行缩进。
+function formatLogLine(record) {
+  const head = `[${record.timestamp}] [${record.processType}] [${record.event}]`
+  const detail = record.details
+  let message = ''
+  if (detail && typeof detail === 'object') {
+    message = detail.message || detail.reason || detail.code || JSON.stringify(detail)
+  } else if (detail != null) {
+    message = String(detail)
+  }
+  const code = detail && typeof detail === 'object' && detail.code ? ` (code: ${detail.code})` : ''
+  const stack = detail && typeof detail === 'object' && detail.stack ? String(detail.stack) : ''
+  if (!stack) return `${head}${message ? ` ${message}` : ''}${code}`
+  const indented = stack.split(/\r?\n/).map((line) => `    ${line}`).join('\n')
+  return `${head}${message ? ` ${message}` : ''}${code}\n${indented}`
+}
+
 function log(event, details, extra = {}) {
   const timestamp = new Date().toISOString()
   const record = {
@@ -74,7 +91,7 @@ function log(event, details, extra = {}) {
   try {
     const filePath = getLogFile()
     rotateIfNeeded(filePath)
-    fs.appendFileSync(filePath, `${JSON.stringify(record)}${os.EOL}`, 'utf8')
+    fs.appendFileSync(filePath, `${formatLogLine(record)}${os.EOL}${os.EOL}`, 'utf8')
   } catch (_) {
     // 崩溃处理路径不能再次抛出异常。
   }

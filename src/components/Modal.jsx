@@ -14,7 +14,9 @@ function Modal({
   saveText,
   cancelText,
   saveDisabled = false,
-  closeDisabled = false
+  closeDisabled = false,
+  className = '',
+  bodyClassName = ''
 }) {
   const t = useT()
   const resolvedSave = saveText ?? t('common.save')
@@ -35,7 +37,7 @@ function Modal({
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal-panel" role="dialog" aria-modal="true">
+      <div className={`modal-panel ${className}`.trim()} role="dialog" aria-modal="true">
         {/* 顶部标题 + 关闭按钮 */}
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
@@ -51,7 +53,7 @@ function Modal({
         </div>
 
         {/* 内容区 */}
-        <div className="modal-body">{children}</div>
+        <div className={`modal-body ${bodyClassName}`.trim()}>{children}</div>
 
         {/* 底部按钮栏（传入 onSave 时显示） */}
         {onSave && (

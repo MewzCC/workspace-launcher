@@ -1,5 +1,6 @@
 // 应用根组件：初始化加载工作空间与软件数据，订阅全局启动进度，渲染主布局
 import { useEffect, useRef, useState } from 'react'
+import { Download, Sparkles, TimerOff, X } from 'lucide-react'
 import { Layout } from './components/Layout'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import Modal from './components/Modal'
@@ -179,25 +180,39 @@ function App() {
       )}
       {availableUpdate && !lastUpdate && (
         <Modal
-          title={t('settings.updateAvailableTitle', { version: availableUpdate.version })}
+          className="update-modal"
+          bodyClassName="update-modal__body"
+          title={(
+            <span className="update-modal__title">
+              <span className="update-modal__title-icon"><Sparkles size={18} /></span>
+              <span>{t('settings.updateAvailableTitle', { version: availableUpdate.version })}</span>
+            </span>
+          )}
           onClose={handleDismissUpdate}
         >
-          <p className="update-installed-intro">{t('settings.updateAvailableIntro')}</p>
-          {availableUpdate.releaseNotes && (
-            <div
-              className="update-installed-notes md-render"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(availableUpdate.releaseNotes) }}
-            />
-          )}
+          <div className="update-modal__content">
+            <p className="update-installed-intro">
+              <span aria-hidden="true" />
+              {t('settings.updateAvailableIntro')}
+            </p>
+            {availableUpdate.releaseNotes ? (
+              <div
+                className="update-installed-notes md-render"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(availableUpdate.releaseNotes) }}
+              />
+            ) : (
+              <p className="update-installed-empty">{t('settings.updateNoNotes')}</p>
+            )}
+          </div>
           <div className="update-available-actions">
-            <GlowButton variant="ghost" size="sm" onClick={handleDismissUpdate}>
-              {t('settings.updateCancel')}
+            <GlowButton className="update-action update-action--cancel" variant="ghost" size="sm" onClick={handleDismissUpdate}>
+              <X size={15} /> {t('settings.updateCancel')}
             </GlowButton>
-            <GlowButton variant="ghost" size="sm" onClick={handleSkipVersion}>
-              {t('settings.updateSkipVersion')}
+            <GlowButton className="update-action update-action--skip" variant="ghost" size="sm" onClick={handleSkipVersion}>
+              <TimerOff size={15} /> {t('settings.updateSkipVersion')}
             </GlowButton>
-            <GlowButton variant="primary" size="sm" onClick={handleUpdateNow}>
-              {t('settings.updateNow')}
+            <GlowButton className="update-action update-action--primary" variant="primary" size="sm" onClick={handleUpdateNow}>
+              <Download size={16} /> {t('settings.updateNow')}
             </GlowButton>
           </div>
         </Modal>

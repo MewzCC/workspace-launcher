@@ -179,7 +179,20 @@ export const petApi = {
 export const aiApi = {
   getConfig: () => unwrap(api.ai.getConfig()),
   saveConfig: (config) => unwrap(api.ai.saveConfig(config)),
-  chat: (messages) => unwrap(api.ai.chat(messages))
+  chat: (request) => unwrap(api.ai.chat(request)),
+  getConversation: (id) => unwrap(api.ai.getConversation(id)),
+  listConversations: () => unwrap(api.ai.listConversations()),
+  createConversation: (title) => unwrap(api.ai.createConversation(title)),
+  switchConversation: (id) => unwrap(api.ai.switchConversation(id)),
+  clearConversation: (id) => unwrap(api.ai.clearConversation(id)),
+  setMemoryMode: (mode) => unwrap(api.ai.setMemoryMode(mode)),
+  listMemories: (options) => unwrap(api.ai.listMemories(options)),
+  createMemory: (data) => unwrap(api.ai.createMemory(data)),
+  updateMemory: (id, data) => unwrap(api.ai.updateMemory(id, data)),
+  forgetMemory: (id) => unwrap(api.ai.forgetMemory(id)),
+  clearMemories: () => unwrap(api.ai.clearMemories()),
+  onConversationChanged: (callback) => api.ai.onConversationChanged(callback),
+  onMemoryChanged: (callback) => api.ai.onMemoryChanged(callback)
 }
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色

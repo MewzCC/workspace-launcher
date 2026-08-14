@@ -176,7 +176,28 @@ contextBridge.exposeInMainWorld('api', {
   ai: {
     getConfig: () => ipcRenderer.invoke('ai:getConfig'),
     saveConfig: (config) => ipcRenderer.invoke('ai:saveConfig', config),
-    chat: (messages) => ipcRenderer.invoke('ai:chat', messages)
+    chat: (request) => ipcRenderer.invoke('ai:chat', request),
+    getConversation: (id) => ipcRenderer.invoke('ai:conversation:get', id),
+    listConversations: () => ipcRenderer.invoke('ai:conversation:list'),
+    createConversation: (title) => ipcRenderer.invoke('ai:conversation:create', title),
+    switchConversation: (id) => ipcRenderer.invoke('ai:conversation:switch', id),
+    clearConversation: (id) => ipcRenderer.invoke('ai:conversation:clear', id),
+    setMemoryMode: (mode) => ipcRenderer.invoke('ai:memory:setMode', mode),
+    listMemories: (options) => ipcRenderer.invoke('ai:memory:list', options),
+    createMemory: (data) => ipcRenderer.invoke('ai:memory:create', data),
+    updateMemory: (id, data) => ipcRenderer.invoke('ai:memory:update', id, data),
+    forgetMemory: (id) => ipcRenderer.invoke('ai:memory:forget', id),
+    clearMemories: () => ipcRenderer.invoke('ai:memory:clear'),
+    onConversationChanged: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('ai:conversationChanged', handler)
+      return () => ipcRenderer.removeListener('ai:conversationChanged', handler)
+    },
+    onMemoryChanged: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('ai:memoryChanged', handler)
+      return () => ipcRenderer.removeListener('ai:memoryChanged', handler)
+    }
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {

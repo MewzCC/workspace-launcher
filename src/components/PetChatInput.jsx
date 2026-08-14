@@ -12,6 +12,7 @@ function PetChatInput() {
   const t = useT()
   const [draft, setDraft] = useState('')
   const [messages, setMessages] = useState([])
+  const [conversation, setConversation] = useState(null)
   const [chatting, setChatting] = useState(false)
   const inputRef = useRef(null)
 
@@ -19,30 +20,40 @@ function PetChatInput() {
 
   useEffect(() => {
     inputRef.current?.focus()
+    const loadConversation = (id) => aiApi.getConversation(id).then((result) => {
+      setConversation(result.conversation)
+      setMessages(result.messages || [])
+    }).catch(() => {})
+    loadConversation()
+    const unsubscribe = aiApi.onConversationChanged((payload) => loadConversation(payload?.conversationId))
     const handleKeyDown = (event) => { if (event.key === 'Escape') close() }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const send = async (event) => {
     event.preventDefault()
     const content = draft.trim()
     if (!content || chatting) return
-    const nextMessages = [...messages, { role: 'user', content }]
-    setMessages(nextMessages)
+    setMessages((items) => [...items, { role: 'user', content }])
     setDraft('')
     setChatting(true)
     petApi.performAction({ state: 'working', duration: 12000 })
     petApi.showBubble(t('petCenter.bubbleThinking'), 12000).catch(() => {})
     try {
-      const result = await aiApi.chat(nextMessages)
+      const result = await aiApi.chat({ conversationId: conversation?.id, content })
       const response = String(result.text || '').trim()
-      setMessages((items) => [...items, { role: 'assistant', content: response }])
+      setConversation(result.conversation)
+      const snapshot = await aiApi.getConversation(result.conversation.id)
+      setMessages(snapshot.messages || [])
       petApi.performAction({ state: 'wave', duration: 1800 })
       await petApi.showBubble(response, answerDuration(response))
     } catch (error) {
       const message = t('petCenter.aiConnectFailed', { message: error.message })
-      setMessages((items) => [...items, { role: 'assistant', content: message }])
+      setMessages((items) => [...items.filter((item) => item.id), { role: 'assistant', content: message }])
       petApi.performAction({ state: 'failed', duration: 2200 })
       await petApi.showBubble(message, answerDuration(message)).catch(() => {})
     } finally {

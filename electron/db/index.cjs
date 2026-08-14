@@ -11,5 +11,7 @@ module.exports = {
   batScriptDao: require('./batScriptDao.cjs'),
   settingsDao: require('./settingsDao.cjs'),
   scriptDao: require('./scriptDao.cjs'),
-  logDao: require('./logDao.cjs')
+  logDao: require('./logDao.cjs'),
+  conversationDao: require('./conversationDao.cjs'),
+  memoryDao: require('./memoryDao.cjs')
 }

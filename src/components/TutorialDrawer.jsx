@@ -16,16 +16,19 @@ const ICONS = {
 
 const PET_GUIDES = {
   'zh-CN': [
+    ['会话与记忆', '桌面桌宠和工作台共享同一个会话。可在对话顶部新建、切换或清空会话；在“记忆中心”选择关闭、仅手动或自动记忆，并随时编辑或忘记本地记忆。'],
     ['① 导入模型', '在“模型衣橱”选择 Codex v1 或 v2 模型目录中的 pet.json；旧版清单无需手动添加版本号。'],
     ['② 配置 AI', '在“桌宠设置”填写 API 地址、模型和 API Key。'],
     ['③ 开始陪伴', '单击桌面上的宠物可直接输入消息，回答会显示为气泡；右键可使用专注、鼓励、休息与桌面行为菜单。']
   ],
   'en-US': [
+    ['Conversations & memory', 'The desktop pet and workbench share one conversation. Create, switch, or clear chats from the header; choose Off, Manual, or Automatic in Memory and edit or forget local memories at any time.'],
     ['① Import', 'Choose pet.json from a Codex v1 or v2 pet folder. Legacy manifests do not need a version field.'],
     ['② Connect AI', 'Set the API URL, model and API key in Pet Settings.'],
     ['③ Get focused', 'Click the desktop pet to type a message and receive bubble replies. Right-click for focus, encouragement, breaks, and desktop behavior.']
   ],
   'ja-JP': [
+    ['会話と記憶の管理', 'デスクトップペットとワークベンチは同じ会話を共有します。ヘッダーで会話を作成・切り替え・消去し、記憶センターでオフ・手動・自動を選択して、ローカル記憶をいつでも編集または忘れることができます。'],
     ['① インポート', 'モデル画面で Codex v1 または v2 の pet.json を選択します。旧形式はバージョン指定不要です。'],
     ['② AI 設定', 'API URL、モデル、API Key を設定します。'],
     ['③ 作業開始', 'デスクトップのペットをクリックしてメッセージを入力すると、返答が吹き出しに表示されます。右クリックで集中、励まし、休憩、動作メニューを利用できます。']

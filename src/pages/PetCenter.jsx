@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  Bot, Box, Check, CircleHelp, FolderOpen, Import, KeyRound, MessageCircle,
-  Send, Settings2, Sparkles, Trash2, WandSparkles
+  Archive, Bot, Box, Brain, Check, CircleHelp, Eraser, FolderOpen, Import,
+  KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
+  Trash2, WandSparkles
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
@@ -26,18 +27,25 @@ const AI_PROVIDERS = {
 }
 
 const CUSTOM_MODEL = '__custom__'
+const PET_TAB_KEYS = ['companion', 'memory', 'models', 'settings']
 
 function PetCenter() {
   const t = useT()
   const language = useStore((state) => state.language)
   const [activeTab, setActiveTab] = useState('companion')
+  const [tabDirection, setTabDirection] = useState('forward')
+  const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false })
   const [config, setConfig] = useState(null)
   const [models, setModels] = useState([])
   const [aiConfig, setAiConfig] = useState(null)
   const [previewState, setPreviewState] = useState('idle')
-  const [messages, setMessages] = useState([
-    { role: 'assistant', i18nKey: 'petCenter.greeting' }
-  ])
+  const [messages, setMessages] = useState([])
+  const [conversations, setConversations] = useState([])
+  const [conversation, setConversation] = useState(null)
+  const [memories, setMemories] = useState([])
+  const [memoryMode, setMemoryMode] = useState('manual')
+  const [memoryType, setMemoryType] = useState('preference')
+  const [memoryDraft, setMemoryDraft] = useState('')
   const [draft, setDraft] = useState('')
   const [chatting, setChatting] = useState(false)
   const [notice, setNotice] = useState('')
@@ -47,10 +55,12 @@ function PetCenter() {
   const [baseUrl, setBaseUrl] = useState('')
   const [aiModel, setAiModel] = useState('')
   const chatEndRef = useRef(null)
+  const tabsRef = useRef(null)
 
   const load = async () => {
-    const [nextConfig, nextModels, nextAi] = await Promise.all([
-      petApi.getConfig(), petApi.listModels(), aiApi.getConfig()
+    const [nextConfig, nextModels, nextAi, nextConversation, nextConversations, nextMemories] = await Promise.all([
+      petApi.getConfig(), petApi.listModels(), aiApi.getConfig(), aiApi.getConversation(),
+      aiApi.listConversations(), aiApi.listMemories()
     ])
     setConfig(nextConfig)
     setModels(nextModels)
@@ -59,10 +69,53 @@ function PetCenter() {
     setApiFormat(nextAi.apiFormat || 'responses')
     setBaseUrl(nextAi.baseUrl || '')
     setAiModel(nextAi.model || '')
+    setMemoryMode(nextAi.memoryMode || 'manual')
+    setConversation(nextConversation.conversation)
+    setMessages(nextConversation.messages || [])
+    setConversations(nextConversations)
+    setMemories(nextMemories)
   }
 
   useEffect(() => { load().catch((error) => setNotice(error.message)) }, [language])
+  useEffect(() => {
+    if (activeTab !== 'memory') return
+    Promise.all([aiApi.listMemories(), aiApi.getConfig()]).then(([nextMemories, nextAi]) => {
+      setMemories(nextMemories)
+      setMemoryMode(nextAi.memoryMode || 'manual')
+    }).catch((error) => setNotice(error.message))
+  }, [activeTab])
+  useEffect(() => {
+    const unsubscribeConversation = aiApi.onConversationChanged(async (payload) => {
+      try {
+        const [nextConversation, nextConversations] = await Promise.all([
+          aiApi.getConversation(payload?.conversationId), aiApi.listConversations()
+        ])
+        setConversation(nextConversation.conversation)
+        setMessages(nextConversation.messages || [])
+        setConversations(nextConversations)
+      } catch (_) {}
+    })
+    const unsubscribeMemory = aiApi.onMemoryChanged(() => {
+      aiApi.listMemories().then(setMemories).catch(() => {})
+    })
+    return () => { unsubscribeConversation(); unsubscribeMemory() }
+  }, [])
   useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, chatting])
+  useLayoutEffect(() => {
+    const tabList = tabsRef.current
+    if (!tabList) return undefined
+
+    const updateIndicator = () => {
+      const activeButton = tabList.querySelector(`[data-tab-key="${activeTab}"]`)
+      if (!activeButton) return
+      setTabIndicator({ left: activeButton.offsetLeft, width: activeButton.offsetWidth, ready: true })
+    }
+
+    updateIndicator()
+    const observer = new ResizeObserver(updateIndicator)
+    observer.observe(tabList)
+    return () => observer.disconnect()
+  }, [activeTab, language, config, aiConfig])
 
   const importModel = async (mode = 'directory') => {
     setNotice('')
@@ -111,19 +164,16 @@ function PetCenter() {
     event?.preventDefault()
     const content = draft.trim()
     if (!content || chatting) return
-    const nextMessages = [...messages, { role: 'user', content }]
-    setMessages(nextMessages)
+    setMessages((items) => [...items, { role: 'user', content }])
     setDraft('')
     setChatting(true)
     setPreviewState('working')
     petApi.performAction({ state: 'working', bubble: t('petCenter.bubbleThinking'), duration: 12000 })
     try {
-      const requestMessages = nextMessages.map((item) => ({
-        ...item,
-        content: item.i18nKey ? t(item.i18nKey) : item.content
-      }))
-      const result = await aiApi.chat(requestMessages)
-      setMessages((items) => [...items, { role: 'assistant', content: result.text }])
+      const result = await aiApi.chat({ conversationId: conversation?.id, content })
+      const snapshot = await aiApi.getConversation(result.conversation.id)
+      setConversation(snapshot.conversation)
+      setMessages(snapshot.messages || [])
       setPreviewState('wave')
       petApi.performAction({ state: 'wave', bubble: result.text, duration: 3000 })
       setTimeout(() => setPreviewState('idle'), 1000)
@@ -133,6 +183,78 @@ function PetCenter() {
       petApi.performAction({ state: 'failed', bubble: t('petCenter.bubbleFailed'), duration: 2600 })
       setTimeout(() => setPreviewState('idle'), 1400)
     } finally { setChatting(false) }
+  }
+
+  const createConversation = async () => {
+    try {
+      const result = await aiApi.createConversation()
+      setConversation(result.conversation)
+      setMessages([])
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const switchConversation = async (id) => {
+    try {
+      const result = await aiApi.switchConversation(Number(id))
+      setConversation(result.conversation)
+      setMessages(result.messages || [])
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const clearConversation = async () => {
+    if (!conversation || !window.confirm(t('petCenter.clearConversationConfirm'))) return
+    try {
+      const result = await aiApi.clearConversation(conversation.id)
+      setConversation(result.conversation)
+      setMessages([])
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const changeMemoryMode = async (mode) => {
+    try {
+      await aiApi.setMemoryMode(mode)
+      setMemoryMode(mode)
+      setAiConfig((value) => ({ ...value, memoryMode: mode }))
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const addMemory = async (event) => {
+    event.preventDefault()
+    if (!memoryDraft.trim()) return
+    try {
+      await aiApi.createMemory({ type: memoryType, content: memoryDraft, confidence: 1 })
+      setMemoryDraft('')
+      setMemories(await aiApi.listMemories())
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const saveMemory = async (id, data) => {
+    try {
+      await aiApi.updateMemory(id, data)
+      setMemories(await aiApi.listMemories())
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const forgetMemory = async (id) => {
+    try {
+      await aiApi.forgetMemory(id)
+      setMemories(await aiApi.listMemories())
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const confirmMemory = async (id) => {
+    try {
+      await aiApi.updateMemory(id, { confirmed: true })
+      setMemories(await aiApi.listMemories())
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const clearMemories = async () => {
+    if (!window.confirm(t('petCenter.clearMemoriesConfirm'))) return
+    try {
+      await aiApi.clearMemories()
+      setMemories([])
+    } catch (error) { setNotice(error.message) }
   }
 
   const saveAi = async (event) => {
@@ -158,6 +280,39 @@ function PetCenter() {
 
   const providerModels = AI_PROVIDERS[provider]?.models || []
   const selectedModelOption = providerModels.includes(aiModel) ? aiModel : CUSTOM_MODEL
+  const activeTabIndex = PET_TAB_KEYS.indexOf(activeTab)
+  const panelMotionClass = `pet-tab-panel pet-tab-panel--${tabDirection}`
+  const tabs = [
+    ['companion', MessageCircle, t('petCenter.tabCompanion')],
+    ['memory', Brain, t('petCenter.tabMemory')],
+    ['models', Box, t('petCenter.tabModels')],
+    ['settings', Settings2, t('petCenter.tabSettings')]
+  ]
+
+  const changeTab = (nextTab, button) => {
+    const nextIndex = PET_TAB_KEYS.indexOf(nextTab)
+    if (nextIndex === activeTabIndex) return
+    setTabDirection(nextIndex > activeTabIndex ? 'forward' : 'backward')
+    setActiveTab(nextTab)
+    button?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'nearest',
+      inline: 'center'
+    })
+  }
+
+  const handleTabKeyDown = (event, index) => {
+    let nextIndex = index
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = tabs.length - 1
+    else return
+    event.preventDefault()
+    const nextButton = tabsRef.current?.querySelector(`[data-tab-key="${tabs[nextIndex][0]}"]`)
+    nextButton?.focus()
+    changeTab(tabs[nextIndex][0], nextButton)
+  }
 
   if (!config || !aiConfig) return <div className="pet-center-loading"><Sparkles /> {t('petCenter.loading')}</div>
 
@@ -174,14 +329,26 @@ function PetCenter() {
         </button>
       </header>
 
-      <div className="pet-center-tabs" role="tablist">
-        {[
-          ['companion', MessageCircle, t('petCenter.tabCompanion')],
-          ['models', Box, t('petCenter.tabModels')],
-          ['settings', Settings2, t('petCenter.tabSettings')]
-        ].map(([key, Icon, label]) => (
-          <button key={key} className={activeTab === key ? 'active' : ''} onClick={() => setActiveTab(key)}>
-            <Icon size={16} /> {label}
+      <div className="pet-center-tabs" role="tablist" ref={tabsRef}>
+        <span
+          className={`pet-center-tabs__indicator ${tabIndicator.ready ? 'is-ready' : ''}`}
+          style={{ width: `${tabIndicator.width}px`, transform: `translate3d(${tabIndicator.left}px, 0, 0)` }}
+          aria-hidden="true"
+        />
+        {tabs.map(([key, Icon, label], index) => (
+          <button
+            key={key}
+            id={`pet-tab-${key}`}
+            data-tab-key={key}
+            role="tab"
+            aria-selected={activeTab === key}
+            aria-controls={`pet-panel-${key}`}
+            tabIndex={activeTab === key ? 0 : -1}
+            className={activeTab === key ? 'active' : ''}
+            onClick={(event) => changeTab(key, event.currentTarget)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
+          >
+            <Icon size={16} /> <span>{label}</span>
           </button>
         ))}
       </div>
@@ -189,7 +356,7 @@ function PetCenter() {
       {notice && <div className="pet-center-notice">{notice}<button onClick={() => setNotice('')}>×</button></div>}
 
       {activeTab === 'companion' && (
-        <section className="pet-companion-grid">
+        <section id="pet-panel-companion" role="tabpanel" aria-labelledby="pet-tab-companion" className={`pet-companion-grid ${panelMotionClass}`}>
           <div className="pet-stage-card">
             <div className="pet-stage-light" />
             <div className="pet-stage-status"><span /> ONLINE · {config.model.displayName || 'LaunchBot'}</div>
@@ -206,12 +373,20 @@ function PetCenter() {
             <div className="pet-chat-head">
               <div className="pet-chat-avatar"><Bot size={19} /></div>
               <div><strong>{aiConfig.petName || t('petCenter.companion')}</strong><span>{t('petCenter.conciseMode')}</span></div>
+              <div className="pet-conversation-actions">
+                <select className="pet-themed-select" value={conversation?.id || ''} onChange={(event) => switchConversation(event.target.value)} aria-label={t('petCenter.conversation')}>
+                  {conversations.map((item) => <option key={item.id} value={item.id}>{item.title || t('petCenter.newConversation')}</option>)}
+                </select>
+                <button type="button" onClick={createConversation} title={t('petCenter.newConversation')}><Plus size={15} /></button>
+                <button type="button" onClick={clearConversation} title={t('petCenter.clearConversation')}><Eraser size={15} /></button>
+              </div>
               <span className={`pet-ai-pill ${aiConfig.hasApiKey ? 'ready' : ''}`}>{aiConfig.hasApiKey ? t('petCenter.aiConnected') : t('petCenter.awaitingConfig')}</span>
             </div>
             <div className="pet-chat-messages">
+              {!messages.length && <div className="pet-message pet-message--assistant"><p>{t('petCenter.greeting')}</p></div>}
               {messages.map((item, index) => (
-                <div key={index} className={`pet-message pet-message--${item.role}`}>
-                  <p>{item.i18nKey ? t(item.i18nKey) : item.content}</p>
+                <div key={item.id || index} className={`pet-message pet-message--${item.role}`}>
+                  <p>{item.content}</p>
                 </div>
               ))}
               {chatting && <div className="pet-message pet-message--assistant pet-message--typing"><i /><i /><i /></div>}
@@ -227,8 +402,56 @@ function PetCenter() {
         </section>
       )}
 
+      {activeTab === 'memory' && (
+        <section id="pet-panel-memory" role="tabpanel" aria-labelledby="pet-tab-memory" className={`pet-memory-layout ${panelMotionClass}`}>
+          <div className="pet-memory-control pet-settings-card">
+            <div className="pet-section-title">
+              <div><span>MEMORY CONTROL</span><h2>{t('petCenter.memoryTitle')}</h2></div>
+              <Brain size={21} />
+            </div>
+            <p className="pet-memory-intro">{t('petCenter.memoryDescription')}</p>
+            <div className="pet-memory-modes" role="radiogroup" aria-label={t('petCenter.memoryMode')}>
+              {['off', 'manual', 'auto'].map((mode) => (
+                <button type="button" role="radio" aria-checked={memoryMode === mode} key={mode} className={memoryMode === mode ? 'active' : ''} onClick={() => changeMemoryMode(mode)}>
+                  <span>{t(`petCenter.memoryMode_${mode}`)}</span>
+                  <small>{t(`petCenter.memoryMode_${mode}Desc`)}</small>
+                </button>
+              ))}
+            </div>
+            <form className="pet-memory-create" onSubmit={addMemory}>
+              <label>{t('petCenter.memoryType')}
+                <select className="pet-themed-select" value={memoryType} onChange={(event) => setMemoryType(event.target.value)}>
+                  {['preference', 'project', 'person', 'habit', 'environment', 'task'].map((type) => (
+                    <option key={type} value={type}>{t(`petCenter.memoryType_${type}`)}</option>
+                  ))}
+                </select>
+              </label>
+              <label>{t('petCenter.memoryContent')}
+                <textarea value={memoryDraft} onChange={(event) => setMemoryDraft(event.target.value)} rows="4" maxLength="2000" placeholder={t('petCenter.memoryPlaceholder')} />
+              </label>
+              <GlowButton type="submit" disabled={!memoryDraft.trim()}><Plus size={15} /> {t('petCenter.addMemory')}</GlowButton>
+            </form>
+          </div>
+
+          <div className="pet-memory-ledger pet-settings-card">
+            <div className="pet-section-title">
+              <div><span>LOCAL MEMORY</span><h2>{t('petCenter.memoryLedger')}</h2></div>
+              <b>{memories.length}</b>
+            </div>
+            <div className="pet-memory-ledger__meta">
+              <span>{t('petCenter.memoryLocalOnly')}</span>
+              {!!memories.length && <button className="danger" type="button" onClick={clearMemories}><Trash2 size={14} /> {t('petCenter.clearMemories')}</button>}
+            </div>
+            <div className="pet-memory-list">
+              {!memories.length && <div className="pet-memory-empty"><Brain size={28} /><strong>{t('petCenter.noMemories')}</strong><span>{t('petCenter.noMemoriesDesc')}</span></div>}
+              {memories.map((memory) => <MemoryCard key={memory.id} memory={memory} t={t} onSave={saveMemory} onConfirm={confirmMemory} onForget={forgetMemory} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
       {activeTab === 'models' && (
-        <section className="pet-models-layout">
+        <section id="pet-panel-models" role="tabpanel" aria-labelledby="pet-tab-models" className={`pet-models-layout ${panelMotionClass}`}>
           <div className="pet-import-card">
             <div className="pet-import-icon"><Import size={24} /></div>
             <span>CODEX PET IMPORTER</span>
@@ -267,7 +490,7 @@ function PetCenter() {
       )}
 
       {activeTab === 'settings' && (
-        <section className="pet-settings-grid">
+        <section id="pet-panel-settings" role="tabpanel" aria-labelledby="pet-tab-settings" className={`pet-settings-grid ${panelMotionClass}`}>
           <div className="pet-settings-card">
             <div className="pet-section-title"><div><span>BEHAVIOR</span><h2>{t('petCenter.desktopBehavior')}</h2></div><Settings2 size={20} /></div>
             <SettingToggle title={t('petCenter.showPet')} desc={t('petCenter.showPetDesc')} checked={config.settings.enabled} onChange={toggleEnabled} />
@@ -335,6 +558,45 @@ function PetCenter() {
 
       {tutorialOpen && <TutorialDrawer initialKey="pet" onClose={() => setTutorialOpen(false)} />}
     </div>
+  )
+}
+
+function MemoryCard({ memory, t, onSave, onConfirm, onForget }) {
+  const [editing, setEditing] = useState(false)
+  const [content, setContent] = useState(memory.content)
+  const [type, setType] = useState(memory.type)
+
+  const save = async () => {
+    if (!content.trim()) return
+    await onSave(memory.id, { content, type })
+    setEditing(false)
+  }
+
+  return (
+    <article className={`pet-memory-card ${editing ? 'editing' : ''}${memory.confirmed ? '' : ' pending'}`}>
+      <div className="pet-memory-card__head">
+        <span>{memory.confirmed ? t(`petCenter.memoryType_${type}`) : t('petCenter.memoryPending')}</span>
+        <b>{Math.round(memory.confidence * 100)}%</b>
+      </div>
+      {editing ? (
+        <div className="pet-memory-card__editor">
+          <select className="pet-themed-select" value={type} onChange={(event) => setType(event.target.value)}>
+            {['preference', 'project', 'person', 'habit', 'environment', 'task'].map((item) => <option key={item} value={item}>{t(`petCenter.memoryType_${item}`)}</option>)}
+          </select>
+          <textarea value={content} onChange={(event) => setContent(event.target.value)} rows="3" maxLength="2000" />
+        </div>
+      ) : <p>{memory.content}</p>}
+      <div className="pet-memory-card__foot">
+        <small>{memory.last_used_at ? t('petCenter.memoryUsed') : t('petCenter.memoryNotUsed')}</small>
+        <div>
+          {!memory.confirmed && <button className="confirm" type="button" onClick={() => onConfirm(memory.id)}><Check size={14} /> {t('petCenter.confirmMemory')}</button>}
+          {editing
+            ? <button type="button" onClick={save}><Save size={14} /> {t('common.save')}</button>
+            : <button type="button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('common.edit')}</button>}
+          <button className="danger" type="button" onClick={() => onForget(memory.id)}><Archive size={14} /> {t('petCenter.forgetMemory')}</button>
+        </div>
+      </div>
+    </article>
   )
 }
 

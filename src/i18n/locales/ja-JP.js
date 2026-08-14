@@ -53,6 +53,16 @@ export default {
     version: 'バージョン'
   },
   petCenter: {
+    tabMemory: '記憶センター',
+    conversation: '現在の会話', newConversation: '新しい会話', clearConversation: '会話を消去', clearConversationConfirm: '現在の会話と要約を消去しますか？この操作は元に戻せません。',
+    memoryTitle: '記憶コントロール', memoryDescription: '記憶はローカルのデータフォルダーだけに保存されます。読み取り、手動保存、自動整理を選択できます。', memoryMode: '記憶モード',
+    memoryMode_off: '記憶をオフ', memoryMode_offDesc: '会話中に長期記憶を読み取らず、作成もしません。',
+    memoryMode_manual: '手動記憶（確認制）', memoryMode_manualDesc: 'AI は記憶を提案できますが、承認するまで今後の会話には使用されません。',
+    memoryMode_auto: '自動記憶', memoryMode_autoDesc: '明確で長期的な事実を慎重に抽出し、以降の会話で利用します。',
+    memoryType: '記憶タイプ', memoryContent: '記憶内容', memoryPlaceholder: '例：React を使って LaunchPad を開発しています。', addMemory: '記憶を保存',
+    memoryType_preference: '好み', memoryType_project: 'プロジェクト', memoryType_person: '人物', memoryType_habit: '習慣', memoryType_environment: '作業環境', memoryType_task: '長期タスク',
+    memoryLedger: 'ローカル記憶台帳', memoryLocalOnly: 'カスタムデータフォルダーに保存され、独立したクラウドプロフィールとして送信されません。', clearMemories: 'すべて消去', clearMemoriesConfirm: 'すべての長期記憶を削除しますか？この操作は元に戻せません。',
+    noMemories: '長期記憶はまだありません', noMemoriesDesc: '手動で追加するか、記憶を有効にして、安定した好みやプロジェクト情報を伝えてください。', forgetMemory: '忘れる', memoryUsed: '関連する会話で使用済み', memoryNotUsed: 'まだ会話で未使用', memoryPending: '確認待ち', confirmMemory: '記憶を承認',
     title: 'ペットワークベンチ', subtitle: '仕事仲間、会話の性格、Codex v1 / v2 アニメーションモデルを管理します。', tutorial: '使い方',
     tabCompanion: 'コンパニオン会話', tabModels: 'モデル衣装棚', tabSettings: 'ペット設定', greeting: '準備できました。今日は何から終わらせますか？',
     loading: 'ペットを起こしています…', importSuccess: 'インポートし、新しいペットに切り替えました。', removeConfirm: 'このインポート済みペットモデルを削除しますか？',

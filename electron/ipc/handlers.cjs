@@ -56,9 +56,61 @@ async function runSoftwareScan(task) {
 
 // 注册所有 IPC 处理器（在 app ready 时调用一次）
 function registerIpcHandlers() {
+  const broadcastAi = (channel, payload) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send(channel, payload)
+    }
+  }
   ipcMain.handle('ai:getConfig', () => wrap(() => aiService.getConfig()))
   ipcMain.handle('ai:saveConfig', (_e, config) => wrap(() => aiService.saveConfig(config)))
-  ipcMain.handle('ai:chat', (_e, messages) => wrap(() => aiService.chat(messages)))
+  ipcMain.handle('ai:chat', (_e, request) => wrap(async () => {
+    const result = await aiService.chat(request)
+    broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id })
+    return result
+  }))
+  ipcMain.handle('ai:conversation:get', (_e, id) => wrap(() => aiService.getConversation(id)))
+  ipcMain.handle('ai:conversation:list', () => wrap(() => aiService.listConversations()))
+  ipcMain.handle('ai:conversation:create', (_e, title) => wrap(() => {
+    const result = aiService.createConversation(title)
+    broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, switched: true })
+    return result
+  }))
+  ipcMain.handle('ai:conversation:switch', (_e, id) => wrap(() => {
+    const result = aiService.switchConversation(id)
+    broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, switched: true })
+    return result
+  }))
+  ipcMain.handle('ai:conversation:clear', (_e, id) => wrap(() => {
+    const result = aiService.clearConversation(id)
+    broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, cleared: true })
+    return result
+  }))
+  ipcMain.handle('ai:memory:setMode', (_e, mode) => wrap(() => {
+    const result = aiService.setMemoryMode(mode)
+    broadcastAi('ai:memoryChanged', result)
+    return result
+  }))
+  ipcMain.handle('ai:memory:list', (_e, options) => wrap(() => aiService.listMemories(options)))
+  ipcMain.handle('ai:memory:create', (_e, data) => wrap(() => {
+    const result = aiService.createMemory(data)
+    broadcastAi('ai:memoryChanged', { id: result.id })
+    return result
+  }))
+  ipcMain.handle('ai:memory:update', (_e, id, data) => wrap(() => {
+    const result = aiService.updateMemory(id, data)
+    broadcastAi('ai:memoryChanged', { id: result.id })
+    return result
+  }))
+  ipcMain.handle('ai:memory:forget', (_e, id) => wrap(() => {
+    const result = aiService.forgetMemory(id)
+    broadcastAi('ai:memoryChanged', { id: result.id })
+    return result
+  }))
+  ipcMain.handle('ai:memory:clear', () => wrap(() => {
+    const result = aiService.clearMemories()
+    broadcastAi('ai:memoryChanged', { cleared: true })
+    return result
+  }))
   // ===== 工作空间 =====
   ipcMain.handle('workspace:list', () => wrap(() => workspaceDao.list()))
   ipcMain.handle('workspace:get', (_e, id) => wrap(() => workspaceDao.get(id)))

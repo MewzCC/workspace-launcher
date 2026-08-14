@@ -85,6 +85,46 @@ const CREATE_TABLES_SQL = `
     message_params TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS ai_conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL DEFAULT '',
+    summary TEXT NOT NULL DEFAULT '',
+    summary_message_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('user','assistant','tool','system')),
+    content TEXT NOT NULL DEFAULT '',
+    metadata TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation
+    ON ai_messages(conversation_id, id);
+
+  CREATE TABLE IF NOT EXISTS ai_memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL DEFAULT 'preference',
+    content TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 0.8,
+    source_message_id INTEGER,
+    last_used_at TEXT,
+    expires_at TEXT,
+    confirmed INTEGER NOT NULL DEFAULT 1,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (source_message_id) REFERENCES ai_messages(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_memories_active
+    ON ai_memories(archived, updated_at DESC);
 `
 
 // 轻量迁移：为已存在的旧表补充新增列
@@ -108,6 +148,12 @@ const MIGRATIONS = [
       { name: 'message_key', definition: 'TEXT' },
       { name: 'message_params', definition: 'TEXT' }
     ]
+  },
+  {
+    table: 'ai_memories',
+    columns: [
+      { name: 'confirmed', definition: 'INTEGER NOT NULL DEFAULT 1' }
+    ]
   }
 ]
 
@@ -129,6 +175,33 @@ function applyMigrations(database) {
     SET icon_mode = 'custom'
     WHERE icon_mode = 'auto' AND icon IS NOT NULL AND icon <> '📦'
   `).run()
+
+  // FTS5 is bundled with better-sqlite3 in normal builds. Keep the base memory
+  // table usable even on an unusual SQLite build where FTS5 is unavailable.
+  try {
+    database.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS ai_memories_fts USING fts5(
+        content,
+        content='ai_memories',
+        content_rowid='id',
+        tokenize='unicode61'
+      );
+      CREATE TRIGGER IF NOT EXISTS ai_memories_ai AFTER INSERT ON ai_memories BEGIN
+        INSERT INTO ai_memories_fts(rowid, content) VALUES (new.id, new.content);
+      END;
+      CREATE TRIGGER IF NOT EXISTS ai_memories_ad AFTER DELETE ON ai_memories BEGIN
+        INSERT INTO ai_memories_fts(ai_memories_fts, rowid, content)
+        VALUES ('delete', old.id, old.content);
+      END;
+      CREATE TRIGGER IF NOT EXISTS ai_memories_au AFTER UPDATE OF content ON ai_memories BEGIN
+        INSERT INTO ai_memories_fts(ai_memories_fts, rowid, content)
+        VALUES ('delete', old.id, old.content);
+        INSERT INTO ai_memories_fts(rowid, content) VALUES (new.id, new.content);
+      END;
+    `)
+  } catch (error) {
+    console.warn('[database] FTS5 unavailable; memory search will use fallback matching:', error.message)
+  }
 }
 
 // 获取数据库连接（懒初始化）

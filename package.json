@@ -21,6 +21,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "test:ai-memory": "electron scripts/verify-ai-memory.cjs",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps",
     "dist": "electron-vite build && electron-builder",

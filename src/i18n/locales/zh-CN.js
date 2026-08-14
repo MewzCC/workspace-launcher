@@ -53,6 +53,16 @@ export default {
     version: '版本'
   },
   petCenter: {
+    tabMemory: '记忆中心',
+    conversation: '当前会话', newConversation: '新建会话', clearConversation: '清空会话', clearConversationConfirm: '确定清空当前会话及摘要吗？此操作不可恢复。',
+    memoryTitle: '记忆控制台', memoryDescription: '记忆仅保存在本地数据目录中。你可以决定桌宠是否读取、手动记录或自动整理长期信息。', memoryMode: '记忆模式',
+    memoryMode_off: '关闭记忆', memoryMode_offDesc: '聊天时不读取，也不会创建长期记忆。',
+    memoryMode_manual: '仅手动记忆（需确认）', memoryMode_manualDesc: 'AI 可以提出候选记忆，但只有你确认后才会用于后续对话。',
+    memoryMode_auto: '自动记忆', memoryMode_autoDesc: '从明确表达的长期事实中谨慎提取记忆，并参与后续对话。',
+    memoryType: '记忆类型', memoryContent: '记忆内容', memoryPlaceholder: '例如：我在开发 LaunchPad，前端使用 React。', addMemory: '保存这条记忆',
+    memoryType_preference: '偏好', memoryType_project: '项目', memoryType_person: '人物', memoryType_habit: '习惯', memoryType_environment: '工作环境', memoryType_task: '长期任务',
+    memoryLedger: '本地记忆账本', memoryLocalOnly: '随自定义数据目录保存，不上传为独立云端资料。', clearMemories: '清空全部', clearMemoriesConfirm: '确定删除全部长期记忆吗？此操作不可恢复。',
+    noMemories: '还没有长期记忆', noMemoriesDesc: '手动添加一条，或开启记忆后在聊天中告诉桌宠稳定的偏好与项目背景。', forgetMemory: '忘记', memoryUsed: '已在相关对话中使用', memoryNotUsed: '尚未用于对话', memoryPending: '等待确认', confirmMemory: '确认记住',
     title: '桌宠工作台', subtitle: '管理你的工作伙伴、对话人格与 Codex v1 / v2 动画模型。', tutorial: '使用教程',
     tabCompanion: '陪伴对话', tabModels: '模型衣橱', tabSettings: '桌宠设置', greeting: '嗨，我已经准备好了。今天我们先完成哪件事？',
     loading: '正在唤醒桌宠…', importSuccess: '导入成功，已切换为新桌宠。', removeConfirm: '确定删除这个已导入的桌宠模型吗？',

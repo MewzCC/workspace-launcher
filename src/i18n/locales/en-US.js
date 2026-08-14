@@ -53,6 +53,16 @@ export default {
     version: 'Version'
   },
   petCenter: {
+    tabMemory: 'Memory',
+    conversation: 'Current conversation', newConversation: 'New conversation', clearConversation: 'Clear conversation', clearConversationConfirm: 'Clear this conversation and its summary? This cannot be undone.',
+    memoryTitle: 'Memory Control', memoryDescription: 'Memories stay in your local data directory. You decide whether the companion reads, manually stores, or automatically organizes durable information.', memoryMode: 'Memory mode',
+    memoryMode_off: 'Memory off', memoryMode_offDesc: 'Do not read or create long-term memories during chat.',
+    memoryMode_manual: 'Manual / confirm', memoryMode_manualDesc: 'AI may suggest a memory, but it is used later only after you approve it.',
+    memoryMode_auto: 'Automatic memory', memoryMode_autoDesc: 'Carefully extract explicit durable facts and use them in later conversations.',
+    memoryType: 'Memory type', memoryContent: 'Memory content', memoryPlaceholder: 'For example: I am building LaunchPad with a React frontend.', addMemory: 'Save memory',
+    memoryType_preference: 'Preference', memoryType_project: 'Project', memoryType_person: 'Person', memoryType_habit: 'Habit', memoryType_environment: 'Environment', memoryType_task: 'Long-term task',
+    memoryLedger: 'Local Memory Ledger', memoryLocalOnly: 'Stored with your custom data directory; not uploaded as a separate cloud profile.', clearMemories: 'Clear all', clearMemoriesConfirm: 'Delete every long-term memory? This cannot be undone.',
+    noMemories: 'No long-term memories yet', noMemoriesDesc: 'Add one manually, or enable memory and tell your companion about stable preferences and project context.', forgetMemory: 'Forget', memoryUsed: 'Used in a relevant conversation', memoryNotUsed: 'Not used in chat yet', memoryPending: 'Awaiting approval', confirmMemory: 'Remember this',
     title: 'Pet Workbench', subtitle: 'Manage your work companion, chat personality, and Codex v1 / v2 animation models.', tutorial: 'Tutorial',
     tabCompanion: 'Companion Chat', tabModels: 'Model Wardrobe', tabSettings: 'Pet Settings', greeting: "Hi, I'm ready. What shall we finish first today?",
     loading: 'Waking your pet…', importSuccess: 'Imported and switched to the new pet.', removeConfirm: 'Delete this imported pet model?',

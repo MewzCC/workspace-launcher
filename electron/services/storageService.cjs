@@ -69,7 +69,14 @@ function countDatabaseRows(databasePath) {
     try {
       const workspaces = database.prepare('SELECT COUNT(*) AS count FROM workspaces').get()?.count || 0
       const software = database.prepare('SELECT COUNT(*) AS count FROM software').get()?.count || 0
-      return workspaces + software
+      const tableExists = (name) => Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name))
+      const conversations = tableExists('ai_conversations')
+        ? database.prepare('SELECT COUNT(*) AS count FROM ai_conversations').get()?.count || 0
+        : 0
+      const memories = tableExists('ai_memories')
+        ? database.prepare('SELECT COUNT(*) AS count FROM ai_memories').get()?.count || 0
+        : 0
+      return workspaces + software + conversations + memories
     } finally {
       database.close()
     }

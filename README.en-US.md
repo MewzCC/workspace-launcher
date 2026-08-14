@@ -53,10 +53,11 @@ Workspace data and app settings are stored locally in SQLite. No LaunchPad accou
 - A dedicated Pet Workbench for chat, model wardrobe, and behavior settings.
 - Codex v1 and v2 spritesheet compatibility, including automatic legacy detection.
 - Multiple animation states such as idle, walking, working, celebrating, and resting.
-- Adjustable scale, opacity, roaming behavior, and always-on-top mode.
+- Adjustable scale, opacity, roaming range, activity level, and always-on-top mode.
 - A tightly sized pet window that follows the model instead of blocking a large transparent area.
 - Stable drag behavior whose interactive area follows the pet without growing the window.
 - Adaptive chat bubbles that stay readable near desktop edges.
+- Click the pet to type below it and receive dynamically timed AI bubble replies; right-click for focus sessions, encouragement, breaks, and desktop behavior.
 
 ### Configurable AI chat
 

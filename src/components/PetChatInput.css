@@ -1,0 +1,88 @@
+html:has(.pet-chat-input),
+body:has(.pet-chat-input),
+body.pet-chat-window-body,
+body.pet-chat-window-body #root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body.pet-chat-window-body::before,
+body.pet-chat-window-body::after { display: none; }
+
+.pet-chat-input {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-card) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, var(--brand-border));
+  border-radius: 14px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-background) 30%, transparent);
+  backdrop-filter: blur(18px);
+  animation: pet-chat-drop 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.pet-chat-input input {
+  min-width: 0;
+  height: 32px;
+  padding: 0 9px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 72%, transparent);
+  border: 1px solid var(--brand-border);
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  font-size: 11px;
+}
+
+.pet-chat-input input:focus {
+  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
+.pet-chat-input input::placeholder { color: var(--brand-muted-foreground); }
+
+.pet-chat-input button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.pet-chat-input__send {
+  color: var(--brand-primary-foreground, #fff);
+  background: var(--brand-primary);
+}
+
+.pet-chat-input__send:disabled { opacity: .42; cursor: default; }
+
+.pet-chat-input .pet-chat-input__close {
+  color: var(--brand-muted-foreground);
+  background: transparent;
+}
+
+.pet-chat-input .pet-chat-input__close:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-muted) 76%, transparent);
+}
+
+@keyframes pet-chat-drop {
+  from { opacity: 0; transform: translateY(-10px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-chat-input { animation: none; }
+}

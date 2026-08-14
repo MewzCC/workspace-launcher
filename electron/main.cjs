@@ -114,6 +114,9 @@ if (!gotSingleInstanceLock) {
 
     ipcMain.handle('theme:set', (_e, theme) => {
       applyNativeTheme(theme)
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send('theme:changed', theme)
+      }
       return { success: true }
     })
 

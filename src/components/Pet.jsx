@@ -4,10 +4,9 @@ import PetSprite from './PetSprite'
 import { useT } from '../hooks/useT'
 import './Pet.css'
 
-const MOVE_TICK = 36
-const ROAM_DURATION = 1500
-const IDLE_MIN = 14000
-const IDLE_MAX = 32000
+const MOVE_TICK = 32
+const IDLE_MIN = 6500
+const IDLE_MAX = 19000
 const AMBIENT_MIN = 9000
 const AMBIENT_MAX = 18000
 const AMBIENT_ACTIONS = [
@@ -21,17 +20,29 @@ function Pet() {
   const t = useT()
   const [config, setConfig] = useState(null)
   const [petState, setPetState] = useState('idle')
-  const [bubble, setBubble] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const dragRef = useRef(null)
   const draggingRef = useRef(false)
+  const chatOpenRef = useRef(false)
   const stateRef = useRef('idle')
   const roamTimerRef = useRef(null)
   const walkTimerRef = useRef(null)
+  const routePauseRef = useRef(null)
+  const motionTokenRef = useRef(0)
   const ambientTimerRef = useRef(null)
   const actionTimerRef = useRef(null)
   const scheduleRoamRef = useRef(null)
   const scheduleAmbientRef = useRef(null)
+
+  const applyChatVisibility = useCallback((open) => {
+    const visible = Boolean(open)
+    chatOpenRef.current = visible
+    setChatOpen(visible)
+    if (visible) {
+      petApi.setMousePassthrough(false)
+    }
+  }, [])
 
   const changeState = useCallback((next) => {
     stateRef.current = next
@@ -39,9 +50,12 @@ function Pet() {
   }, [])
 
   const stopMotion = useCallback(() => {
+    motionTokenRef.current += 1
     clearTimeout(roamTimerRef.current)
     clearInterval(walkTimerRef.current)
+    clearTimeout(routePauseRef.current)
     walkTimerRef.current = null
+    routePauseRef.current = null
   }, [])
 
   const performAction = useCallback((action = {}) => {
@@ -50,10 +64,8 @@ function Pet() {
     clearTimeout(ambientTimerRef.current)
     clearTimeout(actionTimerRef.current)
     changeState(action.state || 'idle')
-    setBubble(String(action.bubble || ''))
     actionTimerRef.current = setTimeout(() => {
       changeState('idle')
-      setBubble('')
       scheduleRoamRef.current?.()
       scheduleAmbientRef.current?.()
     }, Math.max(800, Number(action.duration) || 1800))
@@ -61,19 +73,40 @@ function Pet() {
 
   useEffect(() => {
     let mounted = true
-    petApi.getConfig().then((value) => mounted && setConfig(value)).catch(() => {})
-    const unsubscribe = petApi.onConfigChanged((value) => setConfig(value))
+    petApi.getConfig().then((value) => {
+      if (!mounted) return
+      setConfig(value)
+      applyChatVisibility(value?.settings?.chatOpen)
+    }).catch(() => {})
+    const unsubscribe = petApi.onConfigChanged((value) => {
+      stopMotion()
+      changeState('idle')
+      setConfig(value)
+    })
     const unsubscribeAction = petApi.onAction(performAction)
+    const unsubscribeChat = petApi.onChatVisibility(applyChatVisibility)
     return () => {
       mounted = false
       unsubscribe()
       unsubscribeAction()
+      unsubscribeChat()
       petApi.setMousePassthrough(true)
     }
-  }, [performAction])
+  }, [applyChatVisibility, changeState, performAction, stopMotion])
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape' || !chatOpenRef.current) return
+      applyChatVisibility(false)
+      petApi.setChatOpen(false).catch(() => {})
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [applyChatVisibility])
 
   const scheduleAmbient = useCallback(() => {
     clearTimeout(ambientTimerRef.current)
+    if (chatOpenRef.current) return
     const delay = AMBIENT_MIN + Math.random() * (AMBIENT_MAX - AMBIENT_MIN)
     ambientTimerRef.current = setTimeout(() => {
       if (stateRef.current !== 'idle' || draggingRef.current || walkTimerRef.current) {
@@ -83,40 +116,104 @@ function Pet() {
       const action = AMBIENT_ACTIONS[Math.floor(Math.random() * AMBIENT_ACTIONS.length)]
       performAction(action)
     }, delay)
-  }, [performAction])
+  }, [chatOpen, performAction])
 
   const scheduleRoam = useCallback(() => {
     clearTimeout(roamTimerRef.current)
-    if (!config?.settings?.roaming) return
-    const delay = IDLE_MIN + Math.random() * (IDLE_MAX - IDLE_MIN)
-    roamTimerRef.current = setTimeout(() => {
+    if (!config?.settings?.roaming || chatOpenRef.current) return
+    const activity = Math.min(2, Math.max(0.5, Number(config.settings.roamActivity) || 1))
+    const delay = (IDLE_MIN + Math.random() * (IDLE_MAX - IDLE_MIN)) / activity
+    roamTimerRef.current = setTimeout(async () => {
       if (stateRef.current !== 'idle') {
         scheduleRoam()
         return
       }
-      const startX = window.screenX
-      const startY = window.screenY
-      const deltaX = -90 + Math.random() * 180
-      const deltaY = -55 + Math.random() * 100
-      const steps = Math.max(1, Math.round(ROAM_DURATION / MOVE_TICK))
-      const direction = deltaX >= 0 ? 'walkRight' : 'walkLeft'
-      let step = 0
-      changeState(direction)
-      walkTimerRef.current = setInterval(() => {
-        step += 1
-        const progress = Math.min(1, step / steps)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased))
-        if (step >= steps) {
-          clearInterval(walkTimerRef.current)
+      let area
+      try {
+        area = await petApi.getMovementArea()
+      } catch (_) {
+        scheduleRoam()
+        return
+      }
+      if (stateRef.current !== 'idle' || draggingRef.current) return
+
+      const range = Math.min(1, Math.max(0.2, Number(config.settings.roamRange) || 0.7))
+      const routeLength = 1 + (Math.random() < 0.34 * activity ? 1 : 0) + (Math.random() < 0.12 * activity ? 1 : 0)
+      const route = []
+      let cursor = { x: window.screenX, y: window.screenY }
+      const horizontalSpan = Math.max(0, area.maxX - area.minX)
+      const verticalSpan = Math.max(0, area.maxY - area.minY)
+      const maxHorizontal = Math.max(70, horizontalSpan * range * 0.42)
+      const maxVertical = Math.max(24, verticalSpan * range * 0.15)
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+      for (let index = 0; index < routeLength; index += 1) {
+        const horizontal = (55 + Math.random() * Math.max(20, maxHorizontal - 55)) * (Math.random() < 0.5 ? -1 : 1)
+        const vertical = (-maxVertical + Math.random() * maxVertical * 2) * (index === 0 ? 1 : 0.72)
+        let target = {
+          x: clamp(Math.round(cursor.x + horizontal), area.minX, area.maxX),
+          y: clamp(Math.round(cursor.y + vertical), area.minY, area.maxY)
+        }
+        // 如果随机方向撞到边缘，就改为朝屏幕内部走，避免原地踏步。
+        if (Math.hypot(target.x - cursor.x, target.y - cursor.y) < 34) {
+          const centerX = (area.minX + area.maxX) / 2
+          const inward = cursor.x <= centerX ? 1 : -1
+          target = {
+            x: clamp(Math.round(cursor.x + inward * Math.max(60, maxHorizontal * 0.55)), area.minX, area.maxX),
+            y: clamp(Math.round(cursor.y + vertical), area.minY, area.maxY)
+          }
+        }
+        route.push(target)
+        cursor = target
+      }
+
+      const token = motionTokenRef.current + 1
+      motionTokenRef.current = token
+      const walkSegment = (index) => {
+        if (motionTokenRef.current !== token || draggingRef.current) return
+        if (index >= route.length) {
           walkTimerRef.current = null
           changeState('idle')
           petApi.savePosition()
           scheduleRoam()
+          return
         }
-      }, MOVE_TICK)
+        const startX = window.screenX
+        const startY = window.screenY
+        const target = route[index]
+        const deltaX = target.x - startX
+        const deltaY = target.y - startY
+        const distance = Math.hypot(deltaX, deltaY)
+        const speed = 82 + Math.random() * 38
+        const duration = Math.min(4200, Math.max(850, distance / speed * 1000))
+        const steps = Math.max(1, Math.round(duration / MOVE_TICK))
+        let step = 0
+        changeState(deltaX >= 0 ? 'walkRight' : 'walkLeft')
+        walkTimerRef.current = setInterval(() => {
+          if (motionTokenRef.current !== token || draggingRef.current) {
+            clearInterval(walkTimerRef.current)
+            walkTimerRef.current = null
+            return
+          }
+          step += 1
+          const progress = Math.min(1, step / steps)
+          const eased = 0.5 - Math.cos(Math.PI * progress) / 2
+          petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased))
+          if (step >= steps) {
+            clearInterval(walkTimerRef.current)
+            walkTimerRef.current = null
+            if (index + 1 < route.length) {
+              changeState('idle')
+              routePauseRef.current = setTimeout(() => walkSegment(index + 1), 180 + Math.random() * 420)
+            } else {
+              walkSegment(index + 1)
+            }
+          }
+        }, MOVE_TICK)
+      }
+      walkSegment(0)
     }, delay)
-  }, [changeState, config?.settings?.roaming])
+  }, [changeState, chatOpen, config?.settings?.roamActivity, config?.settings?.roamRange, config?.settings?.roaming])
 
   scheduleRoamRef.current = scheduleRoam
   scheduleAmbientRef.current = scheduleAmbient
@@ -125,8 +222,10 @@ function Pet() {
     scheduleRoam()
     scheduleAmbient()
     return () => {
+      motionTokenRef.current += 1
       clearTimeout(roamTimerRef.current)
       clearInterval(walkTimerRef.current)
+      clearTimeout(routePauseRef.current)
       clearTimeout(ambientTimerRef.current)
       clearTimeout(actionTimerRef.current)
     }
@@ -157,7 +256,8 @@ function Pet() {
       const deltaY = event.screenY - dragRef.current.pointerY
       const nextX = dragRef.current.originX + deltaX
       const nextY = dragRef.current.originY + deltaY
-      if (Math.hypot(deltaX, deltaY) > 3) dragRef.current.moved = true
+      if (!dragRef.current.moved && Math.hypot(deltaX, deltaY) <= 4) return
+      dragRef.current.moved = true
       petApi.move(nextX, nextY)
     }
     const handleUp = (event) => {
@@ -168,19 +268,26 @@ function Pet() {
       setDragging(false)
       petApi.savePosition()
       if (!moved) {
-        const clickActions = [
-          { state: 'wave', bubble: t('petCenter.petBubbleReady'), duration: 1800 },
-          { state: 'jump', bubble: t('petCenter.petBubbleCheer'), duration: 1500 },
-          { state: 'waiting', bubble: t('petCenter.petBubbleNext'), duration: 1900 }
-        ]
-        performAction(clickActions[Math.floor(Math.random() * clickActions.length)])
+        const nextOpen = !chatOpenRef.current
+        applyChatVisibility(nextOpen)
+        petApi.setChatOpen(nextOpen).catch(() => applyChatVisibility(!nextOpen))
+        if (nextOpen) {
+          const greetings = [
+            t('petCenter.petBubbleReady'),
+            t('petCenter.petBubbleCheer'),
+            t('petCenter.petBubbleNext')
+          ]
+          const greeting = greetings[Math.floor(Math.random() * greetings.length)]
+          petApi.performAction({ state: 'wave', duration: 1800 }).catch(() => {})
+          petApi.showBubble(greeting, Math.max(2500, 1800 + Array.from(greeting).length * 72)).catch(() => {})
+        }
       } else {
         changeState('idle')
       }
       scheduleRoam()
       scheduleAmbient()
       const element = document.elementFromPoint(event.clientX, event.clientY)
-      if (!element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true)
+      if (!chatOpenRef.current && !element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true)
     }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
@@ -188,7 +295,7 @@ function Pet() {
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [changeState, performAction, scheduleAmbient, scheduleRoam, t])
+  }, [applyChatVisibility, changeState, scheduleAmbient, scheduleRoam, t])
 
   const spriteSize = config?.settings?.dimensions?.spriteWidth || 116
 
@@ -196,12 +303,11 @@ function Pet() {
     <div
       className={`pet-root pet-root--${petState}${dragging ? ' pet-root--dragging' : ''}`}
     >
-      {bubble && <div className="pet-bubble">{bubble}</div>}
       <div
         className="pet-interaction-zone"
         onMouseEnter={() => petApi.setMousePassthrough(false)}
         onMouseLeave={() => {
-          if (!draggingRef.current) petApi.setMousePassthrough(true)
+          if (!draggingRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true)
         }}
         onMouseDown={handleMouseDown}
         onDoubleClick={() => petApi.openMain().catch(() => {})}

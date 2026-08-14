@@ -18,17 +18,17 @@ const PET_GUIDES = {
   'zh-CN': [
     ['① 导入模型', '在“模型衣橱”选择 Codex v1 或 v2 模型目录中的 pet.json；旧版清单无需手动添加版本号。'],
     ['② 配置 AI', '在“桌宠设置”填写 API 地址、模型和 API Key。'],
-    ['③ 开始陪伴', '返回“陪伴对话”，告诉桌宠你今天准备完成什么。']
+    ['③ 开始陪伴', '单击桌面上的宠物可直接输入消息，回答会显示为气泡；右键可使用专注、鼓励、休息与桌面行为菜单。']
   ],
   'en-US': [
     ['① Import', 'Choose pet.json from a Codex v1 or v2 pet folder. Legacy manifests do not need a version field.'],
     ['② Connect AI', 'Set the API URL, model and API key in Pet Settings.'],
-    ['③ Get focused', 'Return to Companion Chat and share today’s first task.']
+    ['③ Get focused', 'Click the desktop pet to type a message and receive bubble replies. Right-click for focus, encouragement, breaks, and desktop behavior.']
   ],
   'ja-JP': [
     ['① インポート', 'モデル画面で Codex v1 または v2 の pet.json を選択します。旧形式はバージョン指定不要です。'],
     ['② AI 設定', 'API URL、モデル、API Key を設定します。'],
-    ['③ 作業開始', '会話画面で今日の最初のタスクを伝えます。']
+    ['③ 作業開始', 'デスクトップのペットをクリックしてメッセージを入力すると、返答が吹き出しに表示されます。右クリックで集中、励まし、休憩、動作メニューを利用できます。']
   ]
 }
 

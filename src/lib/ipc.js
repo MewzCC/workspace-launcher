@@ -155,8 +155,12 @@ export const petApi = {
   performAction: (action) => api.pet.performAction(action),
   openMain: () => unwrap(api.pet.openMain()),
   showMenu: () => unwrap(api.pet.showMenu()),
+  setChatOpen: (open) => unwrap(api.pet.setChatOpen(open)),
+  showBubble: (text, duration) => unwrap(api.pet.showBubble(text, duration)),
+  reportBubbleSize: (size) => api.pet.reportBubbleSize(size),
   home: () => unwrap(api.pet.home()),
   getConfig: () => unwrap(api.pet.getConfig()),
+  getMovementArea: () => unwrap(api.pet.getMovementArea()),
   listModels: () => unwrap(api.pet.listModels()),
   getModelsStorage: () => unwrap(api.pet.getModelsStorage()),
   setModelsStorage: (directory) => unwrap(api.pet.setModelsStorage(directory)),
@@ -166,7 +170,10 @@ export const petApi = {
   removeModel: (id) => unwrap(api.pet.removeModel(id)),
   updateSettings: (settings) => unwrap(api.pet.updateSettings(settings)),
   onConfigChanged: (callback) => api.pet.onConfigChanged(callback),
-  onAction: (callback) => api.pet.onAction(callback)
+  onAction: (callback) => api.pet.onAction(callback),
+  onChatVisibility: (callback) => api.pet.onChatVisibility(callback),
+  onBubbleContent: (callback) => api.pet.onBubbleContent(callback),
+  onBubblePlacement: (callback) => api.pet.onBubblePlacement(callback)
 }
 
 export const aiApi = {
@@ -177,7 +184,8 @@ export const aiApi = {
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色
 export const themeApi = {
-  set: (theme) => api.theme.set(theme)
+  set: (theme) => api.theme.set(theme),
+  onChanged: (callback) => api.theme.onChanged(callback)
 }
 
 // 语言同步 API：通知主进程切换托盘/菜单等原生 UI 语言

@@ -16,6 +16,8 @@ const DEFAULTS = {
   petScale: 0.9,
   petOpacity: 1,
   petRoaming: true,
+  petRoamRange: 0.7,
+  petRoamActivity: 1,
   petAlwaysOnTop: true,
   aiBaseUrl: 'https://api.openai.com/v1',
   aiProvider: 'openai',

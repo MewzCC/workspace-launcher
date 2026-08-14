@@ -1,0 +1,44 @@
+html:has(.pet-floating-bubble),
+body:has(.pet-floating-bubble),
+body.pet-bubble-window-body,
+body.pet-bubble-window-body #root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body.pet-bubble-window-body::before,
+body.pet-bubble-window-body::after { display: none; }
+
+.pet-floating-bubble {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: max-content;
+  min-width: 108px;
+  max-width: 336px;
+  padding: 9px 12px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-card) 97%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, var(--brand-border));
+  border-radius: 14px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-background) 28%, transparent);
+  backdrop-filter: blur(18px);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  animation: pet-bubble-drop 190ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes pet-bubble-drop {
+  from { opacity: 0; transform: translateY(-9px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-floating-bubble { animation: none; }
+}

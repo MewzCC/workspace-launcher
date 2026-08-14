@@ -133,8 +133,12 @@ contextBridge.exposeInMainWorld('api', {
     performAction: (action) => ipcRenderer.send('pet:performAction', action),
     openMain: () => ipcRenderer.invoke('pet:openMain'),
     showMenu: () => ipcRenderer.invoke('pet:showMenu'),
+    setChatOpen: (open) => ipcRenderer.invoke('pet:setChatOpen', open),
+    showBubble: (text, duration) => ipcRenderer.invoke('pet:showBubble', text, duration),
+    reportBubbleSize: (size) => ipcRenderer.send('pet:bubbleSize', size),
     home: () => ipcRenderer.invoke('pet:home'),
     getConfig: () => ipcRenderer.invoke('pet:getConfig'),
+    getMovementArea: () => ipcRenderer.invoke('pet:getMovementArea'),
     listModels: () => ipcRenderer.invoke('pet:listModels'),
     getModelsStorage: () => ipcRenderer.invoke('pet:getModelsStorage'),
     setModelsStorage: (directory) => ipcRenderer.invoke('pet:setModelsStorage', directory),
@@ -152,6 +156,21 @@ contextBridge.exposeInMainWorld('api', {
       const handler = (_event, action) => callback(action)
       ipcRenderer.on('pet:action', handler)
       return () => ipcRenderer.removeListener('pet:action', handler)
+    },
+    onChatVisibility: (callback) => {
+      const handler = (_event, open) => callback(Boolean(open))
+      ipcRenderer.on('pet:chatVisibility', handler)
+      return () => ipcRenderer.removeListener('pet:chatVisibility', handler)
+    },
+    onBubbleContent: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('pet:bubbleContent', handler)
+      return () => ipcRenderer.removeListener('pet:bubbleContent', handler)
+    },
+    onBubblePlacement: (callback) => {
+      const handler = (_event, placement) => callback(placement)
+      ipcRenderer.on('pet:bubblePlacement', handler)
+      return () => ipcRenderer.removeListener('pet:bubblePlacement', handler)
     }
   },
   ai: {
@@ -161,7 +180,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色
   theme: {
-    set: (theme) => ipcRenderer.invoke('theme:set', theme)
+    set: (theme) => ipcRenderer.invoke('theme:set', theme),
+    onChanged: (callback) => {
+      const handler = (_event, theme) => callback(theme)
+      ipcRenderer.on('theme:changed', handler)
+      return () => ipcRenderer.removeListener('theme:changed', handler)
+    }
   },
   // 语言同步：通知主进程切换托盘/菜单等原生 UI 语言
   language: {

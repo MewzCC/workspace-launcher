@@ -272,6 +272,8 @@ function PetCenter() {
             <div className="pet-section-title"><div><span>BEHAVIOR</span><h2>{t('petCenter.desktopBehavior')}</h2></div><Settings2 size={20} /></div>
             <SettingToggle title={t('petCenter.showPet')} desc={t('petCenter.showPetDesc')} checked={config.settings.enabled} onChange={toggleEnabled} />
             <SettingToggle title={t('petCenter.roaming')} desc={t('petCenter.roamingDesc')} checked={config.settings.roaming} onChange={(value) => updatePetSetting({ roaming: value })} />
+            <RangeSetting title={t('petCenter.roamRange')} value={config.settings.roamRange} min="0.2" max="1" step="0.05" disabled={!config.settings.roaming} suffix={`${Math.round(config.settings.roamRange * 100)}%`} onChange={(value) => updatePetSetting({ roamRange: value })} />
+            <RangeSetting title={t('petCenter.roamActivity')} value={config.settings.roamActivity} min="0.5" max="2" step="0.1" disabled={!config.settings.roaming} suffix={`${Math.round(config.settings.roamActivity * 100)}%`} onChange={(value) => updatePetSetting({ roamActivity: value })} />
             <SettingToggle title={t('petCenter.alwaysOnTop')} desc={t('petCenter.alwaysOnTopDesc')} checked={config.settings.alwaysOnTop} onChange={(value) => updatePetSetting({ alwaysOnTop: value })} />
             <RangeSetting title={t('petCenter.petSize')} value={config.settings.scale} min="0.65" max="1.35" step="0.05" suffix={`${Math.round(config.settings.scale * 100)}%`} onChange={(value) => updatePetSetting({ scale: value })} />
             <RangeSetting title={t('petCenter.opacity')} value={config.settings.opacity} min="0.55" max="1" step="0.05" suffix={`${Math.round(config.settings.opacity * 100)}%`} onChange={(value) => updatePetSetting({ opacity: value })} />

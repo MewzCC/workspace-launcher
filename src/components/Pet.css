@@ -19,7 +19,7 @@ body.pet-window-body::after { display: none; }
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 62px 5px 8px;
+  padding: 4px 5px 8px;
   background: transparent;
   user-select: none;
   cursor: grab;
@@ -48,29 +48,6 @@ body.pet-window-body::after { display: none; }
 .pet-interaction-zone:hover > .pet-sprite { filter: brightness(1.035); }
 .pet-root--dragging .pet-interaction-zone > .pet-sprite { filter: brightness(1.04); }
 
-.pet-bubble {
-  position: absolute;
-  z-index: 4;
-  top: 6px;
-  left: 50%;
-  width: calc(100% - 12px);
-  max-width: 150px;
-  padding: 8px 11px;
-  transform: translateX(-50%);
-  color: #263047;
-  background: rgba(255, 255, 255, .96);
-  border: 1px solid rgba(99, 102, 241, .2);
-  border-radius: 12px 12px 12px 4px;
-  box-shadow: 0 8px 24px rgba(30, 41, 59, .16);
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  text-align: center;
-  pointer-events: none;
-  animation: pet-bubble-in 180ms ease-out;
-}
-
 .pet-shadow {
   position: absolute;
   z-index: 1;
@@ -87,11 +64,6 @@ body.pet-window-body::after { display: none; }
 
 .pet-root--walkLeft .pet-shadow,
 .pet-root--walkRight .pet-shadow { animation: pet-shadow-step 360ms ease-in-out infinite alternate; }
-
-@keyframes pet-bubble-in {
-  from { opacity: 0; transform: translate(-50%, 6px) scale(.96); }
-  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
-}
 
 @keyframes pet-shadow-step {
   from { transform: translateX(-50%) scaleX(1); opacity: .14; }

@@ -28,6 +28,7 @@ const DEFAULTS = {
   aiPetName: 'LaunchBot',
   aiActiveConversationId: null,
   aiMemoryMode: 'manual',
+  aiShellEnabled: false,
   aiPetPersonality: '你是一只安静、友善的工作陪伴型桌宠。回答简短自然，优先鼓励用户拆分任务、专注工作和适时休息。'
 }
 

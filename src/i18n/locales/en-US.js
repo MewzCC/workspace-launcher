@@ -74,6 +74,16 @@ export default {
     desktopBehavior: 'Desktop Behavior', showPet: 'Show pet', showPetDesc: 'Show the transparent always-on-top work companion', roaming: 'Natural roaming', roamingDesc: 'Stroll, patrol, and avoid screen edges while idle', roamRange: 'Roaming range', roamActivity: 'Activity level', alwaysOnTop: 'Always on top', alwaysOnTopDesc: 'Keep the pet above other windows', petSize: 'Pet size', opacity: 'Opacity',
     chatCapability: 'Chat Capability', provider: 'Model provider', providerCustom: 'Custom provider', apiFormat: 'API format', chatCompletionsDesc: 'Universal OpenAI-compatible format', responsesDesc: 'OpenAI Responses format', model: 'Model', customModelOption: 'Custom model…', customModelId: 'Custom model ID', customModelPlaceholder: 'Enter the model ID supplied by the provider', awaitingModel: 'Model required', apiAddress: 'API address', companionName: 'Companion name', keySaved: 'Key saved for this provider; leave blank to keep it', keyPlaceholder: "Enter this provider's API key", personality: 'Personality prompt', keySecurity: 'The key is read only by the Electron main process and encrypted with system secure storage.', saveAi: 'Save AI settings',
     petBubbleReady: 'Ready to work together?', petBubbleCheer: "Let's do our best today!", petBubbleNext: "What's next?",
+    toolCall: '{tool}…', tool_list_workspaces: 'checking workspaces', tool_launch_workspace: 'launching workspace', tool_close_workspace: 'closing workspace', tool_list_software: 'searching software', tool_get_system_info: 'checking system status', tool_show_launchpad: 'opening LaunchPad', tool_open_browser: 'opening browser', tool_terminate_process: 'terminating process', tool_execute_shell: 'running command',
+    shellPermission: 'Full Control (Shell Access)',
+    shellPermissionDesc: 'Allow the pet to perform system-level actions in conversations: terminate any process and run PowerShell commands. Enable only with trusted models and networks.',
+    shellPermissionToggle: 'Let the AI control the computer',
+    shellPermissionToggleDesc: 'The pet can terminate processes and execute shell commands',
+    shellPermissionConfirm: 'This lets the AI terminate processes and run arbitrary PowerShell commands — effectively handing over your computer. Only enable if you fully trust the model and network.',
+    shellPermissionAgree: 'I understand the risk, allow control',
+    shellPermissionOn: 'Full control enabled. The pet can perform system operations.',
+    shellPermissionOff: 'Full control disabled.',
+    shellPermissionActive: '⚠ Full control is ON: the pet can terminate processes and run shell commands.',
     animation: { idle: 'Idle', walkRight: 'Walk right', walkLeft: 'Walk left', wave: 'Wave', jump: 'Jump', failed: 'Failed', waiting: 'Waiting', working: 'Working', review: 'Review' }
   },
   dashboard: {

@@ -74,6 +74,16 @@ export default {
     desktopBehavior: 'デスクトップ動作', showPet: 'ペットを表示', showPetDesc: '透明な最前面の仕事仲間をデスクトップに表示', roaming: '自然な移動', roamingDesc: '待機中に散歩や巡回を行い、画面端を自動で避けます', roamRange: '移動範囲', roamActivity: '活発さ', alwaysOnTop: '常に最前面', alwaysOnTopDesc: 'ほかのウィンドウより上に表示', petSize: 'ペットの大きさ', opacity: '不透明度',
     chatCapability: '会話機能', provider: 'モデル提供元', providerCustom: 'カスタム提供元', apiFormat: 'API 形式', chatCompletionsDesc: '汎用 OpenAI 互換形式', responsesDesc: 'OpenAI Responses 形式', model: 'モデル', customModelOption: 'カスタムモデル…', customModelId: 'カスタムモデル ID', customModelPlaceholder: '提供元が指定するモデル ID を入力', awaitingModel: 'モデルを入力してください', apiAddress: 'API アドレス', companionName: '仲間の名前', keySaved: 'この提供元の Key は保存済みです。空欄なら変更しません', keyPlaceholder: 'この提供元の API Key を入力', personality: '性格プロンプト', keySecurity: 'Key は Electron のメインプロセスのみが読み取り、システムの安全なストレージで暗号化されます。', saveAi: 'AI 設定を保存',
     petBubbleReady: '一緒に作業する準備はできましたか？', petBubbleCheer: '今日も頑張りましょう！', petBubbleNext: '次は何をしますか？',
+    toolCall: '{tool}中…', tool_list_workspaces: 'ワークスペースを確認', tool_launch_workspace: 'ワークスペースを起動', tool_close_workspace: 'ワークスペースを終了', tool_list_software: 'ソフトウェアを検索', tool_get_system_info: 'システム状態を確認', tool_show_launchpad: 'LaunchPad を開く', tool_open_browser: 'ブラウザを開く', tool_terminate_process: 'プロセスを終了', tool_execute_shell: 'コマンドを実行',
+    shellPermission: 'フル権限（Shell 操作）',
+    shellPermissionDesc: '会話中にペットがシステム操作を実行できるようにします：任意のプロセス終了、PowerShell コマンド実行。信頼できるモデルとネットワーク環境でのみ有効にしてください。',
+    shellPermissionToggle: 'AI に PC を操作させる',
+    shellPermissionToggleDesc: 'ペットがプロセス終了と Shell コマンドを実行できます',
+    shellPermissionConfirm: 'AI が会話中にプロセスを終了し、任意の PowerShell コマンドを実行できるようになります。実質的に PC を操作されることになります。モデルとネットワークを完全に信頼できる場合のみ有効にしてください。',
+    shellPermissionAgree: 'リスクを理解し、操作を許可する',
+    shellPermissionOn: 'フル権限を有効にしました。ペットがシステム操作を実行できます。',
+    shellPermissionOff: 'フル権限を無効にしました。',
+    shellPermissionActive: '⚠ フル権限が有効です：ペットはプロセス終了と Shell コマンドを実行できます。',
     animation: { idle: '待機', walkRight: '右へ移動', walkLeft: '左へ移動', wave: '手を振る', jump: 'ジャンプ', failed: '失敗', waiting: '入力待ち', working: '作業中', review: '確認' }
   },
   dashboard: {

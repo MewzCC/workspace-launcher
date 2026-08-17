@@ -47,6 +47,13 @@ function PetChatInput() {
       const result = await aiApi.chat({ conversationId: conversation?.id, content })
       const response = String(result.text || '').trim()
       setConversation(result.conversation)
+      const toolLog = Array.isArray(result.toolLog) ? result.toolLog : []
+      if (toolLog.length > 0) {
+        const toolSummary = toolLog
+          .map((item) => t('petCenter.toolCall', { tool: t(`petCenter.tool_${item.name}`) || item.name }))
+          .join('、')
+        setMessages((items) => [...items, { role: 'assistant', content: `🛠 ${toolSummary}`, tool: true }])
+      }
       const snapshot = await aiApi.getConversation(result.conversation.id)
       setMessages(snapshot.messages || [])
       petApi.performAction({ state: 'wave', duration: 1800 })

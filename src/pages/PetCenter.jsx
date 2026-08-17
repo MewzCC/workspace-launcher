@@ -2,13 +2,15 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Archive, Bot, Box, Brain, Check, CircleHelp, Eraser, FolderOpen, Import,
   KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
-  Trash2, WandSparkles
+  Terminal, Trash2, WandSparkles
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import PetSprite from '../components/PetSprite'
 import TutorialDrawer from '../components/TutorialDrawer'
+import { useConfirmDialog } from '../components/ConfirmDialog'
 import { aiApi, dialogApi, petApi, systemApi } from '../lib/ipc'
+import { renderMarkdown } from '../lib/markdown'
 import { useT } from '../hooks/useT'
 import { useStore } from '../store/useStore'
 import './PetCenter.css'
@@ -31,6 +33,7 @@ const PET_TAB_KEYS = ['companion', 'memory', 'models', 'settings']
 
 function PetCenter() {
   const t = useT()
+  const confirm = useConfirmDialog()
   const language = useStore((state) => state.language)
   const [activeTab, setActiveTab] = useState('companion')
   const [tabDirection, setTabDirection] = useState('forward')
@@ -54,6 +57,7 @@ function PetCenter() {
   const [apiFormat, setApiFormat] = useState('responses')
   const [baseUrl, setBaseUrl] = useState('')
   const [aiModel, setAiModel] = useState('')
+  const [shellEnabled, setShellEnabled] = useState(false)
   const chatEndRef = useRef(null)
   const tabsRef = useRef(null)
 
@@ -70,6 +74,7 @@ function PetCenter() {
     setBaseUrl(nextAi.baseUrl || '')
     setAiModel(nextAi.model || '')
     setMemoryMode(nextAi.memoryMode || 'manual')
+    setShellEnabled(Boolean(nextAi.shellEnabled))
     setConversation(nextConversation.conversation)
     setMessages(nextConversation.messages || [])
     setConversations(nextConversations)
@@ -278,6 +283,28 @@ function PetCenter() {
     setAiModel(preset.models[0] || '')
   }
 
+  // 完全权限（Shell 接管）：开启时必须二次确认危险授权
+  const toggleShellPermission = async (enabled) => {
+    if (enabled) {
+      const allowed = await confirm({
+        title: t('petCenter.shellPermission'),
+        message: t('petCenter.shellPermissionConfirm'),
+        confirmText: t('petCenter.shellPermissionAgree'),
+        tone: 'danger',
+        icon: 'danger'
+      })
+      if (!allowed) return
+    }
+    try {
+      const next = await aiApi.saveConfig({ shellEnabled: enabled })
+      setAiConfig(next)
+      setShellEnabled(Boolean(next.shellEnabled))
+      setNotice(enabled ? t('petCenter.shellPermissionOn') : t('petCenter.shellPermissionOff'))
+    } catch (error) {
+      setNotice(error.message)
+    }
+  }
+
   const providerModels = AI_PROVIDERS[provider]?.models || []
   const selectedModelOption = providerModels.includes(aiModel) ? aiModel : CUSTOM_MODEL
   const activeTabIndex = PET_TAB_KEYS.indexOf(activeTab)
@@ -386,7 +413,13 @@ function PetCenter() {
               {!messages.length && <div className="pet-message pet-message--assistant"><p>{t('petCenter.greeting')}</p></div>}
               {messages.map((item, index) => (
                 <div key={item.id || index} className={`pet-message pet-message--${item.role}`}>
-                  <p>{item.content}</p>
+                  {item.tool ? (
+                    <p className="pet-message-tool">{item.content}</p>
+                  ) : item.role === 'assistant' ? (
+                    <div className="md-render pet-message-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(item.content) }} />
+                  ) : (
+                    <p>{item.content}</p>
+                  )}
                 </div>
               ))}
               {chatting && <div className="pet-message pet-message--assistant pet-message--typing"><i /><i /><i /></div>}
@@ -553,6 +586,18 @@ function PetCenter() {
             <div className="pet-ai-security"><KeyRound size={14} /> {t('petCenter.keySecurity')}</div>
             <GlowButton type="submit">{t('petCenter.saveAi')}</GlowButton>
           </form>
+
+          <div className="pet-settings-card pet-shell-permission">
+            <div className="pet-section-title"><div><span>FULL CONTROL</span><h2>{t('petCenter.shellPermission')}</h2></div><Terminal size={20} /></div>
+            <p className="pet-shell-permission-desc">{t('petCenter.shellPermissionDesc')}</p>
+            <SettingToggle
+              title={t('petCenter.shellPermissionToggle')}
+              desc={t('petCenter.shellPermissionToggleDesc')}
+              checked={shellEnabled}
+              onChange={toggleShellPermission}
+            />
+            {shellEnabled && <div className="pet-shell-permission-active">{t('petCenter.shellPermissionActive')}</div>}
+          </div>
         </section>
       )}
 

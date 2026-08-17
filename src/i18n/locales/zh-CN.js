@@ -74,6 +74,16 @@ export default {
     desktopBehavior: '桌面行为', showPet: '显示桌宠', showPetDesc: '在桌面显示透明置顶的工作伙伴', roaming: '自然漫游', roamingDesc: '空闲时散步、巡游并自动避开屏幕边缘', roamRange: '漫游范围', roamActivity: '活跃程度', alwaysOnTop: '保持置顶', alwaysOnTopDesc: '让桌宠显示在其他窗口上方', petSize: '桌宠大小', opacity: '透明度',
     chatCapability: '对话能力', provider: '模型厂商', providerCustom: '自定义厂商', apiFormat: '接口方式', chatCompletionsDesc: 'OpenAI Compatible 通用格式', responsesDesc: 'OpenAI 新版响应格式', model: '模型', customModelOption: '自定义模型…', customModelId: '自定义模型 ID', customModelPlaceholder: '请输入厂商提供的模型 ID', awaitingModel: '等待填写模型', apiAddress: 'API 地址', companionName: '伙伴名字', keySaved: '该厂商 Key 已保存，留空不修改', keyPlaceholder: '填写该厂商的 API Key', personality: '性格提示', keySecurity: 'Key 仅由 Electron 主进程读取，并使用系统安全存储加密。', saveAi: '保存 AI 设置',
     petBubbleReady: '准备好一起工作了吗？', petBubbleCheer: '今天也要加油！', petBubbleNext: '下一件事是什么？',
+    toolCall: '正在{tool}', tool_list_workspaces: '查看工作空间', tool_launch_workspace: '启动工作空间', tool_close_workspace: '关闭工作空间', tool_list_software: '查找软件', tool_get_system_info: '查看系统状态', tool_show_launchpad: '打开 LaunchPad', tool_open_browser: '打开浏览器', tool_terminate_process: '结束进程', tool_execute_shell: '执行命令',
+    shellPermission: '完全权限（Shell 接管）',
+    shellPermissionDesc: '允许桌宠在对话中执行系统级操作：结束任意进程、运行 PowerShell 命令。请仅在信任的模型与网络环境下开启。',
+    shellPermissionToggle: '允许 AI 接管电脑',
+    shellPermissionToggleDesc: '开启后桌宠可结束进程并执行 Shell 命令',
+    shellPermissionConfirm: '此操作将允许 AI 在对话中结束进程、执行任意 PowerShell 命令，等同于接管你的电脑。请确认你完全信任当前的模型与网络环境。',
+    shellPermissionAgree: '我了解风险，允许接管',
+    shellPermissionOn: '完全权限已开启，桌宠可以执行系统操作。',
+    shellPermissionOff: '完全权限已关闭。',
+    shellPermissionActive: '⚠ 完全权限已开启：桌宠可以结束进程并执行 Shell 命令。',
     animation: { idle: '待机', walkRight: '右行', walkLeft: '左行', wave: '招手', jump: '跳跃', failed: '失败', waiting: '等待', working: '工作', review: '检查' }
   },
   dashboard: {

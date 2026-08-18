@@ -197,6 +197,16 @@ contextBridge.exposeInMainWorld('api', {
       const handler = (_event, payload) => callback(payload)
       ipcRenderer.on('ai:memoryChanged', handler)
       return () => ipcRenderer.removeListener('ai:memoryChanged', handler)
+    },
+    onChatDelta: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('ai:chatDelta', handler)
+      return () => ipcRenderer.removeListener('ai:chatDelta', handler)
+    },
+    onChatTool: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('ai:chatTool', handler)
+      return () => ipcRenderer.removeListener('ai:chatTool', handler)
     }
   },
   // 主题同步：通知主进程切换原生 UI（菜单栏/标题栏）配色

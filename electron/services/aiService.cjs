@@ -468,22 +468,157 @@ async function requestModel(instructions, input, timeout = 45000, options = {}) 
   return { text, toolCalls, rawToolCalls }
 }
 
+// 读取 SSE 流并按事件回调；无流式 body 时回退为一次性 JSON 事件
+async function readSseEvents(response, onEvent) {
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    const payload = await response.json().catch(() => ({}))
+    onEvent('message', payload)
+    return
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let eventName = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let index
+    while ((index = buffer.indexOf('\n')) >= 0) {
+      let line = buffer.slice(0, index)
+      buffer = buffer.slice(index + 1)
+      if (line.endsWith('\r')) line = line.slice(0, -1)
+      const trimmed = line.trim()
+      if (!trimmed) { eventName = ''; continue }
+      if (trimmed.startsWith('event:')) {
+        eventName = trimmed.slice(6).trim()
+        continue
+      }
+      if (!trimmed.startsWith('data:')) continue
+      const raw = trimmed.slice(5).trim()
+      if (!raw) continue
+      try {
+        const payload = raw === '[DONE]' ? null : JSON.parse(raw)
+        onEvent(eventName || 'message', payload)
+      } catch (_) {
+        // 忽略流中损坏的行
+      }
+    }
+  }
+}
+
+// 流式请求：逐段回调文本增量与工具调用，返回与 requestModel 相同结构
+async function streamModel(instructions, input, timeout = 45000, options = {}) {
+  const key = decryptKey()
+  if (!key) throw new Error(t('pet.keyRequired'))
+  const baseUrl = String(settingsDao.get('aiBaseUrl') || '').replace(/\/$/, '')
+  const apiFormat = settingsDao.get('aiApiFormat') || 'responses'
+  const model = String(settingsDao.get('aiModel') || '').trim()
+  const withTools = options.tools === true
+  const native = options.native === true
+  const onDelta = typeof options.onDelta === 'function' ? options.onDelta : () => {}
+  const normalized = input.map((item) => ({
+    role: item?.role === 'assistant' ? 'assistant' : 'user',
+    content: String(item?.content || '').slice(0, 12000)
+  })).filter((item) => item.content.trim())
+  const endpoint = apiFormat === 'responses' ? 'responses' : 'chat/completions'
+  const body = apiFormat === 'responses'
+    ? {
+        model,
+        store: false,
+        instructions,
+        input: native ? input : normalized,
+        stream: true,
+        ...(withTools ? { tools: toResponseTools() } : {})
+      }
+    : {
+        model,
+        messages: native
+          ? [{ role: 'system', content: instructions }, ...input]
+          : [{ role: 'system', content: instructions }, ...normalized],
+        stream: true,
+        ...(withTools ? { tools: toChatTools(), tool_choice: 'auto' } : {})
+      }
+  const response = await fetch(`${baseUrl}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeout)
+  })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload?.error?.message || t('pet.requestFailed', { status: response.status }))
+  }
+  let text = ''
+  const callAcc = new Map()
+  const chatAcc = new Map()
+  await readSseEvents(response, (eventName, payload) => {
+    if (!payload) return
+    if (apiFormat === 'responses') {
+      const type = eventName || payload.type
+      if (type === 'response.output_text.delta') {
+        const delta = String(payload.delta || '')
+        if (delta) { text += delta; onDelta(delta) }
+      } else if (type === 'response.output_item.added') {
+        if (payload.item?.type === 'function_call') {
+          callAcc.set(payload.output_index ?? 0, { call_id: payload.item.call_id || '', name: payload.item.name || '', arguments: '' })
+        }
+      } else if (type === 'response.function_call_arguments.delta') {
+        const idx = payload.output_index ?? payload.item_id ?? 0
+        const acc = callAcc.get(idx) || { call_id: payload.call_id || '', name: payload.name || '', arguments: '' }
+        acc.arguments += String(payload.delta || '')
+        if (!acc.call_id && payload.call_id) acc.call_id = payload.call_id
+        if (!acc.name && payload.name) acc.name = payload.name
+        callAcc.set(idx, acc)
+      } else if (type === 'response.function_call_arguments.done') {
+        const idx = payload.output_index ?? payload.item_id ?? 0
+        const acc = callAcc.get(idx) || { call_id: payload.call_id || '', name: payload.name || '', arguments: '' }
+        if (payload.arguments) acc.arguments = payload.arguments
+        if (payload.call_id) acc.call_id = payload.call_id
+        if (payload.name) acc.name = payload.name
+        callAcc.set(idx, acc)
+      }
+    } else {
+      const delta = payload?.choices?.[0]?.delta
+      if (!delta) return
+      if (delta.content) { text += delta.content; onDelta(delta.content) }
+      for (const tc of delta.tool_calls || []) {
+        const idx = Number(tc.index ?? 0)
+        const acc = chatAcc.get(idx) || { call_id: '', name: '', arguments: '' }
+        if (tc.id) acc.call_id = tc.id
+        if (tc.function?.name) acc.name += String(tc.function.name)
+        if (tc.function?.arguments) acc.arguments += String(tc.function.arguments)
+        chatAcc.set(idx, acc)
+      }
+    }
+  })
+  const rawToolCalls = apiFormat === 'responses'
+    ? [...callAcc.values()]
+    : [...chatAcc.values()].map((acc, idx) => ({ call_id: acc.call_id || `call_${idx}`, name: acc.name, arguments: acc.arguments || '{}' }))
+  const toolCalls = rawToolCalls.map((item) => ({ id: item.call_id, name: item.name, args: parseToolArgs(item.arguments) }))
+  if (!text && toolCalls.length === 0) throw new Error(t('pet.emptyResponse'))
+  return { text, toolCalls, rawToolCalls }
+}
+
 // ===== Function Calling 执行循环 =====
 // 最多 maxRounds 轮：每轮把工具调用结果回填消息后继续请求，直到模型给出最终文本。
-async function runToolLoop(instructions, history, maxRounds = 3) {
+async function runToolLoop(instructions, history, maxRounds = 3, emit = null) {
   const apiFormat = settingsDao.get('aiApiFormat') || 'responses'
   const toolLog = []
   const neutral = history.map((item) => ({ role: item.role, content: item.content }))
+  const onDelta = emit?.onDelta
+  const onTool = emit?.onTool
 
   if (apiFormat === 'responses') {
     let input = neutral
     for (let round = 0; round < maxRounds; round += 1) {
-      const result = await requestModel(instructions, input, 45000, { tools: true, native: true })
+      const result = await streamModel(instructions, input, 45000, { tools: true, native: true, onDelta })
       if (result.toolCalls.length === 0) return { text: result.text, toolLog }
       for (const raw of result.rawToolCalls) {
         input.push({ type: 'function_call', call_id: raw.call_id, name: raw.name, arguments: raw.arguments || '{}' })
       }
       for (const call of result.toolCalls) {
+        if (onTool) onTool({ name: call.name, args: call.args })
         const output = await executeTool(call.name, call.args)
         toolLog.push({ name: call.name, args: call.args, output: String(output).slice(0, 400) })
         input.push({ type: 'function_call_output', call_id: call.id, output: String(output) })
@@ -493,10 +628,19 @@ async function runToolLoop(instructions, history, maxRounds = 3) {
   } else {
     let messages = neutral
     for (let round = 0; round < maxRounds; round += 1) {
-      const result = await requestModel(instructions, messages, 45000, { tools: true, native: true })
+      const result = await streamModel(instructions, messages, 45000, { tools: true, native: true, onDelta })
       if (result.toolCalls.length === 0) return { text: result.text, toolLog }
-      messages.push({ role: 'assistant', content: result.text || '', tool_calls: result.rawToolCalls })
+      messages.push({
+        role: 'assistant',
+        content: result.text || '',
+        tool_calls: result.rawToolCalls.map((raw) => ({
+          id: raw.call_id,
+          type: 'function',
+          function: { name: raw.name, arguments: raw.arguments || '{}' }
+        }))
+      })
       for (const call of result.toolCalls) {
+        if (onTool) onTool({ name: call.name, args: call.args })
         const output = await executeTool(call.name, call.args)
         toolLog.push({ name: call.name, args: call.args, output: String(output).slice(0, 400) })
         messages.push({ role: 'tool', tool_call_id: call.id, content: String(output) })
@@ -504,8 +648,8 @@ async function runToolLoop(instructions, history, maxRounds = 3) {
     }
   }
 
-  // 轮数耗尽仍无最终文本：强制总结
-  const final = await requestModel(instructions, neutral, 45000)
+  // 轮数耗尽仍无最终文本：强制总结（同样流式输出）
+  const final = await streamModel(instructions, neutral, 45000, { onDelta })
   return { text: final.text, toolLog }
 }
 
@@ -536,7 +680,7 @@ function titleFromMessage(content) {
   return compact.length > 32 ? `${compact.slice(0, 32)}…` : compact
 }
 
-async function chat(request = {}) {
+async function chat(request = {}, options = {}) {
   const legacyMessages = Array.isArray(request) ? request : null
   const content = legacyMessages
     ? [...legacyMessages].reverse().find((item) => item?.role === 'user')?.content
@@ -559,7 +703,10 @@ async function chat(request = {}) {
     ? t('pet.defaultPersonality')
     : storedPersonality
   const instructions = `${t('pet.systemInstruction', { name: petName, personality })}\n${t('pet.responseLanguageRule')}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
-  const { text, toolLog } = await runToolLoop(instructions, recent)
+  const { text, toolLog } = await runToolLoop(instructions, recent, 3, {
+    onDelta: options.onDelta,
+    onTool: options.onTool
+  })
   const assistantMessage = conversationDao.appendMessage(conversation.id, 'assistant', text)
   scheduleMaintenance(conversation.id, userMessage, assistantMessage)
   return {

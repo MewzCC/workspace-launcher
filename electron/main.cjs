@@ -1,12 +1,13 @@
-const { app, BrowserWindow, nativeTheme, ipcMain } = require('electron')
+const { app, BrowserWindow } = require('electron')
 const path = require('path')
-const { setupAppMenu, refreshAppMenu } = require('./menu.cjs')
+const { setupAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
 const shortcutService = require('./services/shortcutService.cjs')
 const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const crashLogger = require('./services/crashLogger.cjs')
 const petService = require('./services/petService.cjs')
+const { applyNativeTheme } = require('./ipc/routers/systemRouter.cjs')
 const { t } = require('./i18n.cjs')
 
 let mainWindow = null
@@ -19,10 +20,6 @@ function getAppIconPath() {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'icon.ico')
     : path.join(app.getAppPath(), 'build', 'icon.ico')
-}
-
-function applyNativeTheme(theme) {
-  nativeTheme.themeSource = theme === 'light' ? 'light' : 'dark'
 }
 
 function showMainWindow() {
@@ -111,23 +108,6 @@ if (!gotSingleInstanceLock) {
     applyNativeTheme('light')
     setupAppMenu()
     systemPreferences.syncLoginItem()
-
-    ipcMain.handle('theme:set', (_e, theme) => {
-      applyNativeTheme(theme)
-      for (const window of BrowserWindow.getAllWindows()) {
-        if (!window.isDestroyed()) window.webContents.send('theme:changed', theme)
-      }
-      return { success: true }
-    })
-
-    ipcMain.handle('language:set', (_e, language) => {
-      const { settingsDao } = require('./db/index.cjs')
-      settingsDao.set('language', String(language))
-      // 语言切换后刷新原生菜单与托盘菜单
-      refreshAppMenu()
-      trayService.refreshTrayMenu()
-      return { success: true }
-    })
 
     const startHidden = process.argv.includes('--hidden') && db.settingsDao.get('startMinimized')
     createWindow({ startHidden })

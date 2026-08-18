@@ -1,9 +1,12 @@
 // 桌宠服务
 // 独立透明置顶窗口承载宠物；渲染层驱动动画与漫游，主进程负责窗口位置、菜单与持久化。
 const path = require('path')
-const { BrowserWindow, screen, Menu, ipcMain, Notification } = require('electron')
+const { BrowserWindow, screen, Menu, Notification } = require('electron')
 const { settingsDao } = require('../db/index.cjs')
 const petModelService = require('./petModelService.cjs')
+const { defineRoutes, installHandlers } = require('../ipc/registry.cjs')
+// 校验器模块以 v 别名引入，避免与上方 node path 命名冲突
+const v = require('../ipc/validate.cjs')
 const { t } = require('../i18n.cjs')
 
 const PET_SPRITE_WIDTH = 116
@@ -27,6 +30,7 @@ let chatWindow = null
 let bubbleWindow = null
 let bubbleTimer = null
 let bubblePayload = null
+let bubblePlacement = null
 let chatRestorePosition = null
 let autoPositioningPet = false
 
@@ -233,12 +237,15 @@ function positionBubbleWindow(width, height) {
     { placement: 'bottom', x: centeredX, y: pet.y + pet.height + PET_OVERLAY_GAP }
   ]
   const chatBounds = chatWindow && !chatWindow.isDestroyed() ? chatWindow.getBounds() : null
-  let selected = candidates.find((candidate) => {
+  const fits = (candidate) => {
     const rect = { ...candidate, width, height }
     const inside = rect.x >= workArea.x && rect.y >= workArea.y &&
       rect.x + width <= workRight && rect.y + height <= workBottom
     return inside && (!chatBounds || !rectanglesOverlap(rect, chatBounds))
-  })
+  }
+  // 气泡一次显示期间尽量固定方位：沿用当前 placement，避免流式文本增长时气泡跳来跳去
+  let selected = candidates.find((candidate) => candidate.placement === bubblePlacement && fits(candidate))
+  if (!selected) selected = candidates.find((candidate) => fits(candidate))
   if (!selected) {
     selected = candidates[0]
     selected = {
@@ -247,6 +254,7 @@ function positionBubbleWindow(width, height) {
       y: Math.min(workBottom - height, Math.max(workArea.y, selected.y))
     }
   }
+  bubblePlacement = selected.placement
   bubbleWindow.setBounds({ x: selected.x, y: selected.y, width, height }, false)
   bubbleWindow.webContents.send('pet:bubblePlacement', selected.placement)
   return selected.placement
@@ -285,6 +293,12 @@ function createBubbleWindow() {
 function showPetBubble(text, requestedDuration) {
   const content = String(text || '').trim().slice(0, 1200)
   if (!content) return { success: false }
+  // 桌宠已关闭（禁用/销毁）时不允许凭空弹出气泡，避免出现无主对话框
+  if (!settingsDao.get('petEnabled') || !petWindow || petWindow.isDestroyed()) return { success: false }
+  if (bubbleWindow && bubbleWindow.isDestroyed()) {
+    bubbleWindow = null
+    bubblePlacement = null
+  }
   const duration = Math.min(12000, Math.max(2500,
     Number(requestedDuration) || (1800 + Array.from(content).length * 72)
   ))
@@ -296,6 +310,7 @@ function showPetBubble(text, requestedDuration) {
     if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
     bubbleWindow = null
     bubblePayload = null
+    bubblePlacement = null
   }, duration)
   return { success: true, duration }
 }
@@ -312,7 +327,16 @@ async function setPetChatOpen(open) {
       }
     }
   } else {
-    if (chatWindow && !chatWindow.isDestroyed()) chatWindow.hide()
+    // 关闭聊天即销毁窗口，释放整个渲染进程（GPU 提交内存随进程回收）
+    if (chatWindow && !chatWindow.isDestroyed()) chatWindow.destroy()
+    chatWindow = null
+    // 同时清空对话框，避免迟到的流式更新重新弹出一个无主气泡
+    clearTimeout(bubbleTimer)
+    bubbleTimer = null
+    bubblePayload = null
+    if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
+    bubbleWindow = null
+    bubblePlacement = null
     if (chatRestorePosition && petWindow && !petWindow.isDestroyed()) {
       const restore = chatRestorePosition
       chatRestorePosition = null
@@ -432,9 +456,7 @@ function createPetWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: '/pet' })
   }
-  win.webContents.once('did-finish-load', () => {
-    if (petWindow === win && !win.isDestroyed()) createChatWindow()
-  })
+  // 聊天窗口懒创建：仅在用户打开聊天时创建，关闭即销毁，避免常驻一个空闲渲染进程
   return win
 }
 
@@ -472,6 +494,7 @@ function showPetWindow() {
 }
 
 function hidePetWindow() {
+  // 仅隐藏不销毁：用于临时隐身场景；关闭桌宠请走 destroyPetWindow 以回收内存
   if (chatWindow && !chatWindow.isDestroyed()) chatWindow.hide()
   if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.hide()
   if (petWindow && !petWindow.isDestroyed()) petWindow.hide()
@@ -480,10 +503,12 @@ function hidePetWindow() {
 function destroyPetWindow() {
   if (focusTimer) clearTimeout(focusTimer)
   focusTimer = null
+  // 关闭聊天动画与位置恢复，随后销毁所有渲染进程，回收常驻内存
   petChatOpen = false
   clearTimeout(bubbleTimer)
   bubbleTimer = null
   bubblePayload = null
+  bubblePlacement = null
   chatRestorePosition = null
   if (chatWindow && !chatWindow.isDestroyed()) chatWindow.destroy()
   if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
@@ -521,124 +546,209 @@ function popupMenu() {
     } },
     { type: 'separator' },
     { label: t('pet.hide'), click: () => {
-      setPetChatOpen(false)
       settingsDao.set('petEnabled', false)
-      hidePetWindow()
+      destroyPetWindow()
     } }
   ])
   menu.popup({ window: petWindow || undefined })
 }
 
+// 桌宠域 IPC：声明式通道定义（契约校验 + 原处理器逻辑），由注册表统一挂载
+// 定义在模块作用域并导出，便于测试与通道清单核对
+const petRoutes = [
+  {
+    channel: 'pet:move',
+      kind: 'on',
+      schema: [v.obj({ x: v.num({ label: 'X 坐标' }), y: v.num({ label: 'Y 坐标' }) }, { label: '位置' })],
+      handler: (_event, position) => {
+        if (!petWindow || petWindow.isDestroyed()) return
+        const x = Number(position?.x)
+        const y = Number(position?.y)
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          // Explicitly restore the configured dimensions on every movement. Dragging
+          // may only change x/y and can therefore never accumulate width/height.
+          setStrictPetBounds(x, y)
+        }
+      }
+    },
+    {
+      channel: 'pet:setMousePassthrough',
+      kind: 'on',
+      schema: [v.bool()],
+      handler: (_event, passthrough) => {
+        if (!petWindow || petWindow.isDestroyed()) return
+        petWindow.setIgnoreMouseEvents(Boolean(passthrough), passthrough ? { forward: true } : undefined)
+      }
+    },
+    { channel: 'pet:savePosition', kind: 'on', schema: [], handler: () => savePosition() },
+    {
+      channel: 'pet:performAction',
+      kind: 'on',
+      schema: [v.obj({
+        state: v.optional(v.oneOf([...PET_ACTIONS])),
+        bubble: v.optional(v.str({ max: 1200 })),
+        duration: v.optional(v.num({ min: 0, max: 12000 }))
+      }, { label: '动作' })],
+      handler: (_event, action) => {
+        if (!petWindow || petWindow.isDestroyed()) return
+        const state = PET_ACTIONS.has(action?.state) ? action.state : 'idle'
+        const bubble = String(action?.bubble || '').trim().slice(0, 1200)
+        const duration = Math.min(12000, Math.max(800, Number(action?.duration) || 1800))
+        sendPetAction({ state, bubble, duration })
+      }
+    },
+  {
+      channel: 'pet:setChatOpen',
+      schema: [v.bool()],
+      handler: (_event, open) => setPetChatOpen(open)
+    },
+    {
+      channel: 'pet:showBubble',
+      schema: [v.optional(v.str({ max: 1200 })), v.optional(v.num({ min: 0, max: 12000 }))],
+      handler: (_event, text, duration) => showPetBubble(text, duration)
+    },
+    {
+      channel: 'pet:bubbleSize',
+      kind: 'on',
+      schema: [v.obj({
+        width: v.optional(v.num({ min: 0, max: 2000 })),
+        height: v.optional(v.num({ min: 0, max: 2000 }))
+      }, { label: '气泡尺寸' })],
+      handler: (_event, size) => {
+        if (!bubbleWindow || bubbleWindow.isDestroyed()) return
+        const width = Math.min(360, Math.max(120, Math.ceil(Number(size?.width) || PET_BUBBLE_INITIAL_WIDTH)))
+        const height = Math.min(420, Math.max(42, Math.ceil(Number(size?.height) || PET_BUBBLE_INITIAL_HEIGHT)))
+        positionBubbleWindow(width, height)
+        bubbleWindow.showInactive()
+      }
+    },
+    {
+      channel: 'pet:openMain',
+      schema: [],
+      handler: () => {
+        callbacks?.showWindow?.()
+        callbacks?.openPetCenter?.()
+        return { success: true }
+      }
+    },
+    {
+      channel: 'pet:showMenu',
+      schema: [],
+      handler: () => {
+        popupMenu()
+        return { success: true }
+      }
+    },
+    {
+      channel: 'pet:home',
+      schema: [],
+      handler: () => {
+        if (!petWindow || petWindow.isDestroyed()) return { success: false }
+        const home = homePosition()
+        setStrictPetBounds(home.x, home.y)
+        settingsDao.set('petPosition', home)
+        return { success: true }
+      }
+    },
+  { channel: 'pet:getConfig', schema: [], handler: () => getRuntimeConfig() },
+    { channel: 'pet:getMovementArea', schema: [], handler: () => getMovementArea() },
+    { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
+    { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
+    {
+      channel: 'pet:setModelsStorage',
+      schema: [v.path({ max: 1024, label: '模型目录' })],
+      handler: (_event, directory) => {
+        try {
+          const result = petModelService.setStorageDirectory(String(directory || ''))
+          refresh()
+          return result
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) }
+        }
+      }
+    },
+    {
+      channel: 'pet:openModelsStorage',
+      schema: [],
+      handler: async () => {
+        try {
+          const directory = petModelService.openFolder()
+          const { shell } = require('electron')
+          const error = await shell.openPath(directory)
+          if (error) throw new Error(error)
+          return { success: true, path: directory }
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) }
+        }
+      }
+    },
+    {
+      channel: 'pet:importModel',
+      schema: [v.optional(v.path({ max: 1024, label: '清单路径' }))],
+      handler: (_event, manifestPath) => {
+        try {
+          const result = petModelService.importFromManifest(String(manifestPath || ''))
+          refresh()
+          return result
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) }
+        }
+      }
+    },
+    {
+      channel: 'pet:selectModel',
+      schema: [v.str({ max: 200 })],
+      handler: (_event, modelId) => {
+        const result = petModelService.select(modelId)
+        refresh()
+        return result
+      }
+    },
+    {
+      channel: 'pet:removeModel',
+      schema: [v.str({ max: 200 })],
+      handler: (_event, modelId) => {
+        const result = petModelService.remove(modelId)
+        refresh()
+        return result
+      }
+    },
+    {
+      // 桌宠设置更新：字段白名单，防止借道写任意 settings 键
+      channel: 'pet:updateSettings',
+      schema: [v.obj({
+        scale: v.optional(v.num({ min: 0, max: 10 })),
+        opacity: v.optional(v.num({ min: 0, max: 2 })),
+        roaming: v.optional(v.bool()),
+        roamRange: v.optional(v.num({ min: 0, max: 10 })),
+        roamActivity: v.optional(v.num({ min: 0, max: 10 })),
+        alwaysOnTop: v.optional(v.bool())
+      }, { label: '桌宠设置' })],
+      handler: (_event, patch) => {
+        const next = patch || {}
+        if (Object.prototype.hasOwnProperty.call(next, 'scale')) {
+          settingsDao.set('petScale', Math.min(1.35, Math.max(0.65, Number(next.scale) || 1)))
+        }
+        if (Object.prototype.hasOwnProperty.call(next, 'opacity')) {
+          settingsDao.set('petOpacity', Math.min(1, Math.max(0.55, Number(next.opacity) || 1)))
+        }
+        if (Object.prototype.hasOwnProperty.call(next, 'roaming')) settingsDao.set('petRoaming', Boolean(next.roaming))
+        if (Object.prototype.hasOwnProperty.call(next, 'roamRange')) {
+          settingsDao.set('petRoamRange', Math.min(1, Math.max(0.2, Number(next.roamRange) || 0.7)))
+        }
+        if (Object.prototype.hasOwnProperty.call(next, 'roamActivity')) {
+          settingsDao.set('petRoamActivity', Math.min(2, Math.max(0.5, Number(next.roamActivity) || 1)))
+        }
+        if (Object.prototype.hasOwnProperty.call(next, 'alwaysOnTop')) settingsDao.set('petAlwaysOnTop', Boolean(next.alwaysOnTop))
+        refresh()
+        return getRuntimeConfig()
+      }
+    }
+  ]
+
 function registerPetIpc() {
-  ipcMain.on('pet:move', (_event, position) => {
-    if (!petWindow || petWindow.isDestroyed()) return
-    const x = Number(position?.x)
-    const y = Number(position?.y)
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      // Explicitly restore the configured dimensions on every movement. Dragging
-      // may only change x/y and can therefore never accumulate width/height.
-      setStrictPetBounds(x, y)
-    }
-  })
-  ipcMain.on('pet:setMousePassthrough', (_event, passthrough) => {
-    if (!petWindow || petWindow.isDestroyed()) return
-    petWindow.setIgnoreMouseEvents(Boolean(passthrough), passthrough ? { forward: true } : undefined)
-  })
-  ipcMain.on('pet:savePosition', () => savePosition())
-  ipcMain.on('pet:performAction', (_event, action) => {
-    if (!petWindow || petWindow.isDestroyed()) return
-    const state = PET_ACTIONS.has(action?.state) ? action.state : 'idle'
-    const bubble = String(action?.bubble || '').trim().slice(0, 1200)
-    const duration = Math.min(12000, Math.max(800, Number(action?.duration) || 1800))
-    sendPetAction({ state, bubble, duration })
-  })
-  ipcMain.handle('pet:setChatOpen', (_event, open) => setPetChatOpen(open))
-  ipcMain.handle('pet:showBubble', (_event, text, duration) => showPetBubble(text, duration))
-  ipcMain.on('pet:bubbleSize', (_event, size) => {
-    if (!bubbleWindow || bubbleWindow.isDestroyed()) return
-    const width = Math.min(360, Math.max(120, Math.ceil(Number(size?.width) || PET_BUBBLE_INITIAL_WIDTH)))
-    const height = Math.min(420, Math.max(42, Math.ceil(Number(size?.height) || PET_BUBBLE_INITIAL_HEIGHT)))
-    positionBubbleWindow(width, height)
-    bubbleWindow.showInactive()
-  })
-  ipcMain.handle('pet:openMain', () => {
-    callbacks?.showWindow?.()
-    callbacks?.openPetCenter?.()
-    return { success: true }
-  })
-  ipcMain.handle('pet:showMenu', () => {
-    popupMenu()
-    return { success: true }
-  })
-  ipcMain.handle('pet:home', () => {
-    if (!petWindow || petWindow.isDestroyed()) return { success: false }
-    const home = homePosition()
-    setStrictPetBounds(home.x, home.y)
-    settingsDao.set('petPosition', home)
-    return { success: true }
-  })
-  ipcMain.handle('pet:getConfig', () => getRuntimeConfig())
-  ipcMain.handle('pet:getMovementArea', () => getMovementArea())
-  ipcMain.handle('pet:listModels', () => petModelService.list())
-  ipcMain.handle('pet:getModelsStorage', () => petModelService.getStorageInfo())
-  ipcMain.handle('pet:setModelsStorage', (_event, directory) => {
-    try {
-      const result = petModelService.setStorageDirectory(String(directory || ''))
-      refresh()
-      return result
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) }
-    }
-  })
-  ipcMain.handle('pet:openModelsStorage', async () => {
-    try {
-      const directory = petModelService.openFolder()
-      const { shell } = require('electron')
-      const error = await shell.openPath(directory)
-      if (error) throw new Error(error)
-      return { success: true, path: directory }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) }
-    }
-  })
-  ipcMain.handle('pet:importModel', (_event, manifestPath) => {
-    try {
-      const result = petModelService.importFromManifest(String(manifestPath || ''))
-      refresh()
-      return result
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) }
-    }
-  })
-  ipcMain.handle('pet:selectModel', (_event, id) => {
-    const result = petModelService.select(id)
-    refresh()
-    return result
-  })
-  ipcMain.handle('pet:removeModel', (_event, id) => {
-    const result = petModelService.remove(id)
-    refresh()
-    return result
-  })
-  ipcMain.handle('pet:updateSettings', (_event, patch) => {
-    const next = patch || {}
-    if (Object.prototype.hasOwnProperty.call(next, 'scale')) {
-      settingsDao.set('petScale', Math.min(1.35, Math.max(0.65, Number(next.scale) || 1)))
-    }
-    if (Object.prototype.hasOwnProperty.call(next, 'opacity')) {
-      settingsDao.set('petOpacity', Math.min(1, Math.max(0.55, Number(next.opacity) || 1)))
-    }
-    if (Object.prototype.hasOwnProperty.call(next, 'roaming')) settingsDao.set('petRoaming', Boolean(next.roaming))
-    if (Object.prototype.hasOwnProperty.call(next, 'roamRange')) {
-      settingsDao.set('petRoamRange', Math.min(1, Math.max(0.2, Number(next.roamRange) || 0.7)))
-    }
-    if (Object.prototype.hasOwnProperty.call(next, 'roamActivity')) {
-      settingsDao.set('petRoamActivity', Math.min(2, Math.max(0.5, Number(next.roamActivity) || 1)))
-    }
-    if (Object.prototype.hasOwnProperty.call(next, 'alwaysOnTop')) settingsDao.set('petAlwaysOnTop', Boolean(next.alwaysOnTop))
-    refresh()
-    return getRuntimeConfig()
-  })
+  defineRoutes(petRoutes)
+  installHandlers()
 }
 
 function init(nextCallbacks) {
@@ -659,7 +769,7 @@ function refresh() {
       win.webContents.send('pet:configChanged', getRuntimeConfig())
     }
   } else {
-    hidePetWindow()
+    destroyPetWindow()
   }
 }
 
@@ -669,5 +779,6 @@ module.exports = {
   showPetWindow,
   hidePetWindow,
   destroyPetWindow,
-  getRuntimeConfig
+  getRuntimeConfig,
+  petRoutes
 }

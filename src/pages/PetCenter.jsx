@@ -59,6 +59,30 @@ function PetCenter() {
   const [aiModel, setAiModel] = useState('')
   const [shellEnabled, setShellEnabled] = useState(false)
   const chatEndRef = useRef(null)
+  const chatScrollRef = useRef(null)
+  const prevConversationIdRef = useRef(null)
+  const typeBufferRef = useRef('')
+  const typeTimerRef = useRef(null)
+
+  const startTypewriter = () => {
+    if (typeTimerRef.current) return
+    typeTimerRef.current = setInterval(() => {
+      const chunk = typeBufferRef.current.slice(0, 3)
+      if (!chunk) return
+      typeBufferRef.current = typeBufferRef.current.slice(3)
+      setMessages((items) => items.map((item) =>
+        item.id === 'streaming' && item.role === 'assistant'
+          ? { ...item, content: item.content + chunk }
+          : item
+      ))
+    }, 80)
+  }
+
+  const stopTypewriter = () => {
+    if (typeTimerRef.current) clearInterval(typeTimerRef.current)
+    typeTimerRef.current = null
+    typeBufferRef.current = ''
+  }
   const tabsRef = useRef(null)
 
   const load = async () => {
@@ -105,7 +129,29 @@ function PetCenter() {
     })
     return () => { unsubscribeConversation(); unsubscribeMemory() }
   }, [])
-  useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, chatting])
+  useEffect(() => {
+    if (typeof aiApi.onChatDelta !== 'function') return undefined
+    const unsubscribeDelta = aiApi.onChatDelta(({ delta }) => {
+      if (!delta) return
+      typeBufferRef.current += delta
+      startTypewriter()
+    })
+    return () => unsubscribeDelta()
+  }, [])
+  useEffect(() => {
+    const container = chatScrollRef.current
+    if (!container) return
+    const sameConversation = prevConversationIdRef.current === conversation?.id
+    prevConversationIdRef.current = conversation?.id
+    const scrollToBottom = () => { container.scrollTop = container.scrollHeight }
+    // 进入聊天、切换会话、清空时立即定位到最新消息；正常收发时平滑滚动
+    if (!sameConversation || messages.length === 0) {
+      scrollToBottom()
+      requestAnimationFrame(scrollToBottom)
+    } else {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    }
+  }, [messages, chatting, conversation?.id])
   useLayoutEffect(() => {
     const tabList = tabsRef.current
     if (!tabList) return undefined
@@ -169,13 +215,19 @@ function PetCenter() {
     event?.preventDefault()
     const content = draft.trim()
     if (!content || chatting) return
-    setMessages((items) => [...items, { role: 'user', content }])
+    setMessages((items) => [
+      ...items.filter((item) => item.id),
+      { id: `local-u-${Date.now()}`, role: 'user', content },
+      { id: 'streaming', role: 'assistant', content: '' }
+    ])
     setDraft('')
     setChatting(true)
+    stopTypewriter()
     setPreviewState('working')
     petApi.performAction({ state: 'working', bubble: t('petCenter.bubbleThinking'), duration: 12000 })
     try {
       const result = await aiApi.chat({ conversationId: conversation?.id, content })
+      stopTypewriter()
       const snapshot = await aiApi.getConversation(result.conversation.id)
       setConversation(snapshot.conversation)
       setMessages(snapshot.messages || [])
@@ -183,7 +235,11 @@ function PetCenter() {
       petApi.performAction({ state: 'wave', bubble: result.text, duration: 3000 })
       setTimeout(() => setPreviewState('idle'), 1000)
     } catch (error) {
-      setMessages((items) => [...items, { role: 'assistant', content: t('petCenter.aiConnectFailed', { message: error.message }) }])
+      stopTypewriter()
+      setMessages((items) => [
+        ...items.filter((item) => item.id !== 'streaming'),
+        { role: 'assistant', content: t('petCenter.aiConnectFailed', { message: error.message }) }
+      ])
       setPreviewState('failed')
       petApi.performAction({ state: 'failed', bubble: t('petCenter.bubbleFailed'), duration: 2600 })
       setTimeout(() => setPreviewState('idle'), 1400)
@@ -409,9 +465,9 @@ function PetCenter() {
               </div>
               <span className={`pet-ai-pill ${aiConfig.hasApiKey ? 'ready' : ''}`}>{aiConfig.hasApiKey ? t('petCenter.aiConnected') : t('petCenter.awaitingConfig')}</span>
             </div>
-            <div className="pet-chat-messages">
+            <div className="pet-chat-messages" ref={chatScrollRef}>
               {!messages.length && <div className="pet-message pet-message--assistant"><p>{t('petCenter.greeting')}</p></div>}
-              {messages.map((item, index) => (
+              {messages.filter((item) => item.tool || String(item.content || '').trim()).map((item, index) => (
                 <div key={item.id || index} className={`pet-message pet-message--${item.role}`}>
                   {item.tool ? (
                     <p className="pet-message-tool">{item.content}</p>
@@ -422,7 +478,15 @@ function PetCenter() {
                   )}
                 </div>
               ))}
-              {chatting && <div className="pet-message pet-message--assistant pet-message--typing"><i /><i /><i /></div>}
+              {chatting && (
+                <div
+                  className="pet-message pet-message--assistant pet-message--typing"
+                  role="status"
+                  aria-label={t('petCenter.bubbleThinking')}
+                >
+                  <span className="pet-typing-indicator" aria-hidden="true"><i /><i /><i /></span>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
             <form className="pet-chat-compose" onSubmit={sendMessage}>

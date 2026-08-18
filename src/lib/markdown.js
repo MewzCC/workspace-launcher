@@ -1,7 +1,8 @@
-// 更新日志渲染工具（零依赖）
-// releaseNotes 可能来自 electron-updater 返回的 HTML，也可能是 Markdown 文本：
-// - 含 HTML 标签 → 消毒后直接注入
-// - 否则按轻量 Markdown 渲染（标题/粗体/斜体/行内代码/代码块/列表/链接/引用/分隔线/段落）
+// 统一 Markdown 渲染入口（基于开源组件 marked）
+// 全部 md 展示位（更新日志、桌宠气泡、聊天消息、备忘录等）共用此函数：
+// - 含 HTML 标签的更新日志 → 过滤无关章节后消毒注入
+// - 其余按 Markdown 渲染（GFM：嵌套列表/表格/删除线等），内嵌 HTML 一律转义
+import { marked } from 'marked'
 
 function escapeHtml(text) {
   return String(text)
@@ -20,122 +21,6 @@ function sanitizeHtml(html) {
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/javascript\s*:/gi, '')
-}
-
-// 行内语法：代码 > 粗体 > 斜体 > 链接（代码片段用占位符保护，避免被后续规则改写）
-function renderInline(text) {
-  const codes = []
-  let value = String(text)
-  value = value.replace(/`([^`]+)`/g, (_, code) => {
-    codes.push(escapeHtml(code))
-    return `\u0000${codes.length - 1}\u0000`
-  })
-  value = value.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  value = value.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
-  value = value.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, (_, label, url) => {
-    const safe = url.replace(/["'<>]/g, '')
-    return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>`
-  })
-  value = value.replace(/\u0000(\d+)\u0000/g, (_, index) => `<code>${codes[Number(index)]}</code>`)
-  return value
-}
-
-function markdownToHtml(text) {
-  if (!text) return ''
-  const lines = String(text).replace(/\r\n/g, '\n').split('\n')
-  const out = []
-  let inCode = false
-  let codeLines = []
-  let listType = null // 'ul' | 'ol'
-
-  const flushCode = () => {
-    if (codeLines.length > 0) {
-      out.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
-      codeLines = []
-    }
-  }
-  const flushList = () => {
-    if (listType) {
-      out.push(`</${listType}>`)
-      listType = null
-    }
-  }
-
-  for (const raw of lines) {
-    if (/^\s*```/.test(raw)) {
-      flushCode()
-      flushList()
-      inCode = !inCode
-      continue
-    }
-    if (inCode) {
-      codeLines.push(raw)
-      continue
-    }
-
-    const trimmed = raw.trim()
-    if (!trimmed) {
-      flushCode()
-      flushList()
-      continue
-    }
-
-    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/)
-    if (heading) {
-      flushCode()
-      flushList()
-      const level = heading[1].length
-      out.push(`<h${level}>${renderInline(heading[2])}</h${level}>`)
-      continue
-    }
-
-    const unordered = trimmed.match(/^[-*]\s+(.+)$/)
-    if (unordered) {
-      flushCode()
-      if (listType !== 'ul') {
-        flushList()
-        out.push('<ul>')
-        listType = 'ul'
-      }
-      out.push(`<li>${renderInline(unordered[1])}</li>`)
-      continue
-    }
-
-    const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/)
-    if (ordered) {
-      flushCode()
-      if (listType !== 'ol') {
-        flushList()
-        out.push('<ol>')
-        listType = 'ol'
-      }
-      out.push(`<li>${renderInline(ordered[1])}</li>`)
-      continue
-    }
-
-    const quote = trimmed.match(/^>\s?(.+)$/)
-    if (quote) {
-      flushCode()
-      flushList()
-      out.push(`<blockquote>${renderInline(quote[1])}</blockquote>`)
-      continue
-    }
-
-    if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
-      flushCode()
-      flushList()
-      out.push('<hr>')
-      continue
-    }
-
-    flushCode()
-    flushList()
-    out.push(`<p>${renderInline(raw)}</p>`)
-  }
-
-  flushCode()
-  flushList()
-  return out.join('\n')
 }
 
 // 需要从更新日志中剔除的无关章节标题（下载入口、系统要求等，展示时无意义）
@@ -190,10 +75,35 @@ function filterHtmlSections(html) {
 
 const HTML_TAG_RE = /<(h[1-6]|p|ul|ol|li|blockquote|pre|code|strong|em|a|hr|table|br)\b/i
 
+const mdRenderer = new marked.Renderer()
+
+// AI/备忘录等内容的原始 HTML 一律转义展示，防止注入；更新日志 HTML 走 sanitize 分支
+mdRenderer.html = (html) => escapeHtml(html)
+
+marked.setOptions({
+  renderer: mdRenderer,
+  gfm: true,
+  breaks: true
+})
+
+// 部分模型会把整篇 Markdown 回复再次包进 ```markdown / ```md 围栏。
+// 这种围栏表达的是“下面整段采用 Markdown 格式”，不是需要展示的代码块；
+// 仅当围栏覆盖完整内容且明确声明 markdown/md 时剥离，普通代码围栏保持不变。
+function unwrapDocumentMarkdownFence(text) {
+  const value = String(text).trim()
+  const match = value.match(/^(`{3,}|~{3,})[ \t]*(?:markdown|md)[ \t]*\r?\n([\s\S]*?)\r?\n\1[ \t]*$/i)
+  return match ? match[2] : value
+}
+
+function renderMarkdownContent(text) {
+  const filtered = filterMarkdownSections(unwrapDocumentMarkdownFence(text))
+  return marked.parse(filtered, { async: false })
+}
+
 export function renderMarkdown(text) {
   if (!text) return ''
   const value = String(text)
   // 已经是 HTML 的更新日志：过滤无关章节后消毒注入；否则按 Markdown 渲染。
   if (HTML_TAG_RE.test(value)) return sanitizeHtml(filterHtmlSections(value))
-  return markdownToHtml(filterMarkdownSections(value))
+  return renderMarkdownContent(value)
 }

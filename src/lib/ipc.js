@@ -192,7 +192,9 @@ export const aiApi = {
   forgetMemory: (id) => unwrap(api.ai.forgetMemory(id)),
   clearMemories: () => unwrap(api.ai.clearMemories()),
   onConversationChanged: (callback) => api.ai.onConversationChanged(callback),
-  onMemoryChanged: (callback) => api.ai.onMemoryChanged(callback)
+  onMemoryChanged: (callback) => api.ai.onMemoryChanged(callback),
+  onChatDelta: (callback) => api.ai.onChatDelta(callback),
+  onChatTool: (callback) => api.ai.onChatTool(callback)
 }
 
 // 主题同步 API：通知主进程切换原生 UI（菜单栏/标题栏）配色

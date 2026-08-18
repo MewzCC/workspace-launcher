@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { petApi } from '../lib/ipc'
+import { renderMarkdown } from '../lib/markdown'
 import './PetBubble.css'
 
 function PetBubble() {
@@ -32,7 +33,14 @@ function PetBubble() {
   }, [payload])
 
   if (!payload) return null
-  return <div ref={bubbleRef} className={`pet-floating-bubble pet-floating-bubble--${placement}`}>{payload.text}</div>
+  return (
+    <div ref={bubbleRef} className={`pet-floating-bubble pet-floating-bubble--${placement}`}>
+      <div
+        className="md-render pet-bubble-md"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(payload.text) }}
+      />
+    </div>
+  )
 }
 
 export default PetBubble

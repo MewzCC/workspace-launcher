@@ -15,8 +15,34 @@ function PetChatInput() {
   const [conversation, setConversation] = useState(null)
   const [chatting, setChatting] = useState(false)
   const inputRef = useRef(null)
+  const streamBufferRef = useRef('')
+  const displayRef = useRef('')
+  const typeTimerRef = useRef(null)
 
-  const close = () => petApi.setChatOpen(false).catch(() => {})
+  const flushTypewriter = () => {
+    const chunk = streamBufferRef.current.slice(0, 3)
+    if (!chunk) return
+    streamBufferRef.current = streamBufferRef.current.slice(3)
+    displayRef.current += chunk
+    petApi.showBubble(displayRef.current, 8000).catch(() => {})
+  }
+
+  const startTypewriter = () => {
+    if (typeTimerRef.current) return
+    typeTimerRef.current = setInterval(flushTypewriter, 80)
+  }
+
+  const stopTypewriter = () => {
+    if (typeTimerRef.current) clearInterval(typeTimerRef.current)
+    typeTimerRef.current = null
+    streamBufferRef.current = ''
+  }
+
+  const close = () => {
+    stopTypewriter()
+    displayRef.current = ''
+    petApi.setChatOpen(false).catch(() => {})
+  }
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -26,11 +52,20 @@ function PetChatInput() {
     }).catch(() => {})
     loadConversation()
     const unsubscribe = aiApi.onConversationChanged((payload) => loadConversation(payload?.conversationId))
+    const unsubscribeDelta = typeof aiApi.onChatDelta === 'function'
+      ? aiApi.onChatDelta(({ delta }) => {
+          if (!delta) return
+          streamBufferRef.current += delta
+          startTypewriter()
+        })
+      : () => {}
     const handleKeyDown = (event) => { if (event.key === 'Escape') close() }
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       unsubscribe()
+      unsubscribeDelta()
       window.removeEventListener('keydown', handleKeyDown)
+      stopTypewriter()
     }
   }, [])
 
@@ -41,12 +76,16 @@ function PetChatInput() {
     setMessages((items) => [...items, { role: 'user', content }])
     setDraft('')
     setChatting(true)
+    stopTypewriter()
+    displayRef.current = ''
     petApi.performAction({ state: 'working', duration: 12000 })
     petApi.showBubble(t('petCenter.bubbleThinking'), 12000).catch(() => {})
     try {
       const result = await aiApi.chat({ conversationId: conversation?.id, content })
       const response = String(result.text || '').trim()
       setConversation(result.conversation)
+      stopTypewriter()
+      displayRef.current = ''
       const toolLog = Array.isArray(result.toolLog) ? result.toolLog : []
       if (toolLog.length > 0) {
         const toolSummary = toolLog
@@ -57,7 +96,7 @@ function PetChatInput() {
       const snapshot = await aiApi.getConversation(result.conversation.id)
       setMessages(snapshot.messages || [])
       petApi.performAction({ state: 'wave', duration: 1800 })
-      await petApi.showBubble(response, answerDuration(response))
+      if (response) await petApi.showBubble(response, answerDuration(response))
     } catch (error) {
       const message = t('petCenter.aiConnectFailed', { message: error.message })
       setMessages((items) => [...items.filter((item) => item.id), { role: 'assistant', content: message }])

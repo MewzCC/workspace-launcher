@@ -279,7 +279,7 @@ function Pet() {
           ]
           const greeting = greetings[Math.floor(Math.random() * greetings.length)]
           petApi.performAction({ state: 'wave', duration: 1800 }).catch(() => {})
-          petApi.showBubble(greeting, Math.max(2500, 1800 + Array.from(greeting).length * 72)).catch(() => {})
+          petApi.showBubble(greeting).catch(() => {})
         }
       } else {
         changeState('idle')

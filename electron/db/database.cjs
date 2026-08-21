@@ -88,6 +88,7 @@ const CREATE_TABLES_SQL = `
 
   CREATE TABLE IF NOT EXISTS ai_conversations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_model_id TEXT NOT NULL DEFAULT 'builtin-launchbot',
     title TEXT NOT NULL DEFAULT '',
     summary TEXT NOT NULL DEFAULT '',
     summary_message_id INTEGER,
@@ -125,6 +126,7 @@ const CREATE_TABLES_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_ai_memories_active
     ON ai_memories(archived, updated_at DESC);
+
 `
 
 // 轻量迁移：为已存在的旧表补充新增列
@@ -150,6 +152,12 @@ const MIGRATIONS = [
     ]
   },
   {
+    table: 'ai_conversations',
+    columns: [
+      { name: 'pet_model_id', definition: "TEXT NOT NULL DEFAULT 'builtin-launchbot'" }
+    ]
+  },
+  {
     table: 'ai_memories',
     columns: [
       { name: 'confirmed', definition: 'INTEGER NOT NULL DEFAULT 1' }
@@ -158,6 +166,7 @@ const MIGRATIONS = [
 ]
 
 function applyMigrations(database) {
+  let addedConversationPetModel = false
   for (const migration of MIGRATIONS) {
     const cols = database.prepare(`PRAGMA table_info(${migration.table})`).all()
     const existing = new Set(cols.map((c) => c.name))
@@ -166,9 +175,20 @@ function applyMigrations(database) {
         database.exec(
           `ALTER TABLE ${migration.table} ADD COLUMN ${column.name} ${column.definition}`
         )
+        if (migration.table === 'ai_conversations' && column.name === 'pet_model_id') {
+          addedConversationPetModel = true
+        }
       }
     }
   }
+  // 升级时将旧会话归入当时正在使用的桌宠，避免切换模型后误以为历史丢失。
+  if (addedConversationPetModel) {
+    const row = database.prepare('SELECT value FROM app_settings WHERE key = ?').get('petModelId')
+    let petModelId = 'builtin-launchbot'
+    try { petModelId = String(JSON.parse(row?.value || '"builtin-launchbot"')) } catch (_) {}
+    database.prepare('UPDATE ai_conversations SET pet_model_id = ?').run(petModelId)
+  }
+  database.exec('CREATE INDEX IF NOT EXISTS idx_ai_conversations_pet ON ai_conversations(pet_model_id, updated_at DESC)')
   // 旧版本用“非默认 📦 emoji”表示用户自定义图标，迁移后保留原有显示语义。
   database.prepare(`
     UPDATE software

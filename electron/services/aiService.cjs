@@ -2,12 +2,12 @@ const fs = require('fs')
 const path = require('path')
 const { app, safeStorage } = require('electron')
 const { settingsDao, conversationDao, memoryDao, workspaceDao, softwareDao } = require('../db/index.cjs')
+const petProfileService = require('./petProfileService.cjs')
 const workspaceEngine = require('./workspaceEngine.cjs')
 const processManager = require('./processManager.cjs')
 const perfMonitor = require('./perfMonitor.cjs')
 const { t } = require('../i18n.cjs')
 
-const LEGACY_DEFAULT_PERSONALITY = '你是一只安静、友善的工作陪伴型桌宠。回答简短自然，优先鼓励用户拆分任务、专注工作和适时休息。'
 const maintenanceChains = new Map()
 let projectDocsCache = null
 
@@ -101,6 +101,23 @@ const BASE_TOOL_DEFINITIONS = [
         query: { type: 'string', description: '搜索关键词，将用 Bing 搜索（与 url 二选一）' }
       },
       required: []
+    }
+  },
+  {
+    name: 'create_pet',
+    description: '按用户描述直接创建新的参数化 SVG 桌宠并立即应用。此工具内部会读取模型目录、写入 pet.json、切换 petModelId 并刷新桌宠；不要先查询数据库、运行 Python 或 Shell。用户要求制作、生成、更换或设计桌宠时直接调用，并自行选择协调配色。',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: '桌宠名字，2-20 个字符' },
+        description: { type: 'string', description: '形象的一句话描述（可选）' },
+        bodyColor: { type: 'string', description: '主体颜色，如 #f59e0b' },
+        bodyInnerColor: { type: 'string', description: '腹部/内屏颜色，如 #fef3c7' },
+        eyeColor: { type: 'string', description: '眼睛颜色，如 #0f172a' },
+        antennaType: { type: 'string', enum: ['none', 'orb', 'line'], description: '天线样式：无/圆球/直线' },
+        antennaColor: { type: 'string', description: '天线颜色（天线为 none 时忽略）' }
+      },
+      required: ['name', 'bodyColor', 'bodyInnerColor', 'eyeColor']
     }
   }
 ]
@@ -248,6 +265,27 @@ async function executeTool(name, args) {
         return t('pet.toolBrowserFailed', { message: error.message })
       }
     }
+    case 'create_pet': {
+      try {
+        const petModelService = require('./petModelService.cjs')
+        const manifest = petModelService.createFromAi({
+          name: args?.name,
+          description: args?.description,
+          svgParams: {
+            bodyColor: args?.bodyColor,
+            bodyInnerColor: args?.bodyInnerColor,
+            eyeColor: args?.eyeColor,
+            antennaType: args?.antennaType,
+            antennaColor: args?.antennaColor
+          }
+        })
+        const petService = require('./petService.cjs')
+        petService.refresh()
+        return t('pet.toolPetCreated', { name: manifest.displayName })
+      } catch (error) {
+        return t('pet.toolPetCreateFailed', { message: error.message })
+      }
+    }
     case 'terminate_process': {
       if (!shellPermissionEnabled()) return t('pet.toolPermissionDenied')
       const pid = Number(args?.pid)
@@ -340,8 +378,20 @@ function getMemoryMode() {
   return ['off', 'manual', 'auto'].includes(mode) ? mode : 'manual'
 }
 
+function activePetProfile() {
+  const petModelService = require('./petModelService.cjs')
+  const model = petModelService.getRuntimeModel()
+  const listedModel = petModelService.list().find((item) => item.id === model.id)
+  const displayName = listedModel?.displayName || model.displayName || t('pet.defaultName')
+  return {
+    modelId: model.id || petProfileService.selectedModelId(),
+    displayName,
+    profile: petProfileService.ensure(model.id, { displayName })
+  }
+}
+
 function getConfig() {
-  const storedPersonality = settingsDao.get('aiPetPersonality')
+  const pet = activePetProfile()
   const providerKeys = Object.fromEntries(
     ['openai', 'deepseek', 'kimi', 'zhipu', 'custom'].map((provider) => [provider, Boolean(decryptKey(provider))])
   )
@@ -350,10 +400,10 @@ function getConfig() {
     apiFormat: settingsDao.get('aiApiFormat') || 'responses',
     baseUrl: settingsDao.get('aiBaseUrl'),
     model: settingsDao.get('aiModel'),
-    petName: settingsDao.get('aiPetName'),
-    personality: !storedPersonality || storedPersonality === LEGACY_DEFAULT_PERSONALITY
-      ? t('pet.defaultPersonality')
-      : storedPersonality,
+    petModelId: pet.modelId,
+    petName: pet.profile.petName,
+    personality: pet.profile.personality,
+    mode: pet.profile.mode,
     hasApiKey: Boolean(decryptKey()),
     providerKeys,
     memoryMode: getMemoryMode(),
@@ -382,8 +432,14 @@ function saveConfig(config = {}) {
     if (!model || model.length > 100) throw new Error(t('pet.invalidModel'))
     settingsDao.set('aiModel', model)
   }
-  if (Object.prototype.hasOwnProperty.call(config, 'petName')) settingsDao.set('aiPetName', String(config.petName || t('pet.defaultName')).trim().slice(0, 40))
-  if (Object.prototype.hasOwnProperty.call(config, 'personality')) settingsDao.set('aiPetPersonality', String(config.personality || '').trim().slice(0, 1200))
+  const profilePatch = {}
+  if (Object.prototype.hasOwnProperty.call(config, 'petName')) profilePatch.petName = String(config.petName || t('pet.defaultName')).trim().slice(0, 40)
+  if (Object.prototype.hasOwnProperty.call(config, 'personality')) profilePatch.personality = String(config.personality || '').trim().slice(0, 1200)
+  if (Object.prototype.hasOwnProperty.call(config, 'mode')) profilePatch.mode = config.mode
+  if (Object.keys(profilePatch).length > 0) {
+    const pet = activePetProfile()
+    petProfileService.update(pet.modelId, profilePatch, { displayName: pet.displayName })
+  }
   if (Object.prototype.hasOwnProperty.call(config, 'memoryMode')) setMemoryMode(config.memoryMode)
   if (Object.prototype.hasOwnProperty.call(config, 'shellEnabled')) settingsDao.set('aiShellEnabled', config.shellEnabled === true)
 
@@ -529,7 +585,7 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
         instructions,
         input: native ? input : normalized,
         stream: true,
-        ...(withTools ? { tools: toResponseTools() } : {})
+        ...(withTools ? { tools: toResponseTools(), ...(options.forcedTool ? { tool_choice: { type: 'function', name: options.forcedTool } } : {}) } : {})
       }
     : {
         model,
@@ -537,7 +593,7 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
           ? [{ role: 'system', content: instructions }, ...input]
           : [{ role: 'system', content: instructions }, ...normalized],
         stream: true,
-        ...(withTools ? { tools: toChatTools(), tool_choice: 'auto' } : {})
+        ...(withTools ? { tools: toChatTools(), tool_choice: options.forcedTool ? { type: 'function', function: { name: options.forcedTool } } : 'auto' } : {})
       }
   const response = await fetch(`${baseUrl}/${endpoint}`, {
     method: 'POST',
@@ -555,7 +611,9 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
   await readSseEvents(response, (eventName, payload) => {
     if (!payload) return
     if (apiFormat === 'responses') {
-      const type = eventName || payload.type
+      // 一些 OpenAI-compatible 厂商只在 data JSON 中提供 type，不发送 SSE event 行。
+      // readSseEvents 会为这种事件传入 "message"，不能因此遮蔽 payload.type。
+      const type = eventName && eventName !== 'message' ? eventName : payload.type
       if (type === 'response.output_text.delta') {
         const delta = String(payload.delta || '')
         if (delta) { text += delta; onDelta(delta) }
@@ -577,6 +635,24 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
         if (payload.call_id) acc.call_id = payload.call_id
         if (payload.name) acc.name = payload.name
         callAcc.set(idx, acc)
+      } else if (type === 'response.output_item.done' && payload.item?.type === 'function_call') {
+        const idx = payload.output_index ?? payload.item.id ?? callAcc.size
+        const previous = callAcc.get(idx) || {}
+        callAcc.set(idx, {
+          call_id: payload.item.call_id || previous.call_id || '',
+          name: payload.item.name || previous.name || '',
+          arguments: payload.item.arguments || previous.arguments || '{}'
+        })
+      } else if (type === 'response.completed') {
+        for (const [idx, item] of (payload.response?.output || []).entries()) {
+          if (item?.type !== 'function_call') continue
+          const previous = callAcc.get(idx) || {}
+          callAcc.set(idx, {
+            call_id: item.call_id || previous.call_id || '',
+            name: item.name || previous.name || '',
+            arguments: item.arguments || previous.arguments || '{}'
+          })
+        }
       }
     } else {
       const delta = payload?.choices?.[0]?.delta
@@ -601,19 +677,44 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
 }
 
 // ===== Function Calling 执行循环 =====
-// 最多 maxRounds 轮：每轮把工具调用结果回填消息后继续请求，直到模型给出最终文本。
-async function runToolLoop(instructions, history, maxRounds = 3, emit = null) {
+// 最多 maxToolRounds 个“实际工具轮”。纯文本提醒不消耗工具预算；首轮强制工具只生效一次。
+// 每轮把工具调用结果原样回填，直到模型给出最终文本。
+const ACTION_INTENT_RE = /(让我|我来|我去|先查|查一下|查找|查询|搜一下|搜索|打开|创建|新建|设计|找找|看看|检查|执行|帮你|这就|正在|let me|i'll|i will|search|look up|check|open|creat|design|find|調べ|確認|開き|作成|探し|デザイン)/i
+async function runToolLoop(instructions, history, maxToolRounds = 5, emit = null, forcedTool = null) {
   const apiFormat = settingsDao.get('aiApiFormat') || 'responses'
   const toolLog = []
   const neutral = history.map((item) => ({ role: item.role, content: item.content }))
   const onDelta = emit?.onDelta
   const onTool = emit?.onTool
+  const finishEarly = (text) => ({ text, toolLog })
+  const maxModelCalls = Math.max(4, maxToolRounds * 2 + 1)
+  let forcedToolPending = forcedTool
+  let reminderUsed = false
+  let toolRounds = 0
+  let modelCalls = 0
+
+  const shouldRetryWithoutTools = (result, forcedThisCall) => {
+    if (reminderUsed) return false
+    if (!forcedThisCall && !ACTION_INTENT_RE.test(result.text)) return false
+    reminderUsed = true
+    return true
+  }
 
   if (apiFormat === 'responses') {
-    let input = neutral
-    for (let round = 0; round < maxRounds; round += 1) {
-      const result = await streamModel(instructions, input, 45000, { tools: true, native: true, onDelta })
-      if (result.toolCalls.length === 0) return { text: result.text, toolLog }
+    const input = [...neutral]
+    while (modelCalls < maxModelCalls && toolRounds < maxToolRounds) {
+      const forcedThisCall = forcedToolPending
+      forcedToolPending = null
+      const result = await streamModel(instructions, input, 90000, { tools: true, native: true, onDelta, forcedTool: forcedThisCall })
+      modelCalls += 1
+      if (result.toolCalls.length === 0) {
+        if (shouldRetryWithoutTools(result, forcedThisCall)) {
+          input.push({ role: 'user', content: t('pet.toolActionReminder') })
+          continue
+        }
+        return finishEarly(result.text)
+      }
+      toolRounds += 1
       for (const raw of result.rawToolCalls) {
         input.push({ type: 'function_call', call_id: raw.call_id, name: raw.name, arguments: raw.arguments || '{}' })
       }
@@ -623,13 +724,26 @@ async function runToolLoop(instructions, history, maxRounds = 3, emit = null) {
         toolLog.push({ name: call.name, args: call.args, output: String(output).slice(0, 400) })
         input.push({ type: 'function_call_output', call_id: call.id, output: String(output) })
       }
-      input.push({ role: 'user', content: t('pet.toolContinueHint') })
     }
+
+    // 工具预算耗尽时保留完整调用与结果，只关闭工具并要求给出结论，避免退回最初上下文重复规划。
+    const final = await streamModel(`${instructions}\n${t('pet.toolFinalAnswer')}`, input, 90000, { native: true, onDelta })
+    return { text: final.text, toolLog }
   } else {
-    let messages = neutral
-    for (let round = 0; round < maxRounds; round += 1) {
-      const result = await streamModel(instructions, messages, 45000, { tools: true, native: true, onDelta })
-      if (result.toolCalls.length === 0) return { text: result.text, toolLog }
+    const messages = [...neutral]
+    while (modelCalls < maxModelCalls && toolRounds < maxToolRounds) {
+      const forcedThisCall = forcedToolPending
+      forcedToolPending = null
+      const result = await streamModel(instructions, messages, 90000, { tools: true, native: true, onDelta, forcedTool: forcedThisCall })
+      modelCalls += 1
+      if (result.toolCalls.length === 0) {
+        if (shouldRetryWithoutTools(result, forcedThisCall)) {
+          messages.push({ role: 'user', content: t('pet.toolActionReminder') })
+          continue
+        }
+        return finishEarly(result.text)
+      }
+      toolRounds += 1
       messages.push({
         role: 'assistant',
         content: result.text || '',
@@ -646,11 +760,10 @@ async function runToolLoop(instructions, history, maxRounds = 3, emit = null) {
         messages.push({ role: 'tool', tool_call_id: call.id, content: String(output) })
       }
     }
-  }
 
-  // 轮数耗尽仍无最终文本：强制总结（同样流式输出）
-  const final = await streamModel(instructions, neutral, 45000, { onDelta })
-  return { text: final.text, toolLog }
+    const final = await streamModel(`${instructions}\n${t('pet.toolFinalAnswer')}`, messages, 90000, { native: true, onDelta })
+    return { text: final.text, toolLog }
+  }
 }
 
 function getConversation(conversationId) {
@@ -662,8 +775,24 @@ function listConversations() { return conversationDao.list() }
 function createConversation(title = '') { return getConversation(conversationDao.create(title).id) }
 function switchConversation(id) { return getConversation(conversationDao.setActive(id).id) }
 function clearConversation(id) {
-  const conversation = conversationDao.clear(id || conversationDao.ensureActive().id)
+  const active = id ? conversationDao.setActive(id) : conversationDao.ensureActive()
+  const conversation = conversationDao.clear(active.id)
   return { conversation, messages: [] }
+}
+
+function renameConversation(id, title) {
+  const active = conversationDao.setActive(id)
+  const value = String(title || '').trim()
+  if (!value) throw new Error(t('pet.conversationTitleRequired'))
+  const conversation = conversationDao.setTitle(active.id, value)
+  return { conversation, messages: conversationDao.listMessages(conversation.id) }
+}
+
+function deleteConversation(id) {
+  const active = conversationDao.setActive(id)
+  const deletedId = active.id
+  const conversation = conversationDao.remove(active.id)
+  return { deletedId, conversation, messages: conversationDao.listMessages(conversation.id) }
 }
 
 function memoryContext(memories) {
@@ -697,16 +826,16 @@ async function chat(request = {}, options = {}) {
     .filter((item) => item.role === 'user' || item.role === 'assistant')
     .map((item) => ({ role: item.role, content: item.content }))
   const current = conversationDao.get(conversation.id)
-  const petName = settingsDao.get('aiPetName') || t('pet.defaultName')
-  const storedPersonality = settingsDao.get('aiPetPersonality')
-  const personality = !storedPersonality || storedPersonality === LEGACY_DEFAULT_PERSONALITY
-    ? t('pet.defaultPersonality')
-    : storedPersonality
-  const instructions = `${t('pet.systemInstruction', { name: petName, personality })}\n${t('pet.responseLanguageRule')}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
-  const { text, toolLog } = await runToolLoop(instructions, recent, 3, {
+  const pet = activePetProfile()
+  const mode = petProfileService.CHAT_MODES.includes(pet.profile.mode) ? pet.profile.mode : 'concise'
+  const instructions = `${t('pet.systemInstruction', { name: pet.profile.petName, personality: pet.profile.personality })}\n${t(`pet.modeInstruction_${mode}`)}\n${t('pet.responseLanguageRule')}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
+  // 最近消息与会话摘要已经包含完整上下文，让模型自主选择工具；
+  // 不按单句正则强制路由，确保“做啊/继续”等承接表达能继承真实会话意图。
+  const forcedTool = null
+  const { text, toolLog } = await runToolLoop(instructions, recent, 5, {
     onDelta: options.onDelta,
     onTool: options.onTool
-  })
+  }, forcedTool)
   const assistantMessage = conversationDao.appendMessage(conversation.id, 'assistant', text)
   scheduleMaintenance(conversation.id, userMessage, assistantMessage)
   return {
@@ -791,6 +920,6 @@ function clearMemories() { return memoryDao.clear() }
 
 module.exports = {
   getConfig, saveConfig, chat,
-  getConversation, listConversations, createConversation, switchConversation, clearConversation,
+  getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
   setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories
 }

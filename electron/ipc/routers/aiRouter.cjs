@@ -25,6 +25,7 @@ const aiConfigSchema = obj({
   model: optional(str({ max: 100 })),
   petName: optional(str({ max: 40 })),
   personality: optional(str({ max: 1200 })),
+  mode: optional(oneOf(['concise', 'focus', 'creative', 'casual'])),
   memoryMode: optional(oneOf(['off', 'manual', 'auto'])),
   shellEnabled: optional(bool()),
   apiKey: optional(str({ max: 512 })),
@@ -120,6 +121,24 @@ const aiRoutes = [
     handler: (_event, idValue) => {
       const result = aiService.clearConversation(idValue)
       broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, cleared: true })
+      return result
+    }
+  },
+  {
+    channel: 'ai:conversation:rename',
+    schema: [id(), str({ min: 1, max: 80, trim: true, label: '会话主题' })],
+    handler: (_event, idValue, title) => {
+      const result = aiService.renameConversation(idValue, title)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, renamed: true })
+      return result
+    }
+  },
+  {
+    channel: 'ai:conversation:delete',
+    schema: [id()],
+    handler: (_event, idValue) => {
+      const result = aiService.deleteConversation(idValue)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, deletedId: result.deletedId, switched: true })
       return result
     }
   },

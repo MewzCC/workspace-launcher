@@ -182,6 +182,8 @@ contextBridge.exposeInMainWorld('api', {
     createConversation: (title) => ipcRenderer.invoke('ai:conversation:create', title),
     switchConversation: (id) => ipcRenderer.invoke('ai:conversation:switch', id),
     clearConversation: (id) => ipcRenderer.invoke('ai:conversation:clear', id),
+    renameConversation: (id, title) => ipcRenderer.invoke('ai:conversation:rename', id, title),
+    deleteConversation: (id) => ipcRenderer.invoke('ai:conversation:delete', id),
     setMemoryMode: (mode) => ipcRenderer.invoke('ai:memory:setMode', mode),
     listMemories: (options) => ipcRenderer.invoke('ai:memory:list', options),
     createMemory: (data) => ipcRenderer.invoke('ai:memory:create', data),

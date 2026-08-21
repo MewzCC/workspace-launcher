@@ -88,6 +88,62 @@ function safeId(value) {
   return id
 }
 
+// ===== AI 生成的 SVG 参数化桌宠 =====
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{6})$/
+const ANTENNA_TYPES = ['none', 'orb', 'line']
+
+// 严格校验 AI 产出参数：颜色仅接受 #rrggbb，枚举白名单，长度限制
+function validateSvgParams(raw) {
+  const params = raw && typeof raw === 'object' ? raw : {}
+  const color = (value) => {
+    const text = String(value || '').trim()
+    if (!HEX_COLOR_RE.test(text)) throw new Error(t('pet.invalidColor', { value: text || '(empty)' }))
+    return text.toLowerCase()
+  }
+  const antennaType = String(params.antennaType || 'orb').trim()
+  if (!ANTENNA_TYPES.includes(antennaType)) throw new Error(t('pet.invalidAntennaType'))
+  return {
+    bodyColor: color(params.bodyColor),
+    bodyInnerColor: color(params.bodyInnerColor),
+    eyeColor: color(params.eyeColor),
+    antennaType,
+    antennaColor: antennaType === 'none' ? '#22d3ee' : color(params.antennaColor || params.bodyColor || '#22d3ee')
+  }
+}
+
+function buildSvgManifest({ id, displayName, description, svgParams }) {
+  return {
+    id,
+    displayName,
+    description,
+    renderer: 'svg',
+    svgParams
+  }
+}
+
+// 用 bodyColor 生成一个简单 SVG 缩略图，供衣橱预览
+function svgThumbDataUrl(item) {
+  const color = item.svgParams?.bodyColor || '#6366f1'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 112"><rect x="26" y="30" width="68" height="64" rx="16" fill="${color}"/><circle cx="48" cy="58" r="7" fill="#0f172a"/><circle cx="72" cy="58" r="7" fill="#0f172a"/><rect x="38" y="94" width="16" height="8" rx="4" fill="${color}"/><rect x="66" y="94" width="16" height="8" rx="4" fill="${color}"/></svg>`
+  return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`
+}
+
+function createFromAi(input) {
+  const name = String(input?.name || '').trim().slice(0, 40)
+  if (!name) throw new Error(t('pet.nameRequired'))
+  const description = String(input?.description || '').trim().slice(0, 240)
+  const svgParams = validateSvgParams(input?.svgParams)
+  const id = safeId(`ai-${name}`)
+  const manifest = buildSvgManifest({ id, displayName: name, description, svgParams })
+  const destination = path.join(petsRoot(), id)
+  fs.mkdirSync(destination, { recursive: true })
+  fs.writeFileSync(path.join(destination, 'pet.json'), JSON.stringify(manifest, null, 2), 'utf8')
+  dataUrlCache.delete(id)
+  settingsDao.set('petModelId', id)
+  require('./petProfileService.cjs').ensure(id, { displayName: name })
+  return manifest
+}
+
 function validateManifest(manifest) {
   if (!manifest || typeof manifest !== 'object') throw new Error(t('pet.invalidManifest'))
   const id = safeId(manifest.id)
@@ -143,7 +199,18 @@ function readPetDirectory(directory) {
   const manifestPath = path.join(directory, 'pet.json')
   if (!fs.existsSync(manifestPath)) return null
   try {
-    const manifest = validateManifest(JSON.parse(fs.readFileSync(manifestPath, 'utf8')))
+    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    // SVG 参数化模型：无精灵图，仅校验参数
+    if (raw.renderer === 'svg') {
+      const manifest = buildSvgManifest({
+        id: safeId(raw.id),
+        displayName: String(raw.displayName || raw.id).trim().slice(0, 80),
+        description: String(raw.description || '').trim().slice(0, 240),
+        svgParams: validateSvgParams(raw.svgParams)
+      })
+      return { ...manifest, directory, imported: true, svgThumbDataUrl: svgThumbDataUrl(manifest) }
+    }
+    const manifest = validateManifest(raw)
     const spritePath = path.join(directory, manifest.spritesheetPath)
     validateAtlas(spritePath, manifest.spriteVersionNumber)
     return { ...manifest, directory, spritePath, imported: true }
@@ -165,11 +232,15 @@ function list() {
     .filter((entry) => entry.isDirectory())
     .map((entry) => readPetDirectory(path.join(petsRoot(), entry.name)))
     .filter(Boolean)
-    .map(({ directory, spritePath, ...item }) => ({
-      ...item,
-      builtin: false,
-      spritesheetDataUrl: spriteDataUrl({ ...item, spritePath })
-    }))
+    .map((item) => {
+      const { directory, spritePath, ...rest } = item
+      if (item.renderer === 'svg') return { ...rest, builtin: false }
+      return {
+        ...rest,
+        builtin: false,
+        spritesheetDataUrl: spriteDataUrl({ ...rest, spritePath })
+      }
+    })
   return [
     {
       id: BUILTIN_ID,
@@ -231,12 +302,14 @@ function remove(id) {
 
 function getRuntimeModel() {
   const selected = settingsDao.get('petModelId') || BUILTIN_ID
-  if (selected === BUILTIN_ID) return { id: BUILTIN_ID, builtin: true }
+  if (selected === BUILTIN_ID) return { id: BUILTIN_ID, displayName: 'LaunchBot', builtin: true }
   const item = readPetDirectory(path.join(petsRoot(), selected))
   if (!item) {
     settingsDao.set('petModelId', BUILTIN_ID)
-    return { id: BUILTIN_ID, builtin: true }
+    return { id: BUILTIN_ID, displayName: 'LaunchBot', builtin: true }
   }
+  const { directory, spritePath, ...rest } = item
+  if (item.renderer === 'svg') return { ...rest, builtin: false }
   return {
     id: item.id,
     displayName: item.displayName,
@@ -251,4 +324,4 @@ function openFolder() {
   return petsRoot()
 }
 
-module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, setStorageDirectory, BUILTIN_ID }
+module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, setStorageDirectory, createFromAi, BUILTIN_ID }

@@ -4,10 +4,6 @@ import { aiApi, petApi } from '../lib/ipc'
 import { useT } from '../hooks/useT'
 import './PetChatInput.css'
 
-function answerDuration(text) {
-  return Math.min(12000, Math.max(2500, 1800 + Array.from(String(text || '')).length * 72))
-}
-
 function PetChatInput() {
   const t = useT()
   const [draft, setDraft] = useState('')
@@ -24,7 +20,7 @@ function PetChatInput() {
     if (!chunk) return
     streamBufferRef.current = streamBufferRef.current.slice(3)
     displayRef.current += chunk
-    petApi.showBubble(displayRef.current, 8000).catch(() => {})
+    petApi.showBubble(displayRef.current).catch(() => {})
   }
 
   const startTypewriter = () => {
@@ -79,7 +75,7 @@ function PetChatInput() {
     stopTypewriter()
     displayRef.current = ''
     petApi.performAction({ state: 'working', duration: 12000 })
-    petApi.showBubble(t('petCenter.bubbleThinking'), 12000).catch(() => {})
+    petApi.showBubble(t('petCenter.bubbleThinking')).catch(() => {})
     try {
       const result = await aiApi.chat({ conversationId: conversation?.id, content })
       const response = String(result.text || '').trim()
@@ -96,12 +92,12 @@ function PetChatInput() {
       const snapshot = await aiApi.getConversation(result.conversation.id)
       setMessages(snapshot.messages || [])
       petApi.performAction({ state: 'wave', duration: 1800 })
-      if (response) await petApi.showBubble(response, answerDuration(response))
+      if (response) await petApi.showBubble(response)
     } catch (error) {
       const message = t('petCenter.aiConnectFailed', { message: error.message })
       setMessages((items) => [...items.filter((item) => item.id), { role: 'assistant', content: message }])
       petApi.performAction({ state: 'failed', duration: 2200 })
-      await petApi.showBubble(message, answerDuration(message)).catch(() => {})
+      await petApi.showBubble(message).catch(() => {})
     } finally {
       setChatting(false)
       setTimeout(() => inputRef.current?.focus(), 50)

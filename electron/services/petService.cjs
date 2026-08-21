@@ -2,8 +2,10 @@
 // 独立透明置顶窗口承载宠物；渲染层驱动动画与漫游，主进程负责窗口位置、菜单与持久化。
 const path = require('path')
 const { BrowserWindow, screen, Menu, Notification } = require('electron')
-const { settingsDao } = require('../db/index.cjs')
+const { settingsDao, conversationDao } = require('../db/index.cjs')
 const petModelService = require('./petModelService.cjs')
+const petProfileService = require('./petProfileService.cjs')
+const { calculatePetBubbleDuration } = require('./petBubbleDuration.cjs')
 const { defineRoutes, installHandlers } = require('../ipc/registry.cjs')
 // 校验器模块以 v 别名引入，避免与上方 node path 命名冲突
 const v = require('../ipc/validate.cjs')
@@ -34,10 +36,16 @@ let bubblePlacement = null
 let chatRestorePosition = null
 let autoPositioningPet = false
 
+function currentPetProfile() {
+  const model = petModelService.getRuntimeModel()
+  const listed = petModelService.list().find((item) => item.id === model.id)
+  return petProfileService.ensure(model.id, { displayName: listed?.displayName || model.displayName })
+}
+
 function getPetPosition() {
   const { workArea } = screen.getPrimaryDisplay()
   const size = getPetDimensions()
-  const saved = settingsDao.get('petPosition')
+  const saved = currentPetProfile().position
   const fallback = {
     x: workArea.x + workArea.width - size.width - 28,
     y: workArea.y + workArea.height - size.height - 8
@@ -48,15 +56,15 @@ function getPetPosition() {
 }
 
 function getPetScale() {
-  return Math.min(1.35, Math.max(0.65, Number(settingsDao.get('petScale')) || 1))
+  return currentPetProfile().scale
 }
 
 function getRoamRange() {
-  return Math.min(1, Math.max(0.2, Number(settingsDao.get('petRoamRange')) || 0.7))
+  return currentPetProfile().roamRange
 }
 
 function getRoamActivity() {
-  return Math.min(2, Math.max(0.5, Number(settingsDao.get('petRoamActivity')) || 1))
+  return currentPetProfile().roamActivity
 }
 
 function getPetDimensions() {
@@ -101,16 +109,17 @@ function setStrictPetBounds(x, y) {
 }
 
 function getRuntimeConfig() {
+  const profile = currentPetProfile()
   return {
     model: petModelService.getRuntimeModel(),
     settings: {
       enabled: Boolean(settingsDao.get('petEnabled')),
       scale: getPetScale(),
-      opacity: Number(settingsDao.get('petOpacity')) || 1,
-      roaming: Boolean(settingsDao.get('petRoaming')),
+      opacity: profile.opacity,
+      roaming: profile.roaming,
       roamRange: getRoamRange(),
       roamActivity: getRoamActivity(),
-      alwaysOnTop: Boolean(settingsDao.get('petAlwaysOnTop')),
+      alwaysOnTop: profile.alwaysOnTop,
       dimensions: getPetDimensions(),
       chatOpen: petChatOpen
     }
@@ -119,8 +128,9 @@ function getRuntimeConfig() {
 
 function sendPetAction(action = {}) {
   if (!petWindow || petWindow.isDestroyed()) return
-  const { bubble, duration, ...visualAction } = action
-  if (String(bubble || '').trim()) showPetBubble(bubble, duration)
+  const { bubble, bubbleDuration, duration, ...visualAction } = action
+  // 动画持续时间与气泡阅读时间相互独立，避免动作的固定时长覆盖动态阅读时长。
+  if (String(bubble || '').trim()) showPetBubble(bubble, bubbleDuration)
   petWindow.webContents.send('pet:action', { ...visualAction, duration })
 }
 
@@ -192,7 +202,7 @@ function createChatWindow() {
     frame: false,
     show: false,
     resizable: false,
-    alwaysOnTop: Boolean(settingsDao.get('petAlwaysOnTop')),
+    alwaysOnTop: currentPetProfile().alwaysOnTop,
     skipTaskbar: true,
     minimizable: false,
     maximizable: false,
@@ -204,7 +214,7 @@ function createChatWindow() {
     }
   })
   chatWindow = win
-  win.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
+  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
   win.once('ready-to-show', async () => {
     if (!petChatOpen || chatWindow !== win || win.isDestroyed()) return
     await positionChatWindow()
@@ -270,7 +280,7 @@ function createBubbleWindow() {
     show: false,
     focusable: false,
     resizable: false,
-    alwaysOnTop: Boolean(settingsDao.get('petAlwaysOnTop')),
+    alwaysOnTop: currentPetProfile().alwaysOnTop,
     skipTaskbar: true,
     hasShadow: false,
     webPreferences: {
@@ -280,7 +290,7 @@ function createBubbleWindow() {
     }
   })
   bubbleWindow = win
-  win.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
+  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
   win.setIgnoreMouseEvents(true)
   win.webContents.on('did-finish-load', () => {
     if (bubblePayload && bubbleWindow === win) win.webContents.send('pet:bubbleContent', bubblePayload)
@@ -290,7 +300,7 @@ function createBubbleWindow() {
   return win
 }
 
-function showPetBubble(text, requestedDuration) {
+function showPetBubble(text, requestedMinimumDuration) {
   const content = String(text || '').trim().slice(0, 1200)
   if (!content) return { success: false }
   // 桌宠已关闭（禁用/销毁）时不允许凭空弹出气泡，避免出现无主对话框
@@ -299,9 +309,7 @@ function showPetBubble(text, requestedDuration) {
     bubbleWindow = null
     bubblePlacement = null
   }
-  const duration = Math.min(12000, Math.max(2500,
-    Number(requestedDuration) || (1800 + Array.from(content).length * 72)
-  ))
+  const duration = calculatePetBubbleDuration(content, requestedMinimumDuration)
   bubblePayload = { text: content, duration }
   const win = createBubbleWindow()
   if (!win.webContents.isLoading()) win.webContents.send('pet:bubbleContent', bubblePayload)
@@ -399,7 +407,7 @@ function createPetWindow() {
     y: position.y,
     transparent: true,
     frame: false,
-    alwaysOnTop: Boolean(settingsDao.get('petAlwaysOnTop')),
+    alwaysOnTop: currentPetProfile().alwaysOnTop,
     skipTaskbar: true,
     resizable: false,
     hasShadow: false,
@@ -413,8 +421,8 @@ function createPetWindow() {
       preload: path.join(__dirname, '../preload/index.cjs')
     }
   })
-  win.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
-  win.setOpacity(Math.min(1, Math.max(0.55, Number(settingsDao.get('petOpacity')) || 1)))
+  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
+  win.setOpacity(currentPetProfile().opacity)
   // 默认让透明区域穿透；渲染层仅在指针进入宠物命中框时临时关闭穿透。
   win.setIgnoreMouseEvents(true, { forward: true })
   petWindow = win
@@ -463,7 +471,7 @@ function createPetWindow() {
 function savePosition() {
   if (!petWindow || petWindow.isDestroyed()) return
   const [x, y] = petWindow.getPosition()
-  settingsDao.set('petPosition', { x, y })
+  petProfileService.update(undefined, { position: { x, y } })
 }
 
 function homePosition() {
@@ -525,19 +533,19 @@ function popupMenu() {
     { label: t('pet.focus25'), click: () => startFocusSession() },
     { label: t('pet.takeBreak'), click: () => sendPetAction({ state: 'waiting', bubble: t('pet.breakBubble'), duration: 4800 }) },
     { type: 'separator' },
-    { label: t('pet.roaming'), type: 'checkbox', checked: Boolean(settingsDao.get('petRoaming')), click: (item) => {
-      settingsDao.set('petRoaming', item.checked)
+    { label: t('pet.roaming'), type: 'checkbox', checked: currentPetProfile().roaming, click: (item) => {
+      petProfileService.update(undefined, { roaming: item.checked })
       refresh()
     } },
-    { label: t('pet.alwaysOnTop'), type: 'checkbox', checked: Boolean(settingsDao.get('petAlwaysOnTop')), click: (item) => {
-      settingsDao.set('petAlwaysOnTop', item.checked)
+    { label: t('pet.alwaysOnTop'), type: 'checkbox', checked: currentPetProfile().alwaysOnTop, click: (item) => {
+      petProfileService.update(undefined, { alwaysOnTop: item.checked })
       refresh()
     } },
     { label: t('pet.goHome'), click: () => {
       if (!petWindow || petWindow.isDestroyed()) return
       const home = homePosition()
       setStrictPetBounds(home.x, home.y)
-      settingsDao.set('petPosition', home)
+      petProfileService.update(undefined, { position: home })
     } },
     { type: 'separator' },
     { label: t('pet.openLaunchpad'), click: () => {
@@ -646,7 +654,7 @@ const petRoutes = [
         if (!petWindow || petWindow.isDestroyed()) return { success: false }
         const home = homePosition()
         setStrictPetBounds(home.x, home.y)
-        settingsDao.set('petPosition', home)
+        petProfileService.update(undefined, { position: home })
         return { success: true }
       }
     },
@@ -688,7 +696,10 @@ const petRoutes = [
       handler: (_event, manifestPath) => {
         try {
           const result = petModelService.importFromManifest(String(manifestPath || ''))
+          petProfileService.ensure(result.id, { displayName: result.displayName })
           refresh()
+          const position = getPetPosition()
+          setStrictPetBounds(position.x, position.y)
           return result
         } catch (error) {
           return { error: error instanceof Error ? error.message : String(error) }
@@ -700,7 +711,10 @@ const petRoutes = [
       schema: [v.str({ max: 200 })],
       handler: (_event, modelId) => {
         const result = petModelService.select(modelId)
+        petProfileService.ensure(result.id, { displayName: result.displayName })
         refresh()
+        const position = getPetPosition()
+        setStrictPetBounds(position.x, position.y)
         return result
       }
     },
@@ -709,6 +723,8 @@ const petRoutes = [
       schema: [v.str({ max: 200 })],
       handler: (_event, modelId) => {
         const result = petModelService.remove(modelId)
+        petProfileService.remove(modelId)
+        conversationDao.deleteByPet(modelId)
         refresh()
         return result
       }
@@ -726,20 +742,22 @@ const petRoutes = [
       }, { label: '桌宠设置' })],
       handler: (_event, patch) => {
         const next = patch || {}
+        const profilePatch = {}
         if (Object.prototype.hasOwnProperty.call(next, 'scale')) {
-          settingsDao.set('petScale', Math.min(1.35, Math.max(0.65, Number(next.scale) || 1)))
+          profilePatch.scale = Math.min(1.35, Math.max(0.65, Number(next.scale) || 1))
         }
         if (Object.prototype.hasOwnProperty.call(next, 'opacity')) {
-          settingsDao.set('petOpacity', Math.min(1, Math.max(0.55, Number(next.opacity) || 1)))
+          profilePatch.opacity = Math.min(1, Math.max(0.55, Number(next.opacity) || 1))
         }
-        if (Object.prototype.hasOwnProperty.call(next, 'roaming')) settingsDao.set('petRoaming', Boolean(next.roaming))
+        if (Object.prototype.hasOwnProperty.call(next, 'roaming')) profilePatch.roaming = Boolean(next.roaming)
         if (Object.prototype.hasOwnProperty.call(next, 'roamRange')) {
-          settingsDao.set('petRoamRange', Math.min(1, Math.max(0.2, Number(next.roamRange) || 0.7)))
+          profilePatch.roamRange = Math.min(1, Math.max(0.2, Number(next.roamRange) || 0.7))
         }
         if (Object.prototype.hasOwnProperty.call(next, 'roamActivity')) {
-          settingsDao.set('petRoamActivity', Math.min(2, Math.max(0.5, Number(next.roamActivity) || 1)))
+          profilePatch.roamActivity = Math.min(2, Math.max(0.5, Number(next.roamActivity) || 1))
         }
-        if (Object.prototype.hasOwnProperty.call(next, 'alwaysOnTop')) settingsDao.set('petAlwaysOnTop', Boolean(next.alwaysOnTop))
+        if (Object.prototype.hasOwnProperty.call(next, 'alwaysOnTop')) profilePatch.alwaysOnTop = Boolean(next.alwaysOnTop)
+        petProfileService.update(undefined, profilePatch)
         refresh()
         return getRuntimeConfig()
       }
@@ -762,10 +780,11 @@ function refresh() {
     const win = showPetWindow()
     if (win && !win.isDestroyed()) {
       resizePetWindow()
-      win.setOpacity(Math.min(1, Math.max(0.55, Number(settingsDao.get('petOpacity')) || 1)))
-      win.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
-      if (chatWindow && !chatWindow.isDestroyed()) chatWindow.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
-      if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.setAlwaysOnTop(Boolean(settingsDao.get('petAlwaysOnTop')), 'screen-saver')
+      const profile = currentPetProfile()
+      win.setOpacity(profile.opacity)
+      win.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
+      if (chatWindow && !chatWindow.isDestroyed()) chatWindow.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
+      if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
       win.webContents.send('pet:configChanged', getRuntimeConfig())
     }
   } else {

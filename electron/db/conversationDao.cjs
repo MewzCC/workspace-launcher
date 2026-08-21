@@ -11,6 +11,7 @@ function getStmts() {
       SELECT c.*, COUNT(m.id) AS message_count
       FROM ai_conversations c
       LEFT JOIN ai_messages m ON m.conversation_id = c.id
+      WHERE c.pet_model_id = ?
       GROUP BY c.id
       ORDER BY c.updated_at DESC, c.id DESC
       LIMIT ?
@@ -22,12 +23,14 @@ function getStmts() {
       WHERE c.id = ?
       GROUP BY c.id
     `),
-    create: db.prepare('INSERT INTO ai_conversations (title) VALUES (?)'),
+    create: db.prepare('INSERT INTO ai_conversations (pet_model_id, title) VALUES (?, ?)'),
     touch: db.prepare("UPDATE ai_conversations SET updated_at = datetime('now') WHERE id = ?"),
     title: db.prepare("UPDATE ai_conversations SET title = ?, updated_at = datetime('now') WHERE id = ?"),
     summary: db.prepare("UPDATE ai_conversations SET summary = ?, summary_message_id = ?, updated_at = datetime('now') WHERE id = ?"),
     clear: db.prepare('DELETE FROM ai_messages WHERE conversation_id = ?'),
     clearSummary: db.prepare("UPDATE ai_conversations SET summary = '', summary_message_id = NULL, updated_at = datetime('now') WHERE id = ?"),
+    deleteConversation: db.prepare('DELETE FROM ai_conversations WHERE id = ?'),
+    deleteByPet: db.prepare('DELETE FROM ai_conversations WHERE pet_model_id = ?'),
     insertMessage: db.prepare(`
       INSERT INTO ai_messages (conversation_id, role, content, metadata)
       VALUES (@conversation_id, @role, @content, @metadata)
@@ -53,40 +56,61 @@ function normalizeConversation(row) {
   return { ...row, message_count: Number(row.message_count || 0) }
 }
 
-function list(limit = 30) {
-  return getStmts().list.all(Math.min(100, Math.max(1, Number(limit) || 30))).map(normalizeConversation)
+function currentPetId() {
+  return String(settingsDao.get('petModelId') || 'builtin-launchbot')
+}
+
+function activeConversationIds() {
+  const value = settingsDao.get('aiActiveConversationIds')
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+}
+
+function setActiveId(petModelId, conversationId) {
+  const ids = activeConversationIds()
+  ids[String(petModelId)] = Number(conversationId)
+  settingsDao.set('aiActiveConversationIds', ids)
+  // 保留旧字段供降级版本读取。
+  settingsDao.set('aiActiveConversationId', Number(conversationId))
+}
+
+function list(limit = 30, petModelId = currentPetId()) {
+  return getStmts().list.all(String(petModelId), Math.min(100, Math.max(1, Number(limit) || 30))).map(normalizeConversation)
 }
 
 function get(id) {
   return normalizeConversation(getStmts().get.get(Number(id)))
 }
 
-function create(title = '') {
+function create(title = '', petModelId = currentPetId()) {
   const value = String(title || '').trim().slice(0, 80)
-  const info = getStmts().create.run(value)
+  const petId = String(petModelId || currentPetId())
+  const info = getStmts().create.run(petId, value)
   const conversation = get(Number(info.lastInsertRowid))
-  settingsDao.set('aiActiveConversationId', conversation.id)
+  setActiveId(petId, conversation.id)
   return conversation
 }
 
-function ensureActive() {
-  const activeId = Number(settingsDao.get('aiActiveConversationId'))
+function ensureActive(petModelId = currentPetId()) {
+  const petId = String(petModelId || currentPetId())
+  const ids = activeConversationIds()
+  const activeId = Number(ids[petId])
   if (activeId) {
     const active = get(activeId)
-    if (active) return active
+    if (active?.pet_model_id === petId) return active
   }
-  const latest = list(1)[0]
+  const latest = list(1, petId)[0]
   if (latest) {
-    settingsDao.set('aiActiveConversationId', latest.id)
+    setActiveId(petId, latest.id)
     return latest
   }
-  return create('')
+  return create('', petId)
 }
 
-function setActive(id) {
+function setActive(id, petModelId = currentPetId()) {
+  const petId = String(petModelId || currentPetId())
   const conversation = get(id)
-  if (!conversation) throw new Error('Conversation not found')
-  settingsDao.set('aiActiveConversationId', conversation.id)
+  if (!conversation || conversation.pet_model_id !== petId) throw new Error('Conversation not found')
+  setActiveId(petId, conversation.id)
   return conversation
 }
 
@@ -120,6 +144,28 @@ function appendMessage(conversationId, role, content, metadata = null) {
 function setTitle(id, title) {
   getStmts().title.run(String(title || '').trim().slice(0, 80), Number(id))
   return get(id)
+}
+
+function remove(id, petModelId = currentPetId()) {
+  const petId = String(petModelId || currentPetId())
+  const conversation = get(id)
+  if (!conversation || conversation.pet_model_id !== petId) throw new Error('Conversation not found')
+  getStmts().deleteConversation.run(conversation.id)
+  const ids = activeConversationIds()
+  if (Number(ids[petId]) === conversation.id) {
+    delete ids[petId]
+    settingsDao.set('aiActiveConversationIds', ids)
+  }
+  return ensureActive(petId)
+}
+
+function deleteByPet(petModelId) {
+  const petId = String(petModelId || '')
+  const result = getStmts().deleteByPet.run(petId)
+  const ids = activeConversationIds()
+  delete ids[petId]
+  settingsDao.set('aiActiveConversationIds', ids)
+  return Number(result.changes || 0)
 }
 
 function clear(id) {
@@ -156,4 +202,4 @@ function summaryBatch(id, keepRecent = 12) {
   }
 }
 
-module.exports = { list, get, create, ensureActive, setActive, listMessages, appendMessage, setTitle, clear, updateSummary, summaryBatch }
+module.exports = { list, get, create, ensureActive, setActive, listMessages, appendMessage, setTitle, clear, remove, deleteByPet, updateSummary, summaryBatch }

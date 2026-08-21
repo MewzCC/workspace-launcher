@@ -21,13 +21,18 @@ body.pet-bubble-window-body::after { display: none; }
   max-width: 336px;
   padding: 9px 12px;
   color: var(--brand-foreground);
-  background: color-mix(in srgb, var(--brand-card) 97%, transparent);
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, var(--brand-border));
-  border-radius: 14px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-background) 28%, transparent);
-  backdrop-filter: blur(18px);
-  font-size: 12px;
-  line-height: 1.55;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 54%),
+    color-mix(in srgb, var(--brand-popover) 98%, var(--brand-card-solid));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 42%, var(--brand-border));
+  border-radius: 15px;
+  box-shadow:
+    0 12px 34px color-mix(in srgb, var(--brand-background) 62%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--brand-foreground) 8%, transparent);
+  backdrop-filter: blur(24px) saturate(135%);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.62;
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -41,14 +46,28 @@ body.pet-bubble-window-body::after { display: none; }
 
 /* 气泡内 Markdown 适配：窄气泡中压缩标题/列表/代码 */
 .pet-floating-bubble .pet-bubble-md {
-  font-size: 12px;
-  line-height: 1.55;
+  color: var(--brand-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.62;
+  opacity: 1;
+}
+
+html.dark .pet-floating-bubble,
+html:not(.light):not(.dark) .pet-floating-bubble {
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .32);
+}
+
+html.light .pet-floating-bubble {
+  box-shadow:
+    0 12px 32px rgba(31, 35, 58, .18),
+    inset 0 1px 0 rgba(255, 255, 255, .92);
 }
 
 .pet-bubble-md p { margin: 0 0 5px; }
 .pet-bubble-md h1, .pet-bubble-md h2, .pet-bubble-md h3, .pet-bubble-md h4 {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.3;
 }
 

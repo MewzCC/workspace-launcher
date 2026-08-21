@@ -30,6 +30,7 @@ const AI_PROVIDERS = {
 
 const CUSTOM_MODEL = '__custom__'
 const PET_TAB_KEYS = ['companion', 'memory', 'models', 'settings']
+const CHAT_MODES = ['concise', 'focus', 'creative', 'casual']
 
 function PetCenter() {
   const t = useT()
@@ -58,6 +59,9 @@ function PetCenter() {
   const [baseUrl, setBaseUrl] = useState('')
   const [aiModel, setAiModel] = useState('')
   const [shellEnabled, setShellEnabled] = useState(false)
+  const [chatMode, setChatMode] = useState('concise')
+  const [renamingConversation, setRenamingConversation] = useState(false)
+  const [conversationTitleDraft, setConversationTitleDraft] = useState('')
   const chatEndRef = useRef(null)
   const chatScrollRef = useRef(null)
   const prevConversationIdRef = useRef(null)
@@ -99,6 +103,8 @@ function PetCenter() {
     setAiModel(nextAi.model || '')
     setMemoryMode(nextAi.memoryMode || 'manual')
     setShellEnabled(Boolean(nextAi.shellEnabled))
+    setChatMode(nextAi.mode || 'concise')
+    setRenamingConversation(false)
     setConversation(nextConversation.conversation)
     setMessages(nextConversation.messages || [])
     setConversations(nextConversations)
@@ -271,6 +277,60 @@ function PetCenter() {
     } catch (error) { setNotice(error.message) }
   }
 
+  const beginRenameConversation = () => {
+    if (!conversation) return
+    setConversationTitleDraft(conversation.title || t('petCenter.newConversation'))
+    setRenamingConversation(true)
+  }
+
+  const renameConversation = async (event) => {
+    event?.preventDefault()
+    const title = conversationTitleDraft.trim()
+    if (!conversation || !title) {
+      setNotice(t('petCenter.conversationTitleRequired'))
+      return
+    }
+    try {
+      const result = await aiApi.renameConversation(conversation.id, title)
+      setConversation(result.conversation)
+      setConversations(await aiApi.listConversations())
+      setRenamingConversation(false)
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const deleteConversation = async () => {
+    if (!conversation) return
+    const allowed = await confirm({
+      title: t('petCenter.deleteConversation'),
+      message: t('petCenter.deleteConversationConfirm', { title: conversation.title || t('petCenter.newConversation') }),
+      confirmText: t('common.delete'),
+      tone: 'danger',
+      icon: 'danger'
+    })
+    if (!allowed) return
+    try {
+      const result = await aiApi.deleteConversation(conversation.id)
+      setConversation(result.conversation)
+      setMessages(result.messages || [])
+      setConversations(await aiApi.listConversations())
+      setRenamingConversation(false)
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const changeChatMode = async (mode) => {
+    if (!CHAT_MODES.includes(mode) || mode === chatMode) return
+    const previous = chatMode
+    setChatMode(mode)
+    try {
+      const next = await aiApi.saveConfig({ mode })
+      setAiConfig(next)
+      setChatMode(next.mode || mode)
+    } catch (error) {
+      setChatMode(previous)
+      setNotice(error.message)
+    }
+  }
+
   const changeMemoryMode = async (mode) => {
     try {
       await aiApi.setMemoryMode(mode)
@@ -324,7 +384,7 @@ function PetCenter() {
     try {
       const next = await aiApi.saveConfig({
         provider, apiFormat, baseUrl, model: aiModel, apiKey: form.get('apiKey'),
-        petName: form.get('petName'), personality: form.get('personality')
+        petName: form.get('petName'), personality: form.get('personality'), mode: chatMode
       })
       setAiConfig(next)
       setNotice(t('petCenter.aiSaved'))
@@ -455,16 +515,31 @@ function PetCenter() {
           <div className="pet-chat-card">
             <div className="pet-chat-head">
               <div className="pet-chat-avatar"><Bot size={19} /></div>
-              <div><strong>{aiConfig.petName || t('petCenter.companion')}</strong><span>{t('petCenter.conciseMode')}</span></div>
+              <div className="pet-chat-identity">
+                <strong>{aiConfig.petName || t('petCenter.companion')}</strong>
+                <select className="pet-chat-mode-select pet-themed-select" value={chatMode} onChange={(event) => changeChatMode(event.target.value)} aria-label={t('petCenter.chatMode')}>
+                  {CHAT_MODES.map((mode) => <option key={mode} value={mode}>{t(`petCenter.mode_${mode}`)}</option>)}
+                </select>
+              </div>
               <div className="pet-conversation-actions">
                 <select className="pet-themed-select" value={conversation?.id || ''} onChange={(event) => switchConversation(event.target.value)} aria-label={t('petCenter.conversation')}>
                   {conversations.map((item) => <option key={item.id} value={item.id}>{item.title || t('petCenter.newConversation')}</option>)}
                 </select>
                 <button type="button" onClick={createConversation} title={t('petCenter.newConversation')}><Plus size={15} /></button>
+                <button type="button" onClick={beginRenameConversation} title={t('petCenter.renameConversation')}><Pencil size={15} /></button>
                 <button type="button" onClick={clearConversation} title={t('petCenter.clearConversation')}><Eraser size={15} /></button>
+                <button type="button" className="danger" onClick={deleteConversation} title={t('petCenter.deleteConversation')}><Trash2 size={15} /></button>
               </div>
               <span className={`pet-ai-pill ${aiConfig.hasApiKey ? 'ready' : ''}`}>{aiConfig.hasApiKey ? t('petCenter.aiConnected') : t('petCenter.awaitingConfig')}</span>
             </div>
+            {renamingConversation && (
+              <form className="pet-conversation-editor" onSubmit={renameConversation}>
+                <Pencil size={14} aria-hidden="true" />
+                <input autoFocus value={conversationTitleDraft} onChange={(event) => setConversationTitleDraft(event.target.value)} maxLength="80" placeholder={t('petCenter.conversationTitlePlaceholder')} aria-label={t('petCenter.conversationTitle')} />
+                <button type="submit" disabled={!conversationTitleDraft.trim()}><Save size={14} /> {t('common.save')}</button>
+                <button type="button" onClick={() => setRenamingConversation(false)}>{t('common.cancel')}</button>
+              </form>
+            )}
             <div className="pet-chat-messages" ref={chatScrollRef}>
               {!messages.length && <div className="pet-message pet-message--assistant"><p>{t('petCenter.greeting')}</p></div>}
               {messages.filter((item) => item.tool || String(item.content || '').trim()).map((item, index) => (
@@ -573,7 +648,7 @@ function PetCenter() {
                     <div className="pet-model-thumb">
                       <PetSprite model={model} state="idle" size={82} />
                     </div>
-                    <div className="pet-model-info"><strong>{model.displayName}</strong><p>{model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 })}</p><span>{model.imported ? `V${model.spriteVersionNumber || 1} · IMPORTED` : 'BUILT-IN'}</span></div>
+                    <div className="pet-model-info"><strong>{model.displayName}</strong><p>{model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 })}</p><span>{model.imported ? (model.renderer === 'svg' ? 'SVG · AI GENERATED' : `V${model.spriteVersionNumber || 1} · IMPORTED`) : 'BUILT-IN'}</span></div>
                     <div className="pet-model-actions">
                       <button className={active ? 'selected' : ''} onClick={() => selectModel(model.id)}>{active ? <><Check size={14} /> {t('petCenter.inUse')}</> : t('petCenter.setAsPet')}</button>
                       {model.imported && <button className="danger" onClick={() => removeModel(model.id)} aria-label={t('common.delete')}><Trash2 size={15} /></button>}
@@ -590,6 +665,7 @@ function PetCenter() {
         <section id="pet-panel-settings" role="tabpanel" aria-labelledby="pet-tab-settings" className={`pet-settings-grid ${panelMotionClass}`}>
           <div className="pet-settings-card">
             <div className="pet-section-title"><div><span>BEHAVIOR</span><h2>{t('petCenter.desktopBehavior')}</h2></div><Settings2 size={20} /></div>
+            <div className="pet-profile-scope"><Bot size={17} /><div><strong>{t('petCenter.profileScopedTitle')}</strong><span>{t('petCenter.profileScopedDesc', { name: config.model.displayName || aiConfig.petName })}</span></div></div>
             <SettingToggle title={t('petCenter.showPet')} desc={t('petCenter.showPetDesc')} checked={config.settings.enabled} onChange={toggleEnabled} />
             <SettingToggle title={t('petCenter.roaming')} desc={t('petCenter.roamingDesc')} checked={config.settings.roaming} onChange={(value) => updatePetSetting({ roaming: value })} />
             <RangeSetting title={t('petCenter.roamRange')} value={config.settings.roamRange} min="0.2" max="1" step="0.05" disabled={!config.settings.roaming} suffix={`${Math.round(config.settings.roamRange * 100)}%`} onChange={(value) => updatePetSetting({ roamRange: value })} />
@@ -599,8 +675,18 @@ function PetCenter() {
             <RangeSetting title={t('petCenter.opacity')} value={config.settings.opacity} min="0.55" max="1" step="0.05" suffix={`${Math.round(config.settings.opacity * 100)}%`} onChange={(value) => updatePetSetting({ opacity: value })} />
           </div>
 
+          <div className="pet-settings-ai-column">
           <form className="pet-settings-card pet-ai-settings" onSubmit={saveAi}>
             <div className="pet-section-title"><div><span>AI CONNECTION</span><h2>{t('petCenter.chatCapability')}</h2></div><KeyRound size={20} /></div>
+            <fieldset className="pet-chat-mode-grid">
+              <legend>{t('petCenter.chatMode')}</legend>
+              {CHAT_MODES.map((mode) => (
+                <button key={mode} type="button" className={chatMode === mode ? 'active' : ''} onClick={() => changeChatMode(mode)} aria-pressed={chatMode === mode}>
+                  <strong>{t(`petCenter.mode_${mode}`)}</strong>
+                  <small>{t(`petCenter.mode_${mode}Desc`)}</small>
+                </button>
+              ))}
+            </fieldset>
             <label>{t('petCenter.provider')}
               <select className="pet-themed-select" value={provider} onChange={(event) => selectProvider(event.target.value)}>
                 {Object.entries(AI_PROVIDERS).map(([key, item]) => <option key={key} value={key}>{item.labelKey ? t(`petCenter.${item.labelKey}`) : item.label}</option>)}
@@ -643,10 +729,10 @@ function PetCenter() {
               </div>
             )}
             <div className="pet-form-row">
-              <label>{t('petCenter.companionName')}<input name="petName" defaultValue={aiConfig.petName} /></label>
+              <label>{t('petCenter.companionName')}<input key={`name-${aiConfig.petModelId}`} name="petName" defaultValue={aiConfig.petName} /></label>
               <label>API Key<input name="apiKey" type="password" placeholder={aiConfig.providerKeys?.[provider] ? t('petCenter.keySaved') : t('petCenter.keyPlaceholder')} autoComplete="off" /></label>
             </div>
-            <label>{t('petCenter.personality')}<textarea key={`${language}-${aiConfig.personality}`} name="personality" defaultValue={aiConfig.personality} rows="5" /></label>
+            <label>{t('petCenter.personality')}<textarea key={`${language}-${aiConfig.petModelId}-${aiConfig.personality}`} name="personality" defaultValue={aiConfig.personality} rows="5" /></label>
             <div className="pet-ai-security"><KeyRound size={14} /> {t('petCenter.keySecurity')}</div>
             <GlowButton type="submit">{t('petCenter.saveAi')}</GlowButton>
           </form>
@@ -661,6 +747,7 @@ function PetCenter() {
               onChange={toggleShellPermission}
             />
             {shellEnabled && <div className="pet-shell-permission-active">{t('petCenter.shellPermissionActive')}</div>}
+          </div>
           </div>
         </section>
       )}

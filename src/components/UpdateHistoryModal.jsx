@@ -88,7 +88,7 @@ function UpdateHistoryModal({ onClose }) {
                     )}
                   </span>
                   <span className="update-history-date">{formatDate(release.publishedAt)}</span>
-                  {release.url && (
+                  {release.url && !isCurrent && (
                     <GlowButton
                       variant="ghost"
                       size="sm"

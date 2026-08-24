@@ -9,7 +9,7 @@ import Toggle from '../components/ui/Toggle'
 import PetSprite from '../components/PetSprite'
 import TutorialDrawer from '../components/TutorialDrawer'
 import { useConfirmDialog } from '../components/ConfirmDialog'
-import { aiApi, dialogApi, petApi, systemApi } from '../lib/ipc'
+import { aiApi, dialogApi, petApi } from '../lib/ipc'
 import { renderMarkdown } from '../lib/markdown'
 import { useT } from '../hooks/useT'
 import { useStore } from '../store/useStore'
@@ -41,6 +41,11 @@ function PetCenter() {
   const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false })
   const [config, setConfig] = useState(null)
   const [models, setModels] = useState([])
+  const [interactionStatus, setInteractionStatus] = useState(null)
+  const [interactions, setInteractions] = useState([])
+  const [interactionPair, setInteractionPair] = useState(['', ''])
+  const [interactionTopic, setInteractionTopic] = useState('')
+  const [socialMemories, setSocialMemories] = useState({ relationship: [], diary: [] })
   const [aiConfig, setAiConfig] = useState(null)
   const [previewState, setPreviewState] = useState('idle')
   const [messages, setMessages] = useState([])
@@ -91,7 +96,7 @@ function PetCenter() {
 
   const load = async () => {
     const [nextConfig, nextModels, nextAi, nextConversation, nextConversations, nextMemories] = await Promise.all([
-      petApi.getConfig(), petApi.listModels(), aiApi.getConfig(), aiApi.getConversation(),
+      petApi.getConfig(), petApi.listInstances(), aiApi.getConfig(), aiApi.getConversation(),
       aiApi.listConversations(), aiApi.listMemories()
     ])
     setConfig(nextConfig)
@@ -109,21 +114,42 @@ function PetCenter() {
     setMessages(nextConversation.messages || [])
     setConversations(nextConversations)
     setMemories(nextMemories)
+    const [nextStatus, nextInteractions] = await Promise.all([petApi.interactionStatus(), petApi.listInteractions(12)])
+    setInteractionStatus(nextStatus)
+    setInteractions(nextInteractions)
+    const activePets = nextModels.filter((item) => item.active)
+    setInteractionPair((current) => [current[0] || activePets[0]?.id || '', current[1] || activePets[1]?.id || ''])
   }
 
   useEffect(() => { load().catch((error) => setNotice(error.message)) }, [language])
   useEffect(() => {
     if (activeTab !== 'memory') return
-    Promise.all([aiApi.listMemories(), aiApi.getConfig()]).then(([nextMemories, nextAi]) => {
+    const petModelId = config?.model?.id
+    Promise.all([aiApi.listMemories(undefined, petModelId), aiApi.getConfig(petModelId)]).then(([nextMemories, nextAi]) => {
       setMemories(nextMemories)
       setMemoryMode(nextAi.memoryMode || 'manual')
     }).catch((error) => setNotice(error.message))
+  }, [activeTab, config?.model?.id])
+  useEffect(() => {
+    if (!interactionPair[0] || !interactionPair[1] || interactionPair[0] === interactionPair[1]) {
+      setSocialMemories({ relationship: [], diary: [] })
+      return
+    }
+    petApi.getInteractionMemories(interactionPair[0], interactionPair[1]).then(setSocialMemories).catch(() => {})
+  }, [interactionPair[0], interactionPair[1], interactions])
+  useEffect(() => {
+    if (activeTab !== 'models') return undefined
+    const refreshModels = () => petApi.listInstances().then(setModels).catch(() => {})
+    window.addEventListener('focus', refreshModels)
+    return () => window.removeEventListener('focus', refreshModels)
   }, [activeTab])
   useEffect(() => {
     const unsubscribeConversation = aiApi.onConversationChanged(async (payload) => {
+      const petModelId = config?.model?.id
+      if (payload?.petModelId && payload.petModelId !== petModelId) return
       try {
         const [nextConversation, nextConversations] = await Promise.all([
-          aiApi.getConversation(payload?.conversationId), aiApi.listConversations()
+          aiApi.getConversation(payload?.conversationId, petModelId), aiApi.listConversations(petModelId)
         ])
         setConversation(nextConversation.conversation)
         setMessages(nextConversation.messages || [])
@@ -131,10 +157,13 @@ function PetCenter() {
       } catch (_) {}
     })
     const unsubscribeMemory = aiApi.onMemoryChanged(() => {
-      aiApi.listMemories().then(setMemories).catch(() => {})
+      aiApi.listMemories(undefined, config?.model?.id).then(setMemories).catch(() => {})
     })
-    return () => { unsubscribeConversation(); unsubscribeMemory() }
-  }, [])
+    const unsubscribeInteraction = petApi.onInteractionChanged(() => {
+      Promise.all([petApi.interactionStatus(), petApi.listInteractions(12)]).then(([nextStatus, nextItems]) => { setInteractionStatus(nextStatus); setInteractions(nextItems) }).catch(() => {})
+    })
+    return () => { unsubscribeConversation(); unsubscribeMemory(); unsubscribeInteraction() }
+  }, [config?.model?.id])
   useEffect(() => {
     if (typeof aiApi.onChatDelta !== 'function') return undefined
     const unsubscribeDelta = aiApi.onChatDelta(({ delta }) => {
@@ -174,16 +203,23 @@ function PetCenter() {
     return () => observer.disconnect()
   }, [activeTab, language, config, aiConfig])
 
-  const importModel = async (mode = 'directory') => {
+  const importModel = async () => {
     setNotice('')
     try {
-      const selectedPath = mode === 'directory'
-        ? await dialogApi.openDirectory()
-        : await dialogApi.openFile([{ name: 'Codex Pet Manifest', extensions: ['json'] }])
+      const selectedPath = await dialogApi.openFile([{ name: 'Codex Pet Manifest', extensions: ['json'] }])
       if (!selectedPath) return
       await petApi.importModel(selectedPath)
       await load()
       setNotice(t('petCenter.importSuccess'))
+    } catch (error) {
+      setNotice(error.message)
+    }
+  }
+
+  const openModelsFolder = async () => {
+    setNotice('')
+    try {
+      await petApi.openModelsStorage()
     } catch (error) {
       setNotice(error.message)
     }
@@ -205,15 +241,47 @@ function PetCenter() {
 
   const updatePetSetting = async (patch) => {
     try {
-      const next = await petApi.updateSettings(patch)
+      const next = await petApi.updateSettings(patch, config?.model?.id)
       setConfig(next)
     } catch (error) { setNotice(error.message) }
   }
 
   const toggleEnabled = async (enabled) => {
     try {
-      await systemApi.setPetEnabled(enabled)
+      const nextModels = await petApi.setInstanceEnabled(config?.model?.id, enabled)
+      setModels(nextModels)
       setConfig((value) => ({ ...value, settings: { ...value.settings, enabled } }))
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const toggleModelInstance = async (id, enabled) => {
+    try {
+      const nextModels = await petApi.setInstanceEnabled(id, enabled)
+      setModels(nextModels)
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const saveInteractionSettings = async (patch) => {
+    try {
+      const next = await petApi.updateInteractionSettings(patch)
+      setInteractionStatus((value) => ({ ...value, settings: next }))
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const startInteraction = async () => {
+    if (!interactionPair[0] || !interactionPair[1] || interactionPair[0] === interactionPair[1]) return
+    setNotice('')
+    try {
+      await petApi.startInteraction({ petAId: interactionPair[0], petBId: interactionPair[1], topic: interactionTopic, maxTurns: interactionStatus?.settings?.maxTurns || 4 })
+      setInteractions(await petApi.listInteractions(12))
+    } catch (error) { setNotice(error.message) }
+  }
+
+  const clearInteractionMemories = async () => {
+    if (!interactionPair[0] || !interactionPair[1] || !window.confirm(t('petCenter.clearInteractionMemoryConfirm'))) return
+    try {
+      await petApi.clearInteractionMemories(interactionPair[0], interactionPair[1])
+      setSocialMemories((value) => ({ ...value, relationship: [] }))
     } catch (error) { setNotice(error.message) }
   }
 
@@ -230,15 +298,15 @@ function PetCenter() {
     setChatting(true)
     stopTypewriter()
     setPreviewState('working')
-    petApi.performAction({ state: 'working', bubble: t('petCenter.bubbleThinking'), duration: 12000 })
+    petApi.performAction({ state: 'working', bubble: t('petCenter.bubbleThinking'), duration: 12000 }, config?.model?.id)
     try {
-      const result = await aiApi.chat({ conversationId: conversation?.id, content })
+      const result = await aiApi.chat({ conversationId: conversation?.id, content, petModelId: config?.model?.id })
       stopTypewriter()
-      const snapshot = await aiApi.getConversation(result.conversation.id)
+      const snapshot = await aiApi.getConversation(result.conversation.id, config?.model?.id)
       setConversation(snapshot.conversation)
       setMessages(snapshot.messages || [])
       setPreviewState('wave')
-      petApi.performAction({ state: 'wave', bubble: result.text, duration: 3000 })
+      petApi.performAction({ state: 'wave', bubble: result.text, duration: 3000 }, config?.model?.id)
       setTimeout(() => setPreviewState('idle'), 1000)
     } catch (error) {
       stopTypewriter()
@@ -247,14 +315,14 @@ function PetCenter() {
         { role: 'assistant', content: t('petCenter.aiConnectFailed', { message: error.message }) }
       ])
       setPreviewState('failed')
-      petApi.performAction({ state: 'failed', bubble: t('petCenter.bubbleFailed'), duration: 2600 })
+      petApi.performAction({ state: 'failed', bubble: t('petCenter.bubbleFailed'), duration: 2600 }, config?.model?.id)
       setTimeout(() => setPreviewState('idle'), 1400)
     } finally { setChatting(false) }
   }
 
   const createConversation = async () => {
     try {
-      const result = await aiApi.createConversation()
+      const result = await aiApi.createConversation(undefined, config?.model?.id)
       setConversation(result.conversation)
       setMessages([])
     } catch (error) { setNotice(error.message) }
@@ -262,7 +330,7 @@ function PetCenter() {
 
   const switchConversation = async (id) => {
     try {
-      const result = await aiApi.switchConversation(Number(id))
+      const result = await aiApi.switchConversation(Number(id), config?.model?.id)
       setConversation(result.conversation)
       setMessages(result.messages || [])
     } catch (error) { setNotice(error.message) }
@@ -271,7 +339,7 @@ function PetCenter() {
   const clearConversation = async () => {
     if (!conversation || !window.confirm(t('petCenter.clearConversationConfirm'))) return
     try {
-      const result = await aiApi.clearConversation(conversation.id)
+      const result = await aiApi.clearConversation(conversation.id, config?.model?.id)
       setConversation(result.conversation)
       setMessages([])
     } catch (error) { setNotice(error.message) }
@@ -291,9 +359,9 @@ function PetCenter() {
       return
     }
     try {
-      const result = await aiApi.renameConversation(conversation.id, title)
+      const result = await aiApi.renameConversation(conversation.id, title, config?.model?.id)
       setConversation(result.conversation)
-      setConversations(await aiApi.listConversations())
+      setConversations(await aiApi.listConversations(config?.model?.id))
       setRenamingConversation(false)
     } catch (error) { setNotice(error.message) }
   }
@@ -309,10 +377,10 @@ function PetCenter() {
     })
     if (!allowed) return
     try {
-      const result = await aiApi.deleteConversation(conversation.id)
+      const result = await aiApi.deleteConversation(conversation.id, config?.model?.id)
       setConversation(result.conversation)
       setMessages(result.messages || [])
-      setConversations(await aiApi.listConversations())
+      setConversations(await aiApi.listConversations(config?.model?.id))
       setRenamingConversation(false)
     } catch (error) { setNotice(error.message) }
   }
@@ -322,7 +390,7 @@ function PetCenter() {
     const previous = chatMode
     setChatMode(mode)
     try {
-      const next = await aiApi.saveConfig({ mode })
+      const next = await aiApi.saveConfig({ mode }, config?.model?.id)
       setAiConfig(next)
       setChatMode(next.mode || mode)
     } catch (error) {
@@ -333,7 +401,7 @@ function PetCenter() {
 
   const changeMemoryMode = async (mode) => {
     try {
-      await aiApi.setMemoryMode(mode)
+      await aiApi.setMemoryMode(mode, config?.model?.id)
       setMemoryMode(mode)
       setAiConfig((value) => ({ ...value, memoryMode: mode }))
     } catch (error) { setNotice(error.message) }
@@ -343,37 +411,37 @@ function PetCenter() {
     event.preventDefault()
     if (!memoryDraft.trim()) return
     try {
-      await aiApi.createMemory({ type: memoryType, content: memoryDraft, confidence: 1 })
+      await aiApi.createMemory({ type: memoryType, content: memoryDraft, confidence: 1 }, config?.model?.id)
       setMemoryDraft('')
-      setMemories(await aiApi.listMemories())
+      setMemories(await aiApi.listMemories(undefined, config?.model?.id))
     } catch (error) { setNotice(error.message) }
   }
 
   const saveMemory = async (id, data) => {
     try {
-      await aiApi.updateMemory(id, data)
-      setMemories(await aiApi.listMemories())
+      await aiApi.updateMemory(id, data, config?.model?.id)
+      setMemories(await aiApi.listMemories(undefined, config?.model?.id))
     } catch (error) { setNotice(error.message) }
   }
 
   const forgetMemory = async (id) => {
     try {
-      await aiApi.forgetMemory(id)
-      setMemories(await aiApi.listMemories())
+      await aiApi.forgetMemory(id, config?.model?.id)
+      setMemories(await aiApi.listMemories(undefined, config?.model?.id))
     } catch (error) { setNotice(error.message) }
   }
 
   const confirmMemory = async (id) => {
     try {
-      await aiApi.updateMemory(id, { confirmed: true })
-      setMemories(await aiApi.listMemories())
+      await aiApi.updateMemory(id, { confirmed: true }, config?.model?.id)
+      setMemories(await aiApi.listMemories(undefined, config?.model?.id))
     } catch (error) { setNotice(error.message) }
   }
 
   const clearMemories = async () => {
     if (!window.confirm(t('petCenter.clearMemoriesConfirm'))) return
     try {
-      await aiApi.clearMemories()
+      await aiApi.clearMemories(config?.model?.id)
       setMemories([])
     } catch (error) { setNotice(error.message) }
   }
@@ -385,7 +453,7 @@ function PetCenter() {
       const next = await aiApi.saveConfig({
         provider, apiFormat, baseUrl, model: aiModel, apiKey: form.get('apiKey'),
         petName: form.get('petName'), personality: form.get('personality'), mode: chatMode
-      })
+      }, config?.model?.id)
       setAiConfig(next)
       setNotice(t('petCenter.aiSaved'))
     } catch (error) { setNotice(error.message) }
@@ -412,7 +480,7 @@ function PetCenter() {
       if (!allowed) return
     }
     try {
-      const next = await aiApi.saveConfig({ shellEnabled: enabled })
+      const next = await aiApi.saveConfig({ shellEnabled: enabled }, config?.model?.id)
       setAiConfig(next)
       setShellEnabled(Boolean(next.shellEnabled))
       setNotice(enabled ? t('petCenter.shellPermissionOn') : t('petCenter.shellPermissionOff'))
@@ -457,6 +525,7 @@ function PetCenter() {
     changeTab(tabs[nextIndex][0], nextButton)
   }
 
+  const activePetCount = models.filter((item) => item.active).length
   if (!config || !aiConfig) return <div className="pet-center-loading"><Sparkles /> {t('petCenter.loading')}</div>
 
   return (
@@ -514,12 +583,14 @@ function PetCenter() {
 
           <div className="pet-chat-card">
             <div className="pet-chat-head">
-              <div className="pet-chat-avatar"><Bot size={19} /></div>
-              <div className="pet-chat-identity">
-                <strong>{aiConfig.petName || t('petCenter.companion')}</strong>
-                <select className="pet-chat-mode-select pet-themed-select" value={chatMode} onChange={(event) => changeChatMode(event.target.value)} aria-label={t('petCenter.chatMode')}>
-                  {CHAT_MODES.map((mode) => <option key={mode} value={mode}>{t(`petCenter.mode_${mode}`)}</option>)}
-                </select>
+              <div className="pet-chat-profile">
+                <div className="pet-chat-avatar"><PetSprite model={config.model} state="idle" size={34} /></div>
+                <div className="pet-chat-identity">
+                  <strong title={aiConfig.petName || t('petCenter.companion')}>{aiConfig.petName || t('petCenter.companion')}</strong>
+                  <select className="pet-chat-mode-select pet-themed-select" value={chatMode} onChange={(event) => changeChatMode(event.target.value)} aria-label={t('petCenter.chatMode')}>
+                    {CHAT_MODES.map((mode) => <option key={mode} value={mode}>{t(`petCenter.mode_${mode}`)}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="pet-conversation-actions">
                 <select className="pet-themed-select" value={conversation?.id || ''} onChange={(event) => switchConversation(event.target.value)} aria-label={t('petCenter.conversation')}>
@@ -530,7 +601,7 @@ function PetCenter() {
                 <button type="button" onClick={clearConversation} title={t('petCenter.clearConversation')}><Eraser size={15} /></button>
                 <button type="button" className="danger" onClick={deleteConversation} title={t('petCenter.deleteConversation')}><Trash2 size={15} /></button>
               </div>
-              <span className={`pet-ai-pill ${aiConfig.hasApiKey ? 'ready' : ''}`}>{aiConfig.hasApiKey ? t('petCenter.aiConnected') : t('petCenter.awaitingConfig')}</span>
+              <span className={`pet-ai-pill ${aiConfig.hasApiKey ? 'ready' : ''}`} role="status"><i />{aiConfig.hasApiKey ? t('petCenter.aiConnected') : t('petCenter.awaitingConfig')}</span>
             </div>
             {renamingConversation && (
               <form className="pet-conversation-editor" onSubmit={renameConversation}>
@@ -630,8 +701,8 @@ function PetCenter() {
             <h2>{t('petCenter.importTitle')}</h2>
             <p>{t('petCenter.importDescriptionBefore')} <code>pet.json</code>{t('petCenter.importDescriptionAfter')}</p>
             <div className="pet-import-actions">
-              <GlowButton onClick={() => importModel('directory')}><FolderOpen size={16} /> {t('petCenter.chooseFolder')}</GlowButton>
-              <GlowButton variant="ghost" onClick={() => importModel('manifest')}>{t('petCenter.chooseManifest')}</GlowButton>
+              <GlowButton onClick={openModelsFolder}><FolderOpen size={16} /> {t('petCenter.chooseFolder')}</GlowButton>
+              <GlowButton variant="ghost" onClick={importModel}>{t('petCenter.chooseManifest')}</GlowButton>
             </div>
             <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV1')}</div>
             <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV2')}</div>
@@ -639,18 +710,56 @@ function PetCenter() {
             <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractImage')}</div>
           </div>
           <div className="pet-model-library">
+            <div className="pet-interaction-console">
+              <div className="pet-section-title"><div><span>MULTI COMPANION</span><h2>{t('petCenter.multiPetTitle')}</h2></div><MessageCircle size={20} /></div>
+              <p>{t('petCenter.multiPetDesc')}</p>
+              <div className={`pet-multi-status ${activePetCount >= 2 ? 'ready' : ''}`}>
+                <div><span>{activePetCount >= 2 ? t('petCenter.multiPetReady') : t('petCenter.multiPetNeedsAnother')}</span><small>{t('petCenter.multiPetActiveCount', { count: activePetCount })}</small></div>
+                <b>{activePetCount}<em>/2</em></b>
+              </div>
+              <div className="pet-interaction-switches">
+                <SettingToggle title={t('petCenter.autoInteraction')} desc={t('petCenter.autoInteractionDesc')} checked={Boolean(interactionStatus?.settings?.autoEnabled)} onChange={(value) => saveInteractionSettings({ autoEnabled: value })} />
+                <SettingToggle title={t('petCenter.interactionMemory')} desc={t('petCenter.interactionMemoryDesc')} checked={interactionStatus?.settings?.interactionMemoryEnabled !== false} onChange={(value) => saveInteractionSettings({ interactionMemoryEnabled: value })} />
+                <SettingToggle title={t('petCenter.shareOwnerMoments')} desc={t('petCenter.shareOwnerMomentsDesc')} checked={interactionStatus?.settings?.shareOwnerContext !== false} onChange={(value) => saveInteractionSettings({ shareOwnerContext: value })} />
+                <RangeSetting title={t('petCenter.interactionTurns')} value={interactionStatus?.settings?.maxTurns || 4} min="2" max="10" step="1" suffix={`${interactionStatus?.settings?.maxTurns || 4}`} onChange={(value) => saveInteractionSettings({ maxTurns: value })} />
+              </div>
+              <div className="pet-interaction-compose">
+                <select className="pet-themed-select" value={interactionPair[0]} onChange={(event) => setInteractionPair([event.target.value, interactionPair[1]])}>
+                  <option value="">{t('petCenter.chooseFirstPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
+                </select>
+                <span>×</span>
+                <select className="pet-themed-select" value={interactionPair[1]} onChange={(event) => setInteractionPair([interactionPair[0], event.target.value])}>
+                  <option value="">{t('petCenter.chooseSecondPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
+                </select>
+                <input value={interactionTopic} onChange={(event) => setInteractionTopic(event.target.value)} placeholder={t('petCenter.interactionTopic')} maxLength="500" />
+                {interactionStatus?.running
+                  ? <button type="button" className="danger" onClick={() => petApi.stopInteraction()}>{t('petCenter.stopInteraction')}</button>
+                  : <GlowButton onClick={startInteraction} disabled={!interactionPair[0] || !interactionPair[1] || interactionPair[0] === interactionPair[1]}><Sparkles size={15} /> {t('petCenter.startInteraction')}</GlowButton>}
+              </div>
+              {!!interactions.length && <div className="pet-interaction-history">{interactions.slice(0, 3).map((item) => <article key={item.id}><strong>{item.title || t('petCenter.petInteraction')}</strong><span>{item.trigger_type === 'auto' ? 'AUTO' : 'MANUAL'} · {item.status}</span><p>{item.summary || item.messages?.map((message) => message.content).join(' / ')}</p></article>)}</div>}
+              {(socialMemories.relationship.length > 0 || socialMemories.diary.length > 0) && (
+                <div className="pet-social-memory">
+                  <div className="pet-social-memory__head"><div><Brain size={17} /><strong>{t('petCenter.sharedMemoryTitle')}</strong></div>{socialMemories.relationship.length > 0 && <button type="button" className="danger" onClick={clearInteractionMemories}>{t('petCenter.clearRelationshipMemory')}</button>}</div>
+                  <div className="pet-social-memory__columns">
+                    <section><span>{t('petCenter.relationshipMemories')}</span>{socialMemories.relationship.slice(0, 6).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.relationship.length && <small>{t('petCenter.noRelationshipMemories')}</small>}</section>
+                    <section><span>{t('petCenter.todayOwnerMoments')}</span>{socialMemories.diary.slice(0, 8).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.diary.length && <small>{t('petCenter.noOwnerMoments')}</small>}</section>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="pet-section-title"><div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div><b>{models.length}</b></div>
             <div className="pet-model-list">
               {models.map((model) => {
-                const active = config.model.id === model.id
+                const selected = config.model.id === model.id
                 return (
-                  <article key={model.id} className={`pet-model-card ${active ? 'active' : ''}`}>
+                  <article key={model.id} className={`pet-model-card ${selected ? 'active' : ''}`}>
                     <div className="pet-model-thumb">
                       <PetSprite model={model} state="idle" size={82} />
                     </div>
                     <div className="pet-model-info"><strong>{model.displayName}</strong><p>{model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 })}</p><span>{model.imported ? (model.renderer === 'svg' ? 'SVG · AI GENERATED' : `V${model.spriteVersionNumber || 1} · IMPORTED`) : 'BUILT-IN'}</span></div>
                     <div className="pet-model-actions">
-                      <button className={active ? 'selected' : ''} onClick={() => selectModel(model.id)}>{active ? <><Check size={14} /> {t('petCenter.inUse')}</> : t('petCenter.setAsPet')}</button>
+                      <button className={selected ? 'selected' : ''} onClick={() => selectModel(model.id)}>{selected ? <><Check size={14} /> {t('petCenter.selectedPet')}</> : t('petCenter.setAsPet')}</button>
+                      <button className={model.active ? 'selected' : ''} onClick={() => toggleModelInstance(model.id, !model.active)}>{model.active ? t('petCenter.closePet') : t('petCenter.openPet')}</button>
                       {model.imported && <button className="danger" onClick={() => removeModel(model.id)} aria-label={t('common.delete')}><Trash2 size={15} /></button>}
                     </div>
                   </article>
@@ -663,6 +772,7 @@ function PetCenter() {
 
       {activeTab === 'settings' && (
         <section id="pet-panel-settings" role="tabpanel" aria-labelledby="pet-tab-settings" className={`pet-settings-grid ${panelMotionClass}`}>
+          <div className="pet-settings-behavior-column">
           <div className="pet-settings-card">
             <div className="pet-section-title"><div><span>BEHAVIOR</span><h2>{t('petCenter.desktopBehavior')}</h2></div><Settings2 size={20} /></div>
             <div className="pet-profile-scope"><Bot size={17} /><div><strong>{t('petCenter.profileScopedTitle')}</strong><span>{t('petCenter.profileScopedDesc', { name: config.model.displayName || aiConfig.petName })}</span></div></div>
@@ -673,6 +783,19 @@ function PetCenter() {
             <SettingToggle title={t('petCenter.alwaysOnTop')} desc={t('petCenter.alwaysOnTopDesc')} checked={config.settings.alwaysOnTop} onChange={(value) => updatePetSetting({ alwaysOnTop: value })} />
             <RangeSetting title={t('petCenter.petSize')} value={config.settings.scale} min="0.65" max="1.35" step="0.05" suffix={`${Math.round(config.settings.scale * 100)}%`} onChange={(value) => updatePetSetting({ scale: value })} />
             <RangeSetting title={t('petCenter.opacity')} value={config.settings.opacity} min="0.55" max="1" step="0.05" suffix={`${Math.round(config.settings.opacity * 100)}%`} onChange={(value) => updatePetSetting({ opacity: value })} />
+          </div>
+
+          <div className="pet-settings-card pet-shell-permission">
+            <div className="pet-section-title"><div><span>FULL CONTROL</span><h2>{t('petCenter.shellPermission')}</h2></div><Terminal size={20} /></div>
+            <p className="pet-shell-permission-desc">{t('petCenter.shellPermissionDesc')}</p>
+            <SettingToggle
+              title={t('petCenter.shellPermissionToggle')}
+              desc={t('petCenter.shellPermissionToggleDesc')}
+              checked={shellEnabled}
+              onChange={toggleShellPermission}
+            />
+            {shellEnabled && <div className="pet-shell-permission-active">{t('petCenter.shellPermissionActive')}</div>}
+          </div>
           </div>
 
           <div className="pet-settings-ai-column">
@@ -737,17 +860,6 @@ function PetCenter() {
             <GlowButton type="submit">{t('petCenter.saveAi')}</GlowButton>
           </form>
 
-          <div className="pet-settings-card pet-shell-permission">
-            <div className="pet-section-title"><div><span>FULL CONTROL</span><h2>{t('petCenter.shellPermission')}</h2></div><Terminal size={20} /></div>
-            <p className="pet-shell-permission-desc">{t('petCenter.shellPermissionDesc')}</p>
-            <SettingToggle
-              title={t('petCenter.shellPermissionToggle')}
-              desc={t('petCenter.shellPermissionToggleDesc')}
-              checked={shellEnabled}
-              onChange={toggleShellPermission}
-            />
-            {shellEnabled && <div className="pet-shell-permission-active">{t('petCenter.shellPermissionActive')}</div>}
-          </div>
           </div>
         </section>
       )}

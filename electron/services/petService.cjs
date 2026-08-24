@@ -1,803 +1,318 @@
-// 桌宠服务
-// 独立透明置顶窗口承载宠物；渲染层驱动动画与漫游，主进程负责窗口位置、菜单与持久化。
+// 多桌宠窗口服务：每个模型对应一个独立实例，窗口、位置、聊天和气泡互不共享。
 const path = require('path')
-const { BrowserWindow, screen, Menu, Notification } = require('electron')
-const { settingsDao, conversationDao } = require('../db/index.cjs')
+const { BrowserWindow, screen, Menu } = require('electron')
+const { settingsDao, conversationDao, memoryDao } = require('../db/index.cjs')
 const petModelService = require('./petModelService.cjs')
 const petProfileService = require('./petProfileService.cjs')
 const { calculatePetBubbleDuration } = require('./petBubbleDuration.cjs')
 const { defineRoutes, installHandlers } = require('../ipc/registry.cjs')
-// 校验器模块以 v 别名引入，避免与上方 node path 命名冲突
 const v = require('../ipc/validate.cjs')
 const { t } = require('../i18n.cjs')
+const interactionModule = require('./petInteractionService.cjs')
 
-const PET_SPRITE_WIDTH = 116
-const PET_HORIZONTAL_PADDING = 10
-const PET_TOP_SPACE = 4
-const PET_BOTTOM_PADDING = 8
-const PET_CHAT_WIDTH = 244
-const PET_CHAT_HEIGHT = 48
-const PET_BUBBLE_INITIAL_WIDTH = 220
-const PET_BUBBLE_INITIAL_HEIGHT = 64
-const PET_OVERLAY_GAP = 6
-const PET_WINDOW_ID = 'pet'
-const PET_ACTIONS = new Set(['idle', 'wave', 'jump', 'failed', 'waiting', 'working', 'review'])
+const SPRITE_WIDTH = 116
+const CHAT = { width: 244, height: 48 }
+const PET_ACTIONS = ['idle', 'wave', 'jump', 'failed', 'waiting', 'working', 'review']
+const instances = new Map()
+let callbacks
+let interactionService = interactionModule
 
-let petWindow = null
-let callbacks = null
-let enforcingPetSize = false
-let petChatOpen = false
-let focusTimer = null
-let chatWindow = null
-let bubbleWindow = null
-let bubbleTimer = null
-let bubblePayload = null
-let bubblePlacement = null
-let chatRestorePosition = null
-let autoPositioningPet = false
-
-function currentPetProfile() {
-  const model = petModelService.getRuntimeModel()
-  const listed = petModelService.list().find((item) => item.id === model.id)
-  return petProfileService.ensure(model.id, { displayName: listed?.displayName || model.displayName })
+function model(id) {
+  const value = petModelService.getRuntimeModel(id)
+  if (!value) throw new Error(t('pet.modelUnavailable'))
+  return value
 }
-
-function getPetPosition() {
-  const { workArea } = screen.getPrimaryDisplay()
-  const size = getPetDimensions()
-  const saved = currentPetProfile().position
-  const fallback = {
-    x: workArea.x + workArea.width - size.width - 28,
-    y: workArea.y + workArea.height - size.height - 8
+function profile(id) {
+  const item = model(id)
+  return petProfileService.ensure(id, { displayName: item.displayName })
+}
+function dimensions(id) {
+  const width = Math.round(SPRITE_WIDTH * profile(id).scale)
+  const height = Math.round(width * (208 / 192))
+  return { width: width + 10, height: height + 12, spriteWidth: width, spriteHeight: height }
+}
+function cleanupLegacyDuplicateInstances() {
+  const duplicatePattern = /--instance-\d+$/
+  const stored = settingsDao.get('petInstanceIds') || []
+  const known = settingsDao.get('petKnownInstanceIds') || []
+  const profileIds = Object.keys(settingsDao.get('petProfiles') || {})
+  const duplicates = [...new Set([...stored, ...known, ...profileIds].map(String).filter((id) => duplicatePattern.test(id)))]
+  if (!duplicates.length && !known.length) return
+  for (const id of duplicates) {
+    petProfileService.remove(id)
+    conversationDao.deleteByPet(id)
+    memoryDao.clear(id)
   }
-  return saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
-    ? { x: saved.x, y: saved.y }
-    : fallback
+  settingsDao.set('petKnownInstanceIds', [])
+  settingsDao.set('petInstanceIds', stored.map(String).filter((id) => !duplicatePattern.test(id)))
+  const selected = String(settingsDao.get('petModelId') || '')
+  if (duplicatePattern.test(selected)) settingsDao.set('petModelId', selected.replace(duplicatePattern, '') || petModelService.BUILTIN_ID)
 }
-
-function getPetScale() {
-  return currentPetProfile().scale
-}
-
-function getRoamRange() {
-  return currentPetProfile().roamRange
-}
-
-function getRoamActivity() {
-  return currentPetProfile().roamActivity
-}
-
-function getPetDimensions() {
-  const scale = getPetScale()
-  const spriteWidth = Math.round(PET_SPRITE_WIDTH * scale)
-  const spriteHeight = Math.round(spriteWidth * (208 / 192))
-  return {
-    width: spriteWidth + PET_HORIZONTAL_PADDING,
-    height: spriteHeight + PET_TOP_SPACE + PET_BOTTOM_PADDING,
-    spriteWidth,
-    spriteHeight
+function activeIds() {
+  cleanupLegacyDuplicateInstances()
+  const available = new Set(petModelService.list().map((item) => item.id))
+  if (!settingsDao.get('petInstancesInitialized')) {
+    const selected = String(settingsDao.get('petModelId') || petModelService.BUILTIN_ID)
+    const initial = settingsDao.get('petEnabled') && available.has(selected) ? [selected] : []
+    settingsDao.set('petInstanceIds', initial)
+    settingsDao.set('petInstancesInitialized', true)
+    return initial
   }
+  const stored = settingsDao.get('petInstanceIds') || []
+  const ids = [...new Set(stored.map(String))].filter((id) => available.has(id))
+  if (ids.length !== stored.length) settingsDao.set('petInstanceIds', ids)
+  return ids
 }
-
-function clampPetPosition(x, y, size = getPetDimensions()) {
-  const point = { x: Math.round(x), y: Math.round(y) }
-  const { workArea } = screen.getDisplayNearestPoint(point)
-  return {
-    x: Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, point.x)),
-    y: Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, point.y))
-  }
-}
-
-function setStrictPetBounds(x, y) {
-  if (!petWindow || petWindow.isDestroyed()) return
-  const size = getPetDimensions()
-  const position = clampPetPosition(x, y, size)
-  const current = petWindow.getBounds()
-  if (
-    current.x === position.x &&
-    current.y === position.y &&
-    current.width === size.width &&
-    current.height === size.height
-  ) return
-
-  enforcingPetSize = true
-  try {
-    petWindow.setBounds({ ...position, width: size.width, height: size.height }, false)
-  } finally {
-    enforcingPetSize = false
-  }
-}
-
-function getRuntimeConfig() {
-  const profile = currentPetProfile()
-  return {
-    model: petModelService.getRuntimeModel(),
-    settings: {
-      enabled: Boolean(settingsDao.get('petEnabled')),
-      scale: getPetScale(),
-      opacity: profile.opacity,
-      roaming: profile.roaming,
-      roamRange: getRoamRange(),
-      roamActivity: getRoamActivity(),
-      alwaysOnTop: profile.alwaysOnTop,
-      dimensions: getPetDimensions(),
-      chatOpen: petChatOpen
-    }
-  }
-}
-
-function sendPetAction(action = {}) {
-  if (!petWindow || petWindow.isDestroyed()) return
-  const { bubble, bubbleDuration, duration, ...visualAction } = action
-  // 动画持续时间与气泡阅读时间相互独立，避免动作的固定时长覆盖动态阅读时长。
-  if (String(bubble || '').trim()) showPetBubble(bubble, bubbleDuration)
-  petWindow.webContents.send('pet:action', { ...visualAction, duration })
-}
-
-function overlayUrl(hash) {
-  return process.env['ELECTRON_RENDERER_URL']
-    ? `${process.env['ELECTRON_RENDERER_URL']}#/${hash}`
-    : null
-}
-
-function loadOverlay(win, hash) {
-  const url = overlayUrl(hash)
-  if (url) win.loadURL(url)
+function selectedId(value) { return String(value || settingsDao.get('petModelId') || petModelService.BUILTIN_ID) }
+function load(win, name, id) {
+  const hash = `${name}?instance=${encodeURIComponent(id)}`
+  if (process.env.ELECTRON_RENDERER_URL) win.loadURL(`${process.env.ELECTRON_RENDERER_URL}#/${hash}`)
   else win.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: `/${hash}` })
 }
-
-function animatePetTo(targetX, targetY, duration = 170) {
-  if (!petWindow || petWindow.isDestroyed()) return Promise.resolve()
-  const [startX, startY] = petWindow.getPosition()
-  const steps = Math.max(1, Math.round(duration / 17))
-  let step = 0
-  autoPositioningPet = true
-  return new Promise((resolve) => {
-    const timer = setInterval(() => {
-      step += 1
-      const progress = Math.min(1, step / steps)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setStrictPetBounds(
-        startX + (targetX - startX) * eased,
-        startY + (targetY - startY) * eased
-      )
-      if (step >= steps) {
-        clearInterval(timer)
-        autoPositioningPet = false
-        resolve()
-      }
-    }, 17)
-  })
-}
-
-async function positionChatWindow() {
-  if (!chatWindow || chatWindow.isDestroyed() || !petWindow || petWindow.isDestroyed()) return
-  let petBounds = petWindow.getBounds()
-  const { workArea } = screen.getDisplayNearestPoint({
-    x: petBounds.x + Math.round(petBounds.width / 2),
-    y: petBounds.y + Math.round(petBounds.height / 2)
-  })
-  const workBottom = workArea.y + workArea.height
-  const desiredBottom = petBounds.y + petBounds.height + PET_OVERLAY_GAP + PET_CHAT_HEIGHT
-  if (desiredBottom > workBottom) {
-    if (!chatRestorePosition) chatRestorePosition = { x: petBounds.x, y: petBounds.y }
-    const targetY = Math.max(workArea.y, workBottom - PET_CHAT_HEIGHT - PET_OVERLAY_GAP - petBounds.height)
-    await animatePetTo(petBounds.x, targetY)
-    petBounds = petWindow.getBounds()
-  }
-  const x = Math.min(
-    workArea.x + workArea.width - PET_CHAT_WIDTH,
-    Math.max(workArea.x, Math.round(petBounds.x + petBounds.width / 2 - PET_CHAT_WIDTH / 2))
-  )
-  const y = petBounds.y + petBounds.height + PET_OVERLAY_GAP
-  chatWindow.setBounds({ x, y, width: PET_CHAT_WIDTH, height: PET_CHAT_HEIGHT }, false)
-}
-
-function createChatWindow() {
-  if (chatWindow && !chatWindow.isDestroyed()) return chatWindow
-  const win = new BrowserWindow({
-    width: PET_CHAT_WIDTH,
-    height: PET_CHAT_HEIGHT,
-    transparent: true,
-    frame: false,
-    show: false,
-    resizable: false,
-    alwaysOnTop: currentPetProfile().alwaysOnTop,
-    skipTaskbar: true,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, '../preload/index.cjs')
-    }
-  })
-  chatWindow = win
-  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
-  win.once('ready-to-show', async () => {
-    if (!petChatOpen || chatWindow !== win || win.isDestroyed()) return
-    await positionChatWindow()
-    if (!petChatOpen || chatWindow !== win || win.isDestroyed()) return
-    win.show()
-    win.focus()
-  })
-  win.on('closed', () => { if (chatWindow === win) chatWindow = null })
-  loadOverlay(win, 'pet-chat')
-  return win
-}
-
-function rectanglesOverlap(a, b) {
-  return a.x < b.x + b.width && a.x + a.width > b.x &&
-    a.y < b.y + b.height && a.y + a.height > b.y
-}
-
-function positionBubbleWindow(width, height) {
-  if (!bubbleWindow || bubbleWindow.isDestroyed() || !petWindow || petWindow.isDestroyed()) return 'top'
-  const pet = petWindow.getBounds()
-  const { workArea } = screen.getDisplayNearestPoint({ x: pet.x, y: pet.y })
-  const workRight = workArea.x + workArea.width
-  const workBottom = workArea.y + workArea.height
-  const centeredX = Math.round(pet.x + pet.width / 2 - width / 2)
-  const centeredY = Math.round(pet.y + pet.height / 2 - height / 2)
-  const candidates = [
-    { placement: 'top', x: centeredX, y: pet.y - height - PET_OVERLAY_GAP },
-    { placement: 'right', x: pet.x + pet.width + PET_OVERLAY_GAP, y: centeredY },
-    { placement: 'left', x: pet.x - width - PET_OVERLAY_GAP, y: centeredY },
-    { placement: 'bottom', x: centeredX, y: pet.y + pet.height + PET_OVERLAY_GAP }
-  ]
-  const chatBounds = chatWindow && !chatWindow.isDestroyed() ? chatWindow.getBounds() : null
-  const fits = (candidate) => {
-    const rect = { ...candidate, width, height }
-    const inside = rect.x >= workArea.x && rect.y >= workArea.y &&
-      rect.x + width <= workRight && rect.y + height <= workBottom
-    return inside && (!chatBounds || !rectanglesOverlap(rect, chatBounds))
-  }
-  // 气泡一次显示期间尽量固定方位：沿用当前 placement，避免流式文本增长时气泡跳来跳去
-  let selected = candidates.find((candidate) => candidate.placement === bubblePlacement && fits(candidate))
-  if (!selected) selected = candidates.find((candidate) => fits(candidate))
-  if (!selected) {
-    selected = candidates[0]
-    selected = {
-      ...selected,
-      x: Math.min(workRight - width, Math.max(workArea.x, selected.x)),
-      y: Math.min(workBottom - height, Math.max(workArea.y, selected.y))
-    }
-  }
-  bubblePlacement = selected.placement
-  bubbleWindow.setBounds({ x: selected.x, y: selected.y, width, height }, false)
-  bubbleWindow.webContents.send('pet:bubblePlacement', selected.placement)
-  return selected.placement
-}
-
-function createBubbleWindow() {
-  if (bubbleWindow && !bubbleWindow.isDestroyed()) return bubbleWindow
-  const win = new BrowserWindow({
-    width: PET_BUBBLE_INITIAL_WIDTH,
-    height: PET_BUBBLE_INITIAL_HEIGHT,
-    transparent: true,
-    frame: false,
-    show: false,
-    focusable: false,
-    resizable: false,
-    alwaysOnTop: currentPetProfile().alwaysOnTop,
-    skipTaskbar: true,
-    hasShadow: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, '../preload/index.cjs')
-    }
-  })
-  bubbleWindow = win
-  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
-  win.setIgnoreMouseEvents(true)
-  win.webContents.on('did-finish-load', () => {
-    if (bubblePayload && bubbleWindow === win) win.webContents.send('pet:bubbleContent', bubblePayload)
-  })
-  win.on('closed', () => { if (bubbleWindow === win) bubbleWindow = null })
-  loadOverlay(win, 'pet-bubble')
-  return win
-}
-
-function showPetBubble(text, requestedMinimumDuration) {
-  const content = String(text || '').trim().slice(0, 1200)
-  if (!content) return { success: false }
-  // 桌宠已关闭（禁用/销毁）时不允许凭空弹出气泡，避免出现无主对话框
-  if (!settingsDao.get('petEnabled') || !petWindow || petWindow.isDestroyed()) return { success: false }
-  if (bubbleWindow && bubbleWindow.isDestroyed()) {
-    bubbleWindow = null
-    bubblePlacement = null
-  }
-  const duration = calculatePetBubbleDuration(content, requestedMinimumDuration)
-  bubblePayload = { text: content, duration }
-  const win = createBubbleWindow()
-  if (!win.webContents.isLoading()) win.webContents.send('pet:bubbleContent', bubblePayload)
-  clearTimeout(bubbleTimer)
-  bubbleTimer = setTimeout(() => {
-    if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
-    bubbleWindow = null
-    bubblePayload = null
-    bubblePlacement = null
-  }, duration)
-  return { success: true, duration }
-}
-
-async function setPetChatOpen(open) {
-  petChatOpen = Boolean(open)
-  if (petChatOpen) {
-    const win = createChatWindow()
-    if (!win.webContents.isLoading()) {
-      await positionChatWindow()
-      if (!win.isDestroyed()) {
-        win.show()
-        win.focus()
-      }
-    }
-  } else {
-    // 关闭聊天即销毁窗口，释放整个渲染进程（GPU 提交内存随进程回收）
-    if (chatWindow && !chatWindow.isDestroyed()) chatWindow.destroy()
-    chatWindow = null
-    // 同时清空对话框，避免迟到的流式更新重新弹出一个无主气泡
-    clearTimeout(bubbleTimer)
-    bubbleTimer = null
-    bubblePayload = null
-    if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
-    bubbleWindow = null
-    bubblePlacement = null
-    if (chatRestorePosition && petWindow && !petWindow.isDestroyed()) {
-      const restore = chatRestorePosition
-      chatRestorePosition = null
-      await animatePetTo(restore.x, restore.y)
-      savePosition()
-    }
-  }
-  if (petWindow && !petWindow.isDestroyed()) {
-    petWindow.webContents.send('pet:chatVisibility', petChatOpen)
-  }
-  return { open: petChatOpen }
-}
-
-function startFocusSession() {
-  if (focusTimer) clearTimeout(focusTimer)
-  sendPetAction({ state: 'working', bubble: t('pet.focusStarted'), duration: 3200 })
-  focusTimer = setTimeout(() => {
-    focusTimer = null
-    showPetWindow()
-    sendPetAction({ state: 'wave', bubble: t('pet.focusComplete'), duration: 6500 })
-    if (Notification.isSupported()) {
-      new Notification({ title: t('pet.focusCompleteTitle'), body: t('pet.focusComplete') }).show()
-    }
-  }, 25 * 60 * 1000)
-}
-
-function getMovementArea() {
-  const size = getPetDimensions()
-  const current = petWindow && !petWindow.isDestroyed()
-    ? petWindow.getBounds()
-    : { ...getPetPosition(), ...size }
-  const point = {
-    x: current.x + Math.round(current.width / 2),
-    y: current.y + Math.round(current.height / 2)
-  }
-  const { workArea } = screen.getDisplayNearestPoint(point)
-  return {
-    minX: workArea.x,
-    maxX: workArea.x + Math.max(0, workArea.width - size.width),
-    minY: workArea.y,
-    maxY: workArea.y + Math.max(0, workArea.height - size.height)
-  }
-}
-
-function petUrl() {
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    return `${process.env['ELECTRON_RENDERER_URL']}#/pet`
-  }
-  return null
-}
-
-function createPetWindow() {
-  if (petWindow && !petWindow.isDestroyed()) return petWindow
-  const position = getPetPosition()
-  const size = getPetDimensions()
-  const win = new BrowserWindow({
-    width: size.width,
-    height: size.height,
-    x: position.x,
-    y: position.y,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: currentPetProfile().alwaysOnTop,
-    skipTaskbar: true,
-    resizable: false,
-    hasShadow: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    focusable: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, '../preload/index.cjs')
-    }
-  })
-  win.setAlwaysOnTop(currentPetProfile().alwaysOnTop, 'screen-saver')
-  win.setOpacity(currentPetProfile().opacity)
-  // 默认让透明区域穿透；渲染层仅在指针进入宠物命中框时临时关闭穿透。
-  win.setIgnoreMouseEvents(true, { forward: true })
-  petWindow = win
-
-  win.on('closed', () => {
-    if (petWindow === win) petWindow = null
-  })
-
-  // The pet window is never allowed to resize during a drag. On some Windows
-  // setups repeated position updates can also mutate transparent-window bounds.
-  win.on('resize', () => {
-    if (enforcingPetSize || petWindow !== win) return
-    const bounds = win.getBounds()
-    const expected = getPetDimensions()
-    if (bounds.width !== expected.width || bounds.height !== expected.height) {
-      setStrictPetBounds(bounds.x, bounds.y)
-    }
-  })
-
-  // 拖拽/漫游结束时持久化位置（move 事件高频，节流保存）
-  let saveTimer = null
-  win.on('move', () => {
-    if (!autoPositioningPet && petChatOpen) positionChatWindow().catch(() => {})
-    if (bubbleWindow && !bubbleWindow.isDestroyed()) {
-      const bounds = bubbleWindow.getBounds()
-      positionBubbleWindow(bounds.width, bounds.height)
-    }
-    if (saveTimer) return
-    saveTimer = setTimeout(() => {
-      saveTimer = null
-      if (autoPositioningPet || (petChatOpen && chatRestorePosition)) return
-      savePosition()
-    }, 800)
-  })
-
-  const url = petUrl()
-  if (url) {
-    win.loadURL(url)
-  } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: '/pet' })
-  }
-  // 聊天窗口懒创建：仅在用户打开聊天时创建，关闭即销毁，避免常驻一个空闲渲染进程
-  return win
-}
-
-function savePosition() {
-  if (!petWindow || petWindow.isDestroyed()) return
-  const [x, y] = petWindow.getPosition()
-  petProfileService.update(undefined, { position: { x, y } })
-}
-
-function homePosition() {
+function home(id, index = 0) {
   const { workArea } = screen.getPrimaryDisplay()
-  const size = getPetDimensions()
+  const size = dimensions(id)
+  return { x: workArea.x + workArea.width - size.width - 28 - index * (size.width + 16), y: workArea.y + workArea.height - size.height - 8 }
+}
+function clamp(id, x, y) {
+  const size = dimensions(id)
+  const { workArea } = screen.getDisplayNearestPoint({ x: Number(x), y: Number(y) })
   return {
-    x: workArea.x + workArea.width - size.width - 28,
-    y: workArea.y + workArea.height - size.height - 8
+    x: Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, Math.round(x))),
+    y: Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, Math.round(y)))
   }
 }
 
-function resizePetWindow() {
-  if (!petWindow || petWindow.isDestroyed()) return
-  const current = petWindow.getBounds()
-  const next = getPetDimensions()
-  // 缩放时固定宠物脚下中心点，避免大小变化后突然向一侧跳动。
-  const x = Math.round(current.x + (current.width - next.width) / 2)
-  const y = Math.round(current.y + current.height - next.height)
-  setStrictPetBounds(x, y)
-}
-
-function showPetWindow() {
-  if (!settingsDao.get('petEnabled')) return
-  const win = createPetWindow()
-  if (win.isMinimized()) win.restore()
-  win.showInactive()
-  return win
-}
-
-function hidePetWindow() {
-  // 仅隐藏不销毁：用于临时隐身场景；关闭桌宠请走 destroyPetWindow 以回收内存
-  if (chatWindow && !chatWindow.isDestroyed()) chatWindow.hide()
-  if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.hide()
-  if (petWindow && !petWindow.isDestroyed()) petWindow.hide()
-}
-
-function destroyPetWindow() {
-  if (focusTimer) clearTimeout(focusTimer)
-  focusTimer = null
-  // 关闭聊天动画与位置恢复，随后销毁所有渲染进程，回收常驻内存
-  petChatOpen = false
-  clearTimeout(bubbleTimer)
-  bubbleTimer = null
-  bubblePayload = null
-  bubblePlacement = null
-  chatRestorePosition = null
-  if (chatWindow && !chatWindow.isDestroyed()) chatWindow.destroy()
-  if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.destroy()
-  chatWindow = null
-  bubbleWindow = null
-  if (petWindow && !petWindow.isDestroyed()) petWindow.destroy()
-  petWindow = null
-}
-
-function popupMenu() {
-  const menu = Menu.buildFromTemplate([
-    { label: t('pet.chat'), click: () => setPetChatOpen(true) },
-    { label: t('pet.encourage'), click: () => sendPetAction({ state: 'wave', bubble: t('pet.encourageBubble'), duration: 3600 }) },
-    { label: t('pet.focus25'), click: () => startFocusSession() },
-    { label: t('pet.takeBreak'), click: () => sendPetAction({ state: 'waiting', bubble: t('pet.breakBubble'), duration: 4800 }) },
-    { type: 'separator' },
-    { label: t('pet.roaming'), type: 'checkbox', checked: currentPetProfile().roaming, click: (item) => {
-      petProfileService.update(undefined, { roaming: item.checked })
-      refresh()
-    } },
-    { label: t('pet.alwaysOnTop'), type: 'checkbox', checked: currentPetProfile().alwaysOnTop, click: (item) => {
-      petProfileService.update(undefined, { alwaysOnTop: item.checked })
-      refresh()
-    } },
-    { label: t('pet.goHome'), click: () => {
-      if (!petWindow || petWindow.isDestroyed()) return
-      const home = homePosition()
-      setStrictPetBounds(home.x, home.y)
-      petProfileService.update(undefined, { position: home })
-    } },
-    { type: 'separator' },
-    { label: t('pet.openLaunchpad'), click: () => {
-      callbacks?.showWindow?.()
-      callbacks?.openPetCenter?.()
-    } },
-    { type: 'separator' },
-    { label: t('pet.hide'), click: () => {
-      settingsDao.set('petEnabled', false)
-      destroyPetWindow()
-    } }
-  ])
-  menu.popup({ window: petWindow || undefined })
-}
-
-// 桌宠域 IPC：声明式通道定义（契约校验 + 原处理器逻辑），由注册表统一挂载
-// 定义在模块作用域并导出，便于测试与通道清单核对
-const petRoutes = [
-  {
-    channel: 'pet:move',
-      kind: 'on',
-      schema: [v.obj({ x: v.num({ label: 'X 坐标' }), y: v.num({ label: 'Y 坐标' }) }, { label: '位置' })],
-      handler: (_event, position) => {
-        if (!petWindow || petWindow.isDestroyed()) return
-        const x = Number(position?.x)
-        const y = Number(position?.y)
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          // Explicitly restore the configured dimensions on every movement. Dragging
-          // may only change x/y and can therefore never accumulate width/height.
-          setStrictPetBounds(x, y)
-        }
-      }
-    },
-    {
-      channel: 'pet:setMousePassthrough',
-      kind: 'on',
-      schema: [v.bool()],
-      handler: (_event, passthrough) => {
-        if (!petWindow || petWindow.isDestroyed()) return
-        petWindow.setIgnoreMouseEvents(Boolean(passthrough), passthrough ? { forward: true } : undefined)
-      }
-    },
-    { channel: 'pet:savePosition', kind: 'on', schema: [], handler: () => savePosition() },
-    {
-      channel: 'pet:performAction',
-      kind: 'on',
-      schema: [v.obj({
-        state: v.optional(v.oneOf([...PET_ACTIONS])),
-        bubble: v.optional(v.str({ max: 1200 })),
-        duration: v.optional(v.num({ min: 0, max: 12000 }))
-      }, { label: '动作' })],
-      handler: (_event, action) => {
-        if (!petWindow || petWindow.isDestroyed()) return
-        const state = PET_ACTIONS.has(action?.state) ? action.state : 'idle'
-        const bubble = String(action?.bubble || '').trim().slice(0, 1200)
-        const duration = Math.min(12000, Math.max(800, Number(action?.duration) || 1800))
-        sendPetAction({ state, bubble, duration })
-      }
-    },
-  {
-      channel: 'pet:setChatOpen',
-      schema: [v.bool()],
-      handler: (_event, open) => setPetChatOpen(open)
-    },
-    {
-      channel: 'pet:showBubble',
-      schema: [v.optional(v.str({ max: 1200 })), v.optional(v.num({ min: 0, max: 12000 }))],
-      handler: (_event, text, duration) => showPetBubble(text, duration)
-    },
-    {
-      channel: 'pet:bubbleSize',
-      kind: 'on',
-      schema: [v.obj({
-        width: v.optional(v.num({ min: 0, max: 2000 })),
-        height: v.optional(v.num({ min: 0, max: 2000 }))
-      }, { label: '气泡尺寸' })],
-      handler: (_event, size) => {
-        if (!bubbleWindow || bubbleWindow.isDestroyed()) return
-        const width = Math.min(360, Math.max(120, Math.ceil(Number(size?.width) || PET_BUBBLE_INITIAL_WIDTH)))
-        const height = Math.min(420, Math.max(42, Math.ceil(Number(size?.height) || PET_BUBBLE_INITIAL_HEIGHT)))
-        positionBubbleWindow(width, height)
-        bubbleWindow.showInactive()
-      }
-    },
-    {
-      channel: 'pet:openMain',
-      schema: [],
-      handler: () => {
-        callbacks?.showWindow?.()
-        callbacks?.openPetCenter?.()
-        return { success: true }
-      }
-    },
-    {
-      channel: 'pet:showMenu',
-      schema: [],
-      handler: () => {
-        popupMenu()
-        return { success: true }
-      }
-    },
-    {
-      channel: 'pet:home',
-      schema: [],
-      handler: () => {
-        if (!petWindow || petWindow.isDestroyed()) return { success: false }
-        const home = homePosition()
-        setStrictPetBounds(home.x, home.y)
-        petProfileService.update(undefined, { position: home })
-        return { success: true }
-      }
-    },
-  { channel: 'pet:getConfig', schema: [], handler: () => getRuntimeConfig() },
-    { channel: 'pet:getMovementArea', schema: [], handler: () => getMovementArea() },
-    { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
-    { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
-    {
-      channel: 'pet:setModelsStorage',
-      schema: [v.path({ max: 1024, label: '模型目录' })],
-      handler: (_event, directory) => {
-        try {
-          const result = petModelService.setStorageDirectory(String(directory || ''))
-          refresh()
-          return result
-        } catch (error) {
-          return { error: error instanceof Error ? error.message : String(error) }
-        }
-      }
-    },
-    {
-      channel: 'pet:openModelsStorage',
-      schema: [],
-      handler: async () => {
-        try {
-          const directory = petModelService.openFolder()
-          const { shell } = require('electron')
-          const error = await shell.openPath(directory)
-          if (error) throw new Error(error)
-          return { success: true, path: directory }
-        } catch (error) {
-          return { error: error instanceof Error ? error.message : String(error) }
-        }
-      }
-    },
-    {
-      channel: 'pet:importModel',
-      schema: [v.optional(v.path({ max: 1024, label: '清单路径' }))],
-      handler: (_event, manifestPath) => {
-        try {
-          const result = petModelService.importFromManifest(String(manifestPath || ''))
-          petProfileService.ensure(result.id, { displayName: result.displayName })
-          refresh()
-          const position = getPetPosition()
-          setStrictPetBounds(position.x, position.y)
-          return result
-        } catch (error) {
-          return { error: error instanceof Error ? error.message : String(error) }
-        }
-      }
-    },
-    {
-      channel: 'pet:selectModel',
-      schema: [v.str({ max: 200 })],
-      handler: (_event, modelId) => {
-        const result = petModelService.select(modelId)
-        petProfileService.ensure(result.id, { displayName: result.displayName })
-        refresh()
-        const position = getPetPosition()
-        setStrictPetBounds(position.x, position.y)
-        return result
-      }
-    },
-    {
-      channel: 'pet:removeModel',
-      schema: [v.str({ max: 200 })],
-      handler: (_event, modelId) => {
-        const result = petModelService.remove(modelId)
-        petProfileService.remove(modelId)
-        conversationDao.deleteByPet(modelId)
-        refresh()
-        return result
-      }
-    },
-    {
-      // 桌宠设置更新：字段白名单，防止借道写任意 settings 键
-      channel: 'pet:updateSettings',
-      schema: [v.obj({
-        scale: v.optional(v.num({ min: 0, max: 10 })),
-        opacity: v.optional(v.num({ min: 0, max: 2 })),
-        roaming: v.optional(v.bool()),
-        roamRange: v.optional(v.num({ min: 0, max: 10 })),
-        roamActivity: v.optional(v.num({ min: 0, max: 10 })),
-        alwaysOnTop: v.optional(v.bool())
-      }, { label: '桌宠设置' })],
-      handler: (_event, patch) => {
-        const next = patch || {}
-        const profilePatch = {}
-        if (Object.prototype.hasOwnProperty.call(next, 'scale')) {
-          profilePatch.scale = Math.min(1.35, Math.max(0.65, Number(next.scale) || 1))
-        }
-        if (Object.prototype.hasOwnProperty.call(next, 'opacity')) {
-          profilePatch.opacity = Math.min(1, Math.max(0.55, Number(next.opacity) || 1))
-        }
-        if (Object.prototype.hasOwnProperty.call(next, 'roaming')) profilePatch.roaming = Boolean(next.roaming)
-        if (Object.prototype.hasOwnProperty.call(next, 'roamRange')) {
-          profilePatch.roamRange = Math.min(1, Math.max(0.2, Number(next.roamRange) || 0.7))
-        }
-        if (Object.prototype.hasOwnProperty.call(next, 'roamActivity')) {
-          profilePatch.roamActivity = Math.min(2, Math.max(0.5, Number(next.roamActivity) || 1))
-        }
-        if (Object.prototype.hasOwnProperty.call(next, 'alwaysOnTop')) profilePatch.alwaysOnTop = Boolean(next.alwaysOnTop)
-        petProfileService.update(undefined, profilePatch)
-        refresh()
-        return getRuntimeConfig()
-      }
+class PetInstance {
+  constructor(id) {
+    this.id = id
+    this.petWindow = null
+    this.chatWindow = null
+    this.bubbleWindow = null
+    this.chatOpen = false
+    this.bubbleTimer = null
+    this.bubblePayload = null
+    this.enforcing = false
+  }
+  config() {
+    const p = profile(this.id)
+    return { instanceId: this.id, model: model(this.id), settings: { enabled: activeIds().includes(this.id), ...p, dimensions: dimensions(this.id), chatOpen: this.chatOpen } }
+  }
+  position() { return profile(this.id).position || home(this.id, Math.max(0, activeIds().indexOf(this.id))) }
+  setBounds(x, y) {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    const size = dimensions(this.id)
+    const point = clamp(this.id, x, y)
+    this.enforcing = true
+    try { this.petWindow.setBounds({ ...point, width: size.width, height: size.height }, false) } finally { this.enforcing = false }
+  }
+  savePosition() {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    const [x, y] = this.petWindow.getPosition()
+    petProfileService.update(this.id, { position: { x, y } })
+  }
+  createPet() {
+    if (this.petWindow && !this.petWindow.isDestroyed()) return this.petWindow
+    const size = dimensions(this.id)
+    const pos = this.position()
+    const p = profile(this.id)
+    const win = new BrowserWindow({ ...size, ...pos, transparent: true, frame: false, alwaysOnTop: p.alwaysOnTop,
+      skipTaskbar: true, resizable: false, hasShadow: false, focusable: false, minimizable: false, maximizable: false, fullscreenable: false,
+      webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') } })
+    this.petWindow = win
+    win.setAlwaysOnTop(p.alwaysOnTop, 'screen-saver')
+    win.setOpacity(p.opacity)
+    win.setIgnoreMouseEvents(true, { forward: true })
+    win.on('closed', () => { if (this.petWindow === win) this.petWindow = null })
+    win.on('resize', () => { if (!this.enforcing) this.setBounds(win.getBounds().x, win.getBounds().y) })
+    let timer
+    win.on('move', () => { this.positionOverlays(); clearTimeout(timer); timer = setTimeout(() => this.savePosition(), 700) })
+    load(win, 'pet', this.id)
+    return win
+  }
+  show() { const win = this.createPet(); win.showInactive(); return win }
+  destroy() {
+    clearTimeout(this.bubbleTimer)
+    for (const win of [this.chatWindow, this.bubbleWindow, this.petWindow]) if (win && !win.isDestroyed()) win.destroy()
+    this.chatWindow = this.bubbleWindow = this.petWindow = null
+    this.chatOpen = false
+  }
+  createChat() {
+    if (this.chatWindow && !this.chatWindow.isDestroyed()) return this.chatWindow
+    const win = new BrowserWindow({ width: CHAT.width, height: CHAT.height, transparent: true, frame: false, show: false, resizable: false,
+      alwaysOnTop: profile(this.id).alwaysOnTop, skipTaskbar: true,
+      webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') } })
+    this.chatWindow = win
+    win.on('closed', () => { if (this.chatWindow === win) this.chatWindow = null })
+    win.once('ready-to-show', () => { if (this.chatOpen) { this.positionOverlays(); win.show(); win.focus() } })
+    load(win, 'pet-chat', this.id)
+    return win
+  }
+  setChat(open) {
+    this.chatOpen = Boolean(open)
+    if (this.chatOpen) {
+      const win = this.createChat(); this.positionOverlays()
+      if (!win.webContents.isLoading()) { win.show(); win.focus() }
+    } else if (this.chatWindow && !this.chatWindow.isDestroyed()) this.chatWindow.destroy()
+    if (this.petWindow && !this.petWindow.isDestroyed()) this.petWindow.webContents.send('pet:chatVisibility', this.chatOpen)
+    return { open: this.chatOpen, instanceId: this.id }
+  }
+  createBubble() {
+    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) return this.bubbleWindow
+    const win = new BrowserWindow({ width: 220, height: 64, transparent: true, frame: false, show: false, focusable: false, resizable: false,
+      alwaysOnTop: profile(this.id).alwaysOnTop, skipTaskbar: true, hasShadow: false,
+      webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') } })
+    this.bubbleWindow = win
+    win.setIgnoreMouseEvents(true)
+    win.webContents.on('did-finish-load', () => { if (this.bubblePayload) win.webContents.send('pet:bubbleContent', this.bubblePayload) })
+    win.on('closed', () => { if (this.bubbleWindow === win) this.bubbleWindow = null })
+    load(win, 'pet-bubble', this.id)
+    return win
+  }
+  positionOverlays(width, height) {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    const pet = this.petWindow.getBounds()
+    const { workArea } = screen.getDisplayNearestPoint({ x: pet.x, y: pet.y })
+    if (this.chatWindow && !this.chatWindow.isDestroyed()) {
+      const x = Math.min(workArea.x + workArea.width - CHAT.width, Math.max(workArea.x, Math.round(pet.x + pet.width / 2 - CHAT.width / 2)))
+      const y = Math.min(workArea.y + workArea.height - CHAT.height, pet.y + pet.height + 6)
+      this.chatWindow.setBounds({ x, y, width: CHAT.width, height: CHAT.height }, false)
     }
-  ]
-
-function registerPetIpc() {
-  defineRoutes(petRoutes)
-  installHandlers()
+    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
+      const w = width || this.bubbleWindow.getBounds().width
+      const h = height || this.bubbleWindow.getBounds().height
+      let x = Math.round(pet.x + pet.width / 2 - w / 2)
+      let y = pet.y - h - 6
+      let placement = 'top'
+      if (y < workArea.y) { y = pet.y + pet.height + 6; placement = 'bottom' }
+      x = Math.min(workArea.x + workArea.width - w, Math.max(workArea.x, x))
+      y = Math.min(workArea.y + workArea.height - h, Math.max(workArea.y, y))
+      this.bubbleWindow.setBounds({ x, y, width: w, height: h }, false)
+      this.bubbleWindow.webContents.send('pet:bubblePlacement', placement)
+    }
+  }
+  bubble(text, minimum) {
+    const content = String(text || '').trim().slice(0, 1200)
+    if (!content || !activeIds().includes(this.id)) return { success: false }
+    const duration = calculatePetBubbleDuration(content, minimum)
+    this.bubblePayload = { text: content, duration, instanceId: this.id }
+    const win = this.createBubble()
+    if (!win.webContents.isLoading()) win.webContents.send('pet:bubbleContent', this.bubblePayload)
+    clearTimeout(this.bubbleTimer)
+    this.bubbleTimer = setTimeout(() => { if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) this.bubbleWindow.destroy(); this.bubbleWindow = null }, duration)
+    return { success: true, duration }
+  }
+  action(action = {}) {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    if (action.bubble) this.bubble(action.bubble, action.bubbleDuration)
+    const { bubble, bubbleDuration, ...visual } = action
+    this.petWindow.webContents.send('pet:action', visual)
+  }
+  refresh() {
+    const win = this.show()
+    const p = profile(this.id)
+    const b = win.getBounds()
+    this.setBounds(b.x, b.y)
+    win.setOpacity(p.opacity)
+    win.setAlwaysOnTop(p.alwaysOnTop, 'screen-saver')
+    win.webContents.send('pet:configChanged', this.config())
+  }
 }
+
+function instance(id, create = true) {
+  const key = selectedId(id)
+  if (!instances.has(key) && create) instances.set(key, new PetInstance(key))
+  return instances.get(key)
+}
+function syncInstances() {
+  if (!settingsDao.get('petEnabled')) return destroyPetWindow()
+  const desired = new Set(activeIds())
+  for (const [id, item] of instances) if (!desired.has(id)) { item.destroy(); instances.delete(id) }
+  for (const id of desired) instance(id).refresh()
+}
+function listInstances() {
+  const active = new Set(activeIds())
+  return petModelService.list().map((item) => ({ ...item, active: active.has(item.id), profile: petProfileService.ensure(item.id, { displayName: item.displayName }) }))
+}
+function setInstanceEnabled(id, enabled) {
+  const key = selectedId(id)
+  model(key)
+  const next = new Set(activeIds())
+  if (enabled) next.add(key); else next.delete(key)
+  settingsDao.set('petInstanceIds', [...next])
+  settingsDao.set('petEnabled', next.size > 0)
+  syncInstances()
+  interactionService?.reschedule?.()
+  return listInstances()
+}
+function popupMenu(id) {
+  const item = instance(id)
+  Menu.buildFromTemplate([
+    { label: t('pet.chat'), click: () => item.setChat(true) },
+    { label: t('pet.encourage'), click: () => item.action({ state: 'wave', bubble: t('pet.encourageBubble'), duration: 3600 }) },
+    { label: t('pet.goHome'), click: () => { const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }) } },
+    { type: 'separator' },
+    { label: t('pet.openLaunchpad'), click: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.() } },
+    { label: t('pet.hide'), click: () => setInstanceEnabled(item.id, false) }
+  ]).popup({ window: item.petWindow || undefined })
+}
+
+const idSchema = v.optional(v.str({ max: 200 }))
+const positionSchema = v.obj({ x: v.num(), y: v.num() })
+const actionSchema = v.obj({ state: v.optional(v.oneOf(PET_ACTIONS)), bubble: v.optional(v.str({ max: 1200 })), duration: v.optional(v.num()) })
+const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(v.num()) })
+const settingsSchema = v.obj({ scale: v.optional(v.num()), opacity: v.optional(v.num()), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
+const petRoutes = [
+  { channel: 'pet:move', kind: 'on', schema: [v.or(idSchema, positionSchema), v.optional(positionSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const p = old ? first : second; instance(old ? undefined : first)?.setBounds(p.x, p.y) } },
+  { channel: 'pet:setMousePassthrough', kind: 'on', schema: [idSchema, v.bool()], handler: (_e, id, value) => instance(id)?.petWindow?.setIgnoreMouseEvents(Boolean(value), value ? { forward: true } : undefined) },
+  { channel: 'pet:savePosition', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.savePosition() },
+  { channel: 'pet:performAction', kind: 'on', schema: [v.or(idSchema, actionSchema), v.optional(actionSchema)], handler: (_e, first, second) => instance(typeof first === 'object' ? undefined : first)?.action(typeof first === 'object' ? first : second) },
+  { channel: 'pet:setChatOpen', schema: [idSchema, v.bool()], handler: (_e, id, open) => instance(id).setChat(open) },
+  { channel: 'pet:showBubble', schema: [idSchema, v.optional(v.or(v.str({ max: 1200 }), v.num())), v.optional(v.num())], handler: (_e, first, second, third) => { const legacy = typeof second === 'number'; return instance(legacy ? undefined : first).bubble(legacy ? first : second, legacy ? second : third) } },
+  { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); const size = old ? first : second; if (!item?.bubbleWindow) return; const w = Math.min(360, Math.max(120, Math.ceil(size.width || 220))); const h = Math.min(420, Math.max(42, Math.ceil(size.height || 64))); item.positionOverlays(w, h); item.bubbleWindow.showInactive() } },
+  { channel: 'pet:openMain', schema: [], handler: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.(); return { success: true } } },
+  { channel: 'pet:showMenu', schema: [idSchema], handler: (_e, id) => { popupMenu(id); return { success: true } }, },
+  { channel: 'pet:home', schema: [idSchema], handler: (_e, id) => { const item = instance(id); const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }); return { success: true } } },
+  { channel: 'pet:getConfig', schema: [idSchema], handler: (_e, id) => instance(id).config() },
+  { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: workArea.x + workArea.width - size.width, minY: workArea.y, maxY: workArea.y + workArea.height - size.height } } },
+  { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
+  { channel: 'pet:listInstances', schema: [], handler: () => listInstances() },
+  { channel: 'pet:setInstanceEnabled', schema: [v.str({ max: 200 }), v.bool()], handler: (_e, id, enabled) => setInstanceEnabled(id, enabled) },
+  { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
+  { channel: 'pet:openModelsStorage', schema: [], handler: async () => { const { shell } = require('electron'); const dir = petModelService.openFolder(); const error = await shell.openPath(dir); return error ? { error } : { success: true, path: dir } } },
+  { channel: 'pet:importModel', schema: [v.optional(v.path({ max: 1024 }))], handler: (_e, file) => { const result = petModelService.importFromManifest(String(file || '')); petProfileService.ensure(result.id, { displayName: result.displayName }); return result } },
+  { channel: 'pet:selectModel', schema: [v.str({ max: 200 })], handler: (_e, id) => petModelService.select(id) },
+  { channel: 'pet:removeModel', schema: [v.str({ max: 200 })], handler: (_e, id) => { setInstanceEnabled(id, false); const result = petModelService.remove(id); petProfileService.remove(id); conversationDao.deleteByPet(id); memoryDao.clear(id); return result } },
+  { channel: 'pet:updateSettings', schema: [v.or(idSchema, settingsSchema), v.optional(settingsSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const id = old ? undefined : first; const patch = old ? first : second; petProfileService.update(selectedId(id), patch); instance(id).refresh(); return instance(id).config() } },
+  { channel: 'pet:interaction:status', schema: [], handler: () => interactionService.status() },
+  { channel: 'pet:interaction:list', schema: [v.optional(v.num({ integer: true, min: 1, max: 100 }))], handler: (_e, limit) => require('../db/index.cjs').petInteractionDao.list(limit) },
+  { channel: 'pet:interaction:updateSettings', schema: [v.obj({ autoEnabled: v.optional(v.bool()), interactionMemoryEnabled: v.optional(v.bool()), shareOwnerContext: v.optional(v.bool()), idleMinutes: v.optional(v.num()), cooldownMinutes: v.optional(v.num()), maxTurns: v.optional(v.num()), participantIds: v.optional(v.arr(v.str({ max: 200 }), { max: 20 })), doNotDisturbStart: v.optional(v.str({ max: 5 })), doNotDisturbEnd: v.optional(v.str({ max: 5 })) })], handler: (_e, patch) => interactionService.updateSettings(patch) },
+  { channel: 'pet:interaction:start', schema: [v.obj({ petAId: v.str({ max: 200 }), petBId: v.str({ max: 200 }), topic: v.optional(v.str({ max: 500 })), maxTurns: v.optional(v.num({ integer: true, min: 2, max: 10 })) })], handler: (_e, request) => interactionService.start(request) },
+  { channel: 'pet:interaction:stop', schema: [], handler: () => interactionService.stop() },
+  { channel: 'pet:interaction:memories', schema: [v.optional(v.str({ max: 200 })), v.optional(v.str({ max: 200 }))], handler: (_e, petAId, petBId) => interactionService.socialMemories(petAId, petBId) },
+  { channel: 'pet:interaction:clearMemories', schema: [v.str({ max: 200 }), v.str({ max: 200 })], handler: (_e, petAId, petBId) => interactionService.clearSocialMemories(petAId, petBId) }
+]
 
 function init(nextCallbacks) {
   callbacks = nextCallbacks
-  registerPetIpc()
-  showPetWindow()
+  defineRoutes(petRoutes); installHandlers(); syncInstances()
+  interactionService.init({
+    getActivePetIds: activeIds,
+    canAutoInteract: () => !isAnyChatOpen(),
+    showSpeech: (id, text) => { const item = instance(id, false); item?.show(); item?.action({ state: 'wave', bubble: text, duration: 2400 }) }
+  })
 }
+function refresh() { syncInstances() }
+function showPetWindow(id) { if (!settingsDao.get('petEnabled')) return null; return instance(id).show() }
+function hidePetWindow(id) { const item = instance(id, false); for (const win of [item?.petWindow, item?.chatWindow, item?.bubbleWindow]) if (win && !win.isDestroyed()) win.hide() }
+function destroyPetWindow(id) {
+  if (id) { const item = instance(id, false); item?.destroy(); instances.delete(String(id)); return }
+  for (const item of instances.values()) item.destroy()
+  instances.clear()
+}
+function sendPetAction(action, id) { instance(id).action(action) }
+function showPetBubble(text, duration, id) { return instance(id).bubble(text, duration) }
+function getRuntimeConfig(id) { return instance(id).config() }
+function isAnyChatOpen() { return [...instances.values()].some((item) => item.chatOpen) }
 
-function refresh() {
-  if (settingsDao.get('petEnabled')) {
-    const win = showPetWindow()
-    if (win && !win.isDestroyed()) {
-      resizePetWindow()
-      const profile = currentPetProfile()
-      win.setOpacity(profile.opacity)
-      win.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
-      if (chatWindow && !chatWindow.isDestroyed()) chatWindow.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
-      if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.setAlwaysOnTop(profile.alwaysOnTop, 'screen-saver')
-      win.webContents.send('pet:configChanged', getRuntimeConfig())
-    }
-  } else {
-    destroyPetWindow()
-  }
-}
-
-module.exports = {
-  init,
-  refresh,
-  showPetWindow,
-  hidePetWindow,
-  destroyPetWindow,
-  getRuntimeConfig,
-  petRoutes
-}
+module.exports = { init, refresh, showPetWindow, hidePetWindow, destroyPetWindow, getRuntimeConfig, sendPetAction, showPetBubble, listInstances, setInstanceEnabled, isAnyChatOpen, petRoutes }

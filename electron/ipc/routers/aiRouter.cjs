@@ -16,6 +16,7 @@ function broadcastAi(channel, payload) {
 // 记忆类型与 aiService/memoryDao 保持一致
 const MEMORY_TYPES = ['preference', 'project', 'person', 'habit', 'environment', 'task']
 const PROVIDERS = ['openai', 'deepseek', 'kimi', 'zhipu', 'custom']
+const petIdSchema = optional(str({ max: 200 }))
 
 // ai:saveConfig 允许的字段白名单（未知键一律剥离，防止借道写任意 settings）
 const aiConfigSchema = obj({
@@ -35,6 +36,7 @@ const aiConfigSchema = obj({
 // ai:chat 请求体（兼容旧版数组消息形式）
 const chatRequestSchema = obj({
   conversationId: optional(id()),
+  petModelId: petIdSchema,
   content: optional(str({ max: 12000 }))
 }, { label: '聊天请求' })
 const legacyMessagesSchema = arr(
@@ -61,13 +63,13 @@ const memoryUpdateSchema = obj(memoryFields, { label: '记忆数据' })
 const aiRoutes = [
   {
     channel: 'ai:getConfig',
-    schema: [],
-    handler: () => aiService.getConfig()
+    schema: [petIdSchema],
+    handler: (_event, petModelId) => aiService.getConfig(petModelId)
   },
   {
     channel: 'ai:saveConfig',
-    schema: [aiConfigSchema],
-    handler: (_event, config) => aiService.saveConfig(config)
+    schema: [aiConfigSchema, petIdSchema],
+    handler: (_event, config, petModelId) => aiService.saveConfig(config, petModelId)
   },
   {
     channel: 'ai:chat',
@@ -82,71 +84,71 @@ const aiRoutes = [
           if (!sender.isDestroyed()) sender.send('ai:chatTool', tool)
         }
       })
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id })
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id })
       return result
     }
   },
   {
     channel: 'ai:conversation:get',
     // 允许不传 ID（走 ensureActive）
-    schema: [optional(id())],
-    handler: (_event, conversationId) => aiService.getConversation(conversationId)
+    schema: [optional(id()), petIdSchema],
+    handler: (_event, conversationId, petModelId) => aiService.getConversation(conversationId, petModelId)
   },
   {
     channel: 'ai:conversation:list',
-    schema: [],
-    handler: () => aiService.listConversations()
+    schema: [petIdSchema],
+    handler: (_event, petModelId) => aiService.listConversations(petModelId)
   },
   {
     channel: 'ai:conversation:create',
-    schema: [optional(str({ max: 80 }))],
-    handler: (_event, title) => {
-      const result = aiService.createConversation(title)
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, switched: true })
+    schema: [optional(str({ max: 80 })), petIdSchema],
+    handler: (_event, title, petModelId) => {
+      const result = aiService.createConversation(title, petModelId)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id, switched: true })
       return result
     }
   },
   {
     channel: 'ai:conversation:switch',
-    schema: [id()],
-    handler: (_event, idValue) => {
-      const result = aiService.switchConversation(idValue)
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, switched: true })
+    schema: [id(), petIdSchema],
+    handler: (_event, idValue, petModelId) => {
+      const result = aiService.switchConversation(idValue, petModelId)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id, switched: true })
       return result
     }
   },
   {
     channel: 'ai:conversation:clear',
-    schema: [id()],
-    handler: (_event, idValue) => {
-      const result = aiService.clearConversation(idValue)
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, cleared: true })
+    schema: [id(), petIdSchema],
+    handler: (_event, idValue, petModelId) => {
+      const result = aiService.clearConversation(idValue, petModelId)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id, cleared: true })
       return result
     }
   },
   {
     channel: 'ai:conversation:rename',
-    schema: [id(), str({ min: 1, max: 80, trim: true, label: '会话主题' })],
-    handler: (_event, idValue, title) => {
-      const result = aiService.renameConversation(idValue, title)
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, renamed: true })
+    schema: [id(), str({ min: 1, max: 80, trim: true, label: '会话主题' }), petIdSchema],
+    handler: (_event, idValue, title, petModelId) => {
+      const result = aiService.renameConversation(idValue, title, petModelId)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id, renamed: true })
       return result
     }
   },
   {
     channel: 'ai:conversation:delete',
-    schema: [id()],
-    handler: (_event, idValue) => {
-      const result = aiService.deleteConversation(idValue)
-      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, deletedId: result.deletedId, switched: true })
+    schema: [id(), petIdSchema],
+    handler: (_event, idValue, petModelId) => {
+      const result = aiService.deleteConversation(idValue, petModelId)
+      broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id, deletedId: result.deletedId, switched: true })
       return result
     }
   },
   {
     channel: 'ai:memory:setMode',
-    schema: [oneOf(['off', 'manual', 'auto'], { label: '记忆模式' })],
-    handler: (_event, mode) => {
-      const result = aiService.setMemoryMode(mode)
+    schema: [oneOf(['off', 'manual', 'auto'], { label: '记忆模式' }), petIdSchema],
+    handler: (_event, mode, petModelId) => {
+      const result = aiService.setMemoryMode(mode, petModelId)
       broadcastAi('ai:memoryChanged', result)
       return result
     }
@@ -157,41 +159,41 @@ const aiRoutes = [
       includeArchived: optional(bool()),
       includePending: optional(bool()),
       limit: optional(num({ integer: true, min: 1, max: 500 }))
-    }, { label: '查询条件' }))],
-    handler: (_event, options) => aiService.listMemories(options)
+    }, { label: '查询条件' })), petIdSchema],
+    handler: (_event, options, petModelId) => aiService.listMemories(options, petModelId)
   },
   {
     channel: 'ai:memory:create',
-    schema: [memoryCreateSchema],
-    handler: (_event, data) => {
-      const result = aiService.createMemory(data)
+    schema: [memoryCreateSchema, petIdSchema],
+    handler: (_event, data, petModelId) => {
+      const result = aiService.createMemory(data, petModelId)
       broadcastAi('ai:memoryChanged', { id: result.id })
       return result
     }
   },
   {
     channel: 'ai:memory:update',
-    schema: [id(), memoryUpdateSchema],
-    handler: (_event, memoryId, data) => {
-      const result = aiService.updateMemory(memoryId, data)
+    schema: [id(), memoryUpdateSchema, petIdSchema],
+    handler: (_event, memoryId, data, petModelId) => {
+      const result = aiService.updateMemory(memoryId, data, petModelId)
       broadcastAi('ai:memoryChanged', { id: result.id })
       return result
     }
   },
   {
     channel: 'ai:memory:forget',
-    schema: [id()],
-    handler: (_event, memoryId) => {
-      const result = aiService.forgetMemory(memoryId)
+    schema: [id(), petIdSchema],
+    handler: (_event, memoryId, petModelId) => {
+      const result = aiService.forgetMemory(memoryId, petModelId)
       broadcastAi('ai:memoryChanged', { id: result.id })
       return result
     }
   },
   {
     channel: 'ai:memory:clear',
-    schema: [],
-    handler: () => {
-      const result = aiService.clearMemories()
+    schema: [petIdSchema],
+    handler: (_event, petModelId) => {
+      const result = aiService.clearMemories(petModelId)
       broadcastAi('ai:memoryChanged', { cleared: true })
       return result
     }

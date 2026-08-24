@@ -91,6 +91,22 @@
         "to": "tray-icon.png"
       }
     ],
+    "extraFiles": [
+      {
+        "from": "models",
+        "to": "models",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "skills",
+        "to": "skills",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**/*"
     ],

@@ -5,6 +5,7 @@ import { useT } from '../hooks/useT'
 import './PetChatInput.css'
 
 function PetChatInput() {
+  const instanceId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('instance') || undefined
   const t = useT()
   const [draft, setDraft] = useState('')
   const [messages, setMessages] = useState([])
@@ -20,7 +21,7 @@ function PetChatInput() {
     if (!chunk) return
     streamBufferRef.current = streamBufferRef.current.slice(3)
     displayRef.current += chunk
-    petApi.showBubble(displayRef.current).catch(() => {})
+    petApi.showBubble(displayRef.current, undefined, instanceId).catch(() => {})
   }
 
   const startTypewriter = () => {
@@ -37,17 +38,19 @@ function PetChatInput() {
   const close = () => {
     stopTypewriter()
     displayRef.current = ''
-    petApi.setChatOpen(false).catch(() => {})
+    petApi.setChatOpen(false, instanceId).catch(() => {})
   }
 
   useEffect(() => {
     inputRef.current?.focus()
-    const loadConversation = (id) => aiApi.getConversation(id).then((result) => {
+    const loadConversation = (id) => aiApi.getConversation(id, instanceId).then((result) => {
       setConversation(result.conversation)
       setMessages(result.messages || [])
     }).catch(() => {})
     loadConversation()
-    const unsubscribe = aiApi.onConversationChanged((payload) => loadConversation(payload?.conversationId))
+    const unsubscribe = aiApi.onConversationChanged((payload) => {
+      if (!payload?.petModelId || payload.petModelId === instanceId) loadConversation(payload?.conversationId)
+    })
     const unsubscribeDelta = typeof aiApi.onChatDelta === 'function'
       ? aiApi.onChatDelta(({ delta }) => {
           if (!delta) return
@@ -74,10 +77,10 @@ function PetChatInput() {
     setChatting(true)
     stopTypewriter()
     displayRef.current = ''
-    petApi.performAction({ state: 'working', duration: 12000 })
-    petApi.showBubble(t('petCenter.bubbleThinking')).catch(() => {})
+    petApi.performAction({ state: 'working', duration: 12000 }, instanceId)
+    petApi.showBubble(t('petCenter.bubbleThinking'), undefined, instanceId).catch(() => {})
     try {
-      const result = await aiApi.chat({ conversationId: conversation?.id, content })
+      const result = await aiApi.chat({ conversationId: conversation?.id, content, petModelId: instanceId })
       const response = String(result.text || '').trim()
       setConversation(result.conversation)
       stopTypewriter()
@@ -89,15 +92,15 @@ function PetChatInput() {
           .join('、')
         setMessages((items) => [...items, { role: 'assistant', content: `🛠 ${toolSummary}`, tool: true }])
       }
-      const snapshot = await aiApi.getConversation(result.conversation.id)
+      const snapshot = await aiApi.getConversation(result.conversation.id, instanceId)
       setMessages(snapshot.messages || [])
-      petApi.performAction({ state: 'wave', duration: 1800 })
-      if (response) await petApi.showBubble(response)
+      petApi.performAction({ state: 'wave', duration: 1800 }, instanceId)
+      if (response) await petApi.showBubble(response, undefined, instanceId)
     } catch (error) {
       const message = t('petCenter.aiConnectFailed', { message: error.message })
       setMessages((items) => [...items.filter((item) => item.id), { role: 'assistant', content: message }])
-      petApi.performAction({ state: 'failed', duration: 2200 })
-      await petApi.showBubble(message).catch(() => {})
+      petApi.performAction({ state: 'failed', duration: 2200 }, instanceId)
+      await petApi.showBubble(message, undefined, instanceId).catch(() => {})
     } finally {
       setChatting(false)
       setTimeout(() => inputRef.current?.focus(), 50)

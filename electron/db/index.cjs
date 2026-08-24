@@ -13,5 +13,7 @@ module.exports = {
   scriptDao: require('./scriptDao.cjs'),
   logDao: require('./logDao.cjs'),
   conversationDao: require('./conversationDao.cjs'),
-  memoryDao: require('./memoryDao.cjs')
+  memoryDao: require('./memoryDao.cjs'),
+  petInteractionDao: require('./petInteractionDao.cjs'),
+  petSocialMemoryDao: require('./petSocialMemoryDao.cjs')
 }

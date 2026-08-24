@@ -10,7 +10,7 @@ process.env.PORTABLE_EXECUTABLE_DIR = testRoot
 app.whenReady().then(async () => {
   app.setPath('userData', path.join(testRoot, 'userData'))
   const db = require('../electron/db/index.cjs')
-  const { conversationDao, memoryDao, settingsDao } = db
+  const { conversationDao, memoryDao, petSocialMemoryDao, settingsDao } = db
 
   const first = conversationDao.ensureActive()
   assert.ok(first.id)
@@ -95,6 +95,28 @@ app.whenReady().then(async () => {
   conversationDao.clear(first.id)
   assert.strictEqual(conversationDao.listMessages(first.id).length, 0)
   assert.strictEqual(conversationDao.get(first.id).summary, '')
+
+  const diary = petSocialMemoryDao.addDiary('pet-a', { content: '主人今天完成了多桌宠记忆功能。', category: 'work' })
+  assert.ok(diary.id)
+  assert.strictEqual(petSocialMemoryDao.today('pet-a')[0].id, diary.id)
+  const relationship = petSocialMemoryDao.remember('pet-b', 'pet-a', { content: '它们约好明天继续分享新鲜事。', importance: 0.9 })
+  assert.ok(relationship.id)
+  assert.strictEqual(petSocialMemoryDao.relationship('pet-a', 'pet-b')[0].id, relationship.id)
+  assert.strictEqual(petSocialMemoryDao.clearRelationship('pet-b', 'pet-a').deleted, 1)
+
+  const duplicateId = 'builtin-launchbot--instance-2'
+  settingsDao.set('petInstancesInitialized', true)
+  settingsDao.set('petInstanceIds', ['builtin-launchbot', duplicateId])
+  settingsDao.set('petKnownInstanceIds', [duplicateId])
+  require('../electron/services/petProfileService.cjs').ensure(duplicateId, { displayName: 'LaunchBot 2' })
+  conversationDao.create('错误重复实例会话', duplicateId)
+  memoryDao.create({ type: 'fact', content: '错误重复实例记忆', confidence: 1 }, duplicateId)
+  const cleanedInstances = require('../electron/services/petService.cjs').listInstances()
+  assert.strictEqual(cleanedInstances.some((item) => item.id === duplicateId), false)
+  assert.deepStrictEqual(settingsDao.get('petInstanceIds'), ['builtin-launchbot'])
+  assert.deepStrictEqual(settingsDao.get('petKnownInstanceIds'), [])
+  assert.strictEqual(conversationDao.list(30, duplicateId).length, 0)
+  assert.strictEqual(memoryDao.list(undefined, duplicateId).length, 0)
 
   db.closeDb()
   fs.rmSync(testRoot, { recursive: true, force: true })

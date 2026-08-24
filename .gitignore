@@ -6,6 +6,7 @@ build/*
 !build/icon.png
 !build/tray-icon.png
 !build/installer.nsh
+.pet-runs/
 
 # Build output
 out/

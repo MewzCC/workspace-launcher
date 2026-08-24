@@ -238,30 +238,6 @@ export function Settings() {
     }
   }
 
-  const changeModelDirectory = async () => {
-    const directory = await dialogApi.openDirectory()
-    if (!directory || directory === modelStorageInfo?.directory) return
-    const confirmed = await confirm({
-      title: t('settings.changeModelDirectory'),
-      message: t('settings.changeModelConfirm'),
-      confirmText: t('settings.changeStorage'),
-      tone: 'warning',
-      icon: 'warning'
-    })
-    if (!confirmed) return
-    setMovingStorage('models')
-    setStorageMessage('')
-    try {
-      const result = await petApi.setModelsStorage(directory)
-      setModelStorageInfo(result)
-      setStorageMessage(t('settings.modelStorageChanged', { count: result.migratedModels || 0 }))
-    } catch (error) {
-      setStorageMessage(`${t('settings.modelStorageChangeFailed')}：${error.message || error}`)
-    } finally {
-      setMovingStorage('')
-    }
-  }
-
   const handleUpdateAction = async () => {
     try {
       if (updateStatus.state === 'available') {
@@ -640,12 +616,13 @@ export function Settings() {
               <FolderOpen size={14} />
               {t('settings.openStorage')}
             </GlowButton>
-            <GlowButton variant="ghost" size="sm" onClick={changeModelDirectory} disabled={!modelStorageInfo || movingStorage}>
-              {movingStorage === 'models' ? <LoaderCircle size={14} className="process-spin" /> : <RefreshCcw size={14} />}
-              {movingStorage === 'models' ? t('settings.storageChanging') : t('settings.changeStorage')}
-            </GlowButton>
           </div>
         </div>
+        {modelStorageInfo?.fallback && (
+          <div className="storage-fallback-message" role="status">
+            {t('settings.storageFallback', { path: modelStorageInfo.directory })}
+          </div>
+        )}
         <div className="info-row">
           <span className="info-label">{t('settings.dbPath')}</span>
           <span className="info-value info-path" title={storageInfo?.databasePath}>

@@ -12,26 +12,31 @@ const ATLAS_HEIGHTS = {
 }
 const BUILTIN_ID = 'builtin-launchbot'
 let dataUrlCache = new Map()
+let resolvedModelsRoot = null
 
-function petsRoot() {
-  const configured = String(settingsDao.get('petModelsDirectory') || '').trim()
-  const root = configured ? path.resolve(configured) : path.join(app.getPath('userData'), 'pets')
-  fs.mkdirSync(root, { recursive: true })
-  return root
+function installRoot() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return path.resolve(process.env.PORTABLE_EXECUTABLE_DIR)
+  if (app.isPackaged) return path.resolve(path.dirname(process.execPath))
+  let current = path.resolve(app.getAppPath())
+  while (true) {
+    const manifestPath = path.join(current, 'package.json')
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+      if (manifest.name === 'workspace-launcher') return current
+    } catch (_) {}
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+  return path.resolve(process.cwd())
 }
 
 function defaultPetsRoot() {
-  return path.join(app.getPath('userData'), 'pets')
+  return path.join(installRoot(), 'models')
 }
 
 function samePath(left, right) {
   return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase()
-}
-
-function pathsOverlap(left, right) {
-  const a = `${path.resolve(left).toLowerCase()}${path.sep}`
-  const b = `${path.resolve(right).toLowerCase()}${path.sep}`
-  return a.startsWith(b) || b.startsWith(a)
 }
 
 function ensureWritable(directory) {
@@ -46,39 +51,61 @@ function ensureWritable(directory) {
   }
 }
 
+function migrateLegacyModels(target) {
+  const configured = String(settingsDao.get('petModelsDirectory') || '').trim()
+  const sources = [configured, path.join(app.getPath('userData'), 'pets')]
+    .filter((source, index, items) => source && items.findIndex((item) => samePath(item, source)) === index)
+  let migratedModels = 0
+  for (const source of sources) {
+    if (samePath(source, target) || !fs.existsSync(source)) continue
+    let entries = []
+    try {
+      entries = fs.readdirSync(source, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(source, entry.name, 'pet.json')))
+    } catch (_) {
+      continue
+    }
+    for (const entry of entries) {
+      const destination = path.join(target, entry.name)
+      if (fs.existsSync(destination)) continue
+      try {
+        fs.cpSync(path.join(source, entry.name), destination, { recursive: true, errorOnExist: true, force: false })
+        migratedModels += 1
+      } catch (_) {
+        // 保留旧目录不动；单个模型迁移失败不影响其他模型和应用启动。
+      }
+    }
+  }
+  return migratedModels
+}
+
+function petsRoot() {
+  if (resolvedModelsRoot) return resolvedModelsRoot.directory
+  const defaultDirectory = defaultPetsRoot()
+  const fallbackDirectory = path.join(app.getPath('userData'), 'models')
+  let directory = defaultDirectory
+  let fallback = false
+  try {
+    ensureWritable(directory)
+  } catch (_) {
+    directory = fallbackDirectory
+    ensureWritable(directory)
+    fallback = true
+  }
+  const migratedModels = migrateLegacyModels(directory)
+  settingsDao.set('petModelsDirectory', directory)
+  resolvedModelsRoot = { directory, defaultDirectory, fallback, migratedModels }
+  dataUrlCache.clear()
+  return directory
+}
+
 function getStorageInfo() {
   const directory = petsRoot()
   return {
+    ...resolvedModelsRoot,
     directory,
-    defaultDirectory: defaultPetsRoot(),
-    customized: !samePath(directory, defaultPetsRoot())
+    customized: false
   }
-}
-
-function setStorageDirectory(targetDirectory) {
-  const source = petsRoot()
-  const target = path.resolve(String(targetDirectory || '').trim())
-  if (!targetDirectory || !target) throw new Error(t('pet.modelsPathRequired'))
-  if (samePath(source, target)) return getStorageInfo()
-  if (pathsOverlap(source, target)) throw new Error(t('pet.modelsPathOverlap'))
-  ensureWritable(target)
-
-  const entries = fs.readdirSync(source, { withFileTypes: true }).filter((entry) => entry.isDirectory())
-  for (const entry of entries) {
-    if (fs.existsSync(path.join(target, entry.name))) {
-      throw new Error(t('pet.modelsTargetConflict', { name: entry.name }))
-    }
-  }
-  for (const entry of entries) {
-    fs.cpSync(path.join(source, entry.name), path.join(target, entry.name), {
-      recursive: true,
-      errorOnExist: true,
-      force: false
-    })
-  }
-  settingsDao.set('petModelsDirectory', target)
-  dataUrlCache.clear()
-  return { ...getStorageInfo(), previousDirectory: source, migratedModels: entries.length }
 }
 
 function safeId(value) {
@@ -300,13 +327,17 @@ function remove(id) {
   return { success: true }
 }
 
-function getRuntimeModel() {
-  const selected = settingsDao.get('petModelId') || BUILTIN_ID
+function getRuntimeModel(modelId) {
+  const explicit = modelId !== undefined && modelId !== null && String(modelId).trim() !== ''
+  const selected = explicit ? String(modelId) : (settingsDao.get('petModelId') || BUILTIN_ID)
   if (selected === BUILTIN_ID) return { id: BUILTIN_ID, displayName: 'LaunchBot', builtin: true }
   const item = readPetDirectory(path.join(petsRoot(), selected))
   if (!item) {
-    settingsDao.set('petModelId', BUILTIN_ID)
-    return { id: BUILTIN_ID, displayName: 'LaunchBot', builtin: true }
+    if (!explicit) {
+      settingsDao.set('petModelId', BUILTIN_ID)
+      return { id: BUILTIN_ID, displayName: 'LaunchBot', builtin: true }
+    }
+    return null
   }
   const { directory, spritePath, ...rest } = item
   if (item.renderer === 'svg') return { ...rest, builtin: false }
@@ -324,4 +355,4 @@ function openFolder() {
   return petsRoot()
 }
 
-module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, setStorageDirectory, createFromAi, BUILTIN_ID }
+module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, createFromAi, BUILTIN_ID }

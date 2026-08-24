@@ -9,9 +9,10 @@ import { themeApi } from './lib/ipc'
 import './styles/theme.css'
 import './styles/global.css'
 
-const isPetWindow = window.location.hash === '#/pet'
-const isPetChatWindow = window.location.hash === '#/pet-chat'
-const isPetBubbleWindow = window.location.hash === '#/pet-bubble'
+const overlayRoute = window.location.hash.slice(1).split('?')[0]
+const isPetWindow = overlayRoute === '/pet'
+const isPetChatWindow = overlayRoute === '/pet-chat'
+const isPetBubbleWindow = overlayRoute === '/pet-bubble'
 if (isPetWindow) document.body.classList.add('pet-window-body')
 if (isPetChatWindow) document.body.classList.add('pet-chat-window-body')
 if (isPetBubbleWindow) document.body.classList.add('pet-bubble-window-body')

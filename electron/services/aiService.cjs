@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { app, safeStorage } = require('electron')
-const { settingsDao, conversationDao, memoryDao, workspaceDao, softwareDao } = require('../db/index.cjs')
+const { settingsDao, conversationDao, memoryDao, petSocialMemoryDao, workspaceDao, softwareDao } = require('../db/index.cjs')
 const petProfileService = require('./petProfileService.cjs')
 const workspaceEngine = require('./workspaceEngine.cjs')
 const processManager = require('./processManager.cjs')
@@ -280,7 +280,7 @@ async function executeTool(name, args) {
           }
         })
         const petService = require('./petService.cjs')
-        petService.refresh()
+        petService.setInstanceEnabled(manifest.id, true)
         return t('pet.toolPetCreated', { name: manifest.displayName })
       } catch (error) {
         return t('pet.toolPetCreateFailed', { message: error.message })
@@ -373,14 +373,14 @@ function encryptKey(value) {
   return buffer.toString('base64')
 }
 
-function getMemoryMode() {
-  const mode = settingsDao.get('aiMemoryMode')
-  return ['off', 'manual', 'auto'].includes(mode) ? mode : 'manual'
+function getMemoryMode(petModelId) {
+  return activePetProfile(petModelId).profile.memoryMode
 }
 
-function activePetProfile() {
+function activePetProfile(petModelId) {
   const petModelService = require('./petModelService.cjs')
-  const model = petModelService.getRuntimeModel()
+  const model = petModelService.getRuntimeModel(petModelId)
+  if (!model) throw new Error(t('pet.modelUnavailable'))
   const listedModel = petModelService.list().find((item) => item.id === model.id)
   const displayName = listedModel?.displayName || model.displayName || t('pet.defaultName')
   return {
@@ -390,8 +390,8 @@ function activePetProfile() {
   }
 }
 
-function getConfig() {
-  const pet = activePetProfile()
+function getConfig(petModelId) {
+  const pet = activePetProfile(petModelId)
   const providerKeys = Object.fromEntries(
     ['openai', 'deepseek', 'kimi', 'zhipu', 'custom'].map((provider) => [provider, Boolean(decryptKey(provider))])
   )
@@ -406,12 +406,12 @@ function getConfig() {
     mode: pet.profile.mode,
     hasApiKey: Boolean(decryptKey()),
     providerKeys,
-    memoryMode: getMemoryMode(),
+    memoryMode: pet.profile.memoryMode,
     shellEnabled: shellPermissionEnabled()
   }
 }
 
-function saveConfig(config = {}) {
+function saveConfig(config = {}, petModelId) {
   if (Object.prototype.hasOwnProperty.call(config, 'provider')) {
     const provider = String(config.provider || '').trim()
     if (!['openai', 'deepseek', 'kimi', 'zhipu', 'custom'].includes(provider)) throw new Error(t('pet.invalidProvider'))
@@ -437,10 +437,13 @@ function saveConfig(config = {}) {
   if (Object.prototype.hasOwnProperty.call(config, 'personality')) profilePatch.personality = String(config.personality || '').trim().slice(0, 1200)
   if (Object.prototype.hasOwnProperty.call(config, 'mode')) profilePatch.mode = config.mode
   if (Object.keys(profilePatch).length > 0) {
-    const pet = activePetProfile()
+    const pet = activePetProfile(petModelId)
     petProfileService.update(pet.modelId, profilePatch, { displayName: pet.displayName })
   }
-  if (Object.prototype.hasOwnProperty.call(config, 'memoryMode')) setMemoryMode(config.memoryMode)
+  if (Object.prototype.hasOwnProperty.call(config, 'memoryMode')) {
+    const pet = activePetProfile(petModelId)
+    petProfileService.update(pet.modelId, { memoryMode: config.memoryMode }, { displayName: pet.displayName })
+  }
   if (Object.prototype.hasOwnProperty.call(config, 'shellEnabled')) settingsDao.set('aiShellEnabled', config.shellEnabled === true)
 
   const provider = String(config.provider || settingsDao.get('aiProvider') || 'custom')
@@ -448,14 +451,15 @@ function saveConfig(config = {}) {
   if (config.clearApiKey) delete providerKeys[provider]
   if (String(config.apiKey || '').trim()) providerKeys[provider] = encryptKey(config.apiKey)
   settingsDao.set('aiProviderKeysEncrypted', providerKeys)
-  return getConfig()
+  return getConfig(petModelId)
 }
 
-function setMemoryMode(mode) {
+function setMemoryMode(mode, petModelId) {
   const value = String(mode || '')
   if (!['off', 'manual', 'auto'].includes(value)) throw new Error('Invalid memory mode')
-  settingsDao.set('aiMemoryMode', value)
-  return { mode: value }
+  const pet = activePetProfile(petModelId)
+  petProfileService.update(pet.modelId, { memoryMode: value }, { displayName: pet.displayName })
+  return { mode: value, petModelId: pet.modelId }
 }
 
 function extractText(payload) {
@@ -653,10 +657,18 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
             arguments: item.arguments || previous.arguments || '{}'
           })
         }
+      } else if (!type) {
+        // 部分兼容端点会忽略 stream=true 并直接返回普通 JSON。
+        const completedText = extractText(payload)
+        if (completedText) { text += completedText; onDelta(completedText) }
       }
     } else {
       const delta = payload?.choices?.[0]?.delta
-      if (!delta) return
+      if (!delta) {
+        const completedText = extractChatText(payload)
+        if (completedText) { text += completedText; onDelta(completedText) }
+        return
+      }
       if (delta.content) { text += delta.content; onDelta(delta.content) }
       for (const tc of delta.tool_calls || []) {
         const idx = Number(tc.index ?? 0)
@@ -766,32 +778,35 @@ async function runToolLoop(instructions, history, maxToolRounds = 5, emit = null
   }
 }
 
-function getConversation(conversationId) {
-  const conversation = conversationId ? conversationDao.setActive(conversationId) : conversationDao.ensureActive()
+function getConversation(conversationId, petModelId) {
+  const owner = activePetProfile(petModelId).modelId
+  const conversation = conversationId ? conversationDao.setActive(conversationId, owner) : conversationDao.ensureActive(owner)
   return { conversation, messages: conversationDao.listMessages(conversation.id) }
 }
 
-function listConversations() { return conversationDao.list() }
-function createConversation(title = '') { return getConversation(conversationDao.create(title).id) }
-function switchConversation(id) { return getConversation(conversationDao.setActive(id).id) }
-function clearConversation(id) {
-  const active = id ? conversationDao.setActive(id) : conversationDao.ensureActive()
+function listConversations(petModelId) { return conversationDao.list(30, activePetProfile(petModelId).modelId) }
+function createConversation(title = '', petModelId) { const owner = activePetProfile(petModelId).modelId; return getConversation(conversationDao.create(title, owner).id, owner) }
+function switchConversation(id, petModelId) { const owner = activePetProfile(petModelId).modelId; return getConversation(conversationDao.setActive(id, owner).id, owner) }
+function clearConversation(id, petModelId) {
+  const owner = activePetProfile(petModelId).modelId
+  const active = id ? conversationDao.setActive(id, owner) : conversationDao.ensureActive(owner)
   const conversation = conversationDao.clear(active.id)
   return { conversation, messages: [] }
 }
 
-function renameConversation(id, title) {
-  const active = conversationDao.setActive(id)
+function renameConversation(id, title, petModelId) {
+  const active = conversationDao.setActive(id, activePetProfile(petModelId).modelId)
   const value = String(title || '').trim()
   if (!value) throw new Error(t('pet.conversationTitleRequired'))
   const conversation = conversationDao.setTitle(active.id, value)
   return { conversation, messages: conversationDao.listMessages(conversation.id) }
 }
 
-function deleteConversation(id) {
-  const active = conversationDao.setActive(id)
+function deleteConversation(id, petModelId) {
+  const owner = activePetProfile(petModelId).modelId
+  const active = conversationDao.setActive(id, owner)
   const deletedId = active.id
-  const conversation = conversationDao.remove(active.id)
+  const conversation = conversationDao.remove(active.id, owner)
   return { deletedId, conversation, messages: conversationDao.listMessages(conversation.id) }
 }
 
@@ -814,19 +829,19 @@ async function chat(request = {}, options = {}) {
   const content = legacyMessages
     ? [...legacyMessages].reverse().find((item) => item?.role === 'user')?.content
     : request.content
+  const pet = activePetProfile(request.petModelId)
   const conversation = request.conversationId
-    ? conversationDao.setActive(request.conversationId)
-    : conversationDao.ensureActive()
+    ? conversationDao.setActive(request.conversationId, pet.modelId)
+    : conversationDao.ensureActive(pet.modelId)
   const userMessage = conversationDao.appendMessage(conversation.id, 'user', content)
   if (!conversation.title) conversationDao.setTitle(conversation.id, titleFromMessage(content))
 
-  const memoryMode = getMemoryMode()
-  const memories = memoryMode === 'off' ? [] : memoryDao.search(content, 8)
+  const memoryMode = getMemoryMode(pet.modelId)
+  const memories = memoryMode === 'off' ? [] : memoryDao.search(content, 8, pet.modelId)
   const recent = conversationDao.listMessages(conversation.id, 16)
     .filter((item) => item.role === 'user' || item.role === 'assistant')
     .map((item) => ({ role: item.role, content: item.content }))
   const current = conversationDao.get(conversation.id)
-  const pet = activePetProfile()
   const mode = petProfileService.CHAT_MODES.includes(pet.profile.mode) ? pet.profile.mode : 'concise'
   const instructions = `${t('pet.systemInstruction', { name: pet.profile.petName, personality: pet.profile.personality })}\n${t(`pet.modeInstruction_${mode}`)}\n${t('pet.responseLanguageRule')}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
   // 最近消息与会话摘要已经包含完整上下文，让模型自主选择工具；
@@ -837,7 +852,7 @@ async function chat(request = {}, options = {}) {
     onTool: options.onTool
   }, forcedTool)
   const assistantMessage = conversationDao.appendMessage(conversation.id, 'assistant', text)
-  scheduleMaintenance(conversation.id, userMessage, assistantMessage)
+  scheduleMaintenance(conversation.id, userMessage, assistantMessage, pet.modelId)
   return {
     text,
     toolLog,
@@ -868,6 +883,39 @@ function looksSensitiveMemory(content) {
     /\bBearer\s+[a-z0-9._\-]{12,}/i.test(value)
 }
 
+function looksPrivateSocialMoment(content) {
+  const value = String(content || '')
+  return looksSensitiveMemory(value) ||
+    /(?:身份证|住址|家庭住址|手机号|银行卡|工资|薪资|存款|负债|诊断|病历|处方|服药|怀孕|心理咨询|账号密码)/i.test(value) ||
+    /\b(?:social security|home address|phone number|bank account|salary|debt|diagnosis|medical record|prescription|pregnan|therapy)\b/i.test(value)
+}
+
+function parseJsonObject(text) {
+  const source = String(text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+  try { const value = JSON.parse(source); return value && typeof value === 'object' && !Array.isArray(value) ? value : null } catch (_) {}
+  const match = source.match(/\{[\s\S]*\}/)
+  if (!match) return null
+  try { return JSON.parse(match[0]) } catch (_) { return null }
+}
+
+async function recordOwnerMoment(petModelId, conversationId, userMessage, assistantMessage) {
+  const social = settingsDao.get('petInteractionSettings') || {}
+  if (social.shareOwnerContext === false || looksPrivateSocialMoment(userMessage.content)) return
+  const result = await requestModel(
+    'Extract one short, warm diary note about what the owner did, experienced, enjoyed, decided, or worked on today. Do not copy the conversation, credentials, paths, secrets, health/financial details, or transient commands. Return JSON only: {"worthRemembering":true|false,"category":"work|life|mood|plan|fun","content":"主人今天……"}. Use the user message language.',
+    [{ role: 'user', content: `Owner: ${userMessage.content}\nCompanion response (context only): ${assistantMessage.content}` }],
+    30000
+  )
+  const item = parseJsonObject(result.text)
+  if (!item?.worthRemembering || !item.content || looksPrivateSocialMoment(item.content)) return
+  petSocialMemoryDao.addDiary(petModelId, {
+    category: item.category,
+    content: item.content,
+    sourceConversationId: conversationId,
+    shareable: true
+  })
+}
+
 async function updateConversationSummary(conversationId) {
   const batch = conversationDao.summaryBatch(conversationId)
   if (!batch?.messages?.length) return
@@ -880,8 +928,8 @@ async function updateConversationSummary(conversationId) {
   conversationDao.updateSummary(conversationId, result.text, batch.throughMessageId)
 }
 
-async function extractAutomaticMemories(userMessage, assistantMessage) {
-  const memoryMode = getMemoryMode()
+async function extractAutomaticMemories(userMessage, assistantMessage, petModelId) {
+  const memoryMode = getMemoryMode(petModelId)
   if (memoryMode === 'off') return
   const result = await requestModel(
     'Extract only durable, explicitly stated user facts useful in future conversations. Ignore transient requests, secrets, passwords and assistant claims. Return a JSON array only, maximum 3 items. Each item: {"type":"preference|project|person|habit|environment|task","content":"concise fact","confidence":0.0-1.0,"expiresAt":null}. Return [] when nothing should be remembered.',
@@ -897,29 +945,54 @@ async function extractAutomaticMemories(userMessage, assistantMessage) {
       sourceMessageId: userMessage.id,
       expiresAt: item.expiresAt,
       confirmed: memoryMode === 'auto'
-    })
+    }, petModelId)
   }
 }
 
-function scheduleMaintenance(conversationId, userMessage, assistantMessage) {
+function scheduleMaintenance(conversationId, userMessage, assistantMessage, petModelId) {
   const previous = maintenanceChains.get(conversationId) || Promise.resolve()
   const next = previous.catch(() => {}).then(async () => {
       await updateConversationSummary(conversationId).catch((error) => console.warn('[ai] summary skipped:', error.message))
-      await extractAutomaticMemories(userMessage, assistantMessage).catch((error) => console.warn('[ai] memory extraction skipped:', error.message))
+      await extractAutomaticMemories(userMessage, assistantMessage, petModelId).catch((error) => console.warn('[ai] memory extraction skipped:', error.message))
+      await recordOwnerMoment(petModelId, conversationId, userMessage, assistantMessage).catch((error) => console.warn('[ai] diary extraction skipped:', error.message))
   }).finally(() => {
     if (maintenanceChains.get(conversationId) === next) maintenanceChains.delete(conversationId)
   })
   maintenanceChains.set(conversationId, next)
 }
 
-function listMemories(options) { return memoryDao.list(options) }
-function createMemory(data) { return memoryDao.create(data) }
-function updateMemory(id, data) { return memoryDao.update(id, data) }
-function forgetMemory(id) { return memoryDao.archive(id) }
-function clearMemories() { return memoryDao.clear() }
+function listMemories(options, petModelId) { return memoryDao.list(options, petModelId) }
+function createMemory(data, petModelId) { return memoryDao.create(data, petModelId) }
+function updateMemory(id, data, petModelId) { return memoryDao.update(id, data, petModelId) }
+function forgetMemory(id, petModelId) { return memoryDao.archive(id, petModelId) }
+function clearMemories(petModelId) { return memoryDao.clear(petModelId) }
+
+// 双宠互动专用模型调用。固定关闭 tools，且只接收互动会话摘要/消息，绝不读取任一桌宠的私人会话。
+async function generateInteractionReply({ speakerPetId, partnerPetId, topic = '', messages = [], summary = '', relationshipMemories = [], speakerDiary = [], partnerDiary = [] }) {
+  const speaker = activePetProfile(speakerPetId)
+  const partner = activePetProfile(partnerPetId)
+  const transcript = messages.slice(-10).map((item) => `${item.speakerPetId === speakerPetId ? speaker.profile.petName : partner.profile.petName}: ${item.content}`).join('\n')
+  const instructions = `You are ${speaker.profile.petName}, a desktop pet. Personality: ${speaker.profile.personality}\nYou are talking with ${partner.profile.petName}. Talk like two companions who share a home: remember earlier chats, naturally exchange small stories about today, ask follow-up questions, and avoid repetitive greetings. Reply in 1-2 short sentences. Never call tools, execute commands, quote raw private user conversations, expose sensitive data, or claim to have taken actions.`
+  const prompt = `${topic ? `Topic: ${topic}\n` : ''}${relationshipMemories.length ? `Things you two remember together:\n${relationshipMemories.map((item) => `- ${item.content}`).join('\n')}\n` : ''}${speakerDiary.length ? `What ${speaker.profile.petName} noticed about the owner today:\n${speakerDiary.map((item) => `- ${item.content}`).join('\n')}\n` : ''}${partnerDiary.length ? `What ${partner.profile.petName} may share about the owner today:\n${partnerDiary.map((item) => `- ${item.content}`).join('\n')}\n` : ''}${summary ? `Current shared summary: ${summary}\n` : ''}${transcript ? `Conversation so far:\n${transcript}\n` : ''}Continue as ${speaker.profile.petName}.`
+  const result = await streamModel(instructions, [{ role: 'user', content: prompt }], 45000, { tools: false, native: true })
+  return String(result.text || '').trim().slice(0, 1200)
+}
+
+async function generateInteractionMemory({ petAId, petBId, messages = [], topic = '' }) {
+  const first = activePetProfile(petAId), second = activePetProfile(petBId)
+  const transcript = messages.slice(-16).map((item) => `${item.speakerPetId === petAId ? first.profile.petName : second.profile.petName}: ${item.content}`).join('\n')
+  if (!transcript) return ''
+  const result = await streamModel(
+    'Summarize this pet-to-pet conversation as one warm shared memory they can naturally recall later. Preserve funny moments, promises, questions, and owner-related daily events. Do not include secrets or raw private conversation. Write 1-3 concise sentences in the conversation language. No tools.',
+    [{ role: 'user', content: `${topic ? `Topic: ${topic}\n` : ''}${transcript}` }],
+    30000,
+    { tools: false, native: true }
+  )
+  return String(result.text || '').trim().slice(0, 1600)
+}
 
 module.exports = {
   getConfig, saveConfig, chat,
   getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
-  setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories
+  setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory
 }

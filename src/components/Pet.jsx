@@ -17,6 +17,7 @@ const AMBIENT_ACTIONS = [
 ]
 
 function Pet() {
+  const instanceId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('instance') || undefined
   const t = useT()
   const [config, setConfig] = useState(null)
   const [petState, setPetState] = useState('idle')
@@ -40,7 +41,7 @@ function Pet() {
     chatOpenRef.current = visible
     setChatOpen(visible)
     if (visible) {
-      petApi.setMousePassthrough(false)
+      petApi.setMousePassthrough(false, instanceId)
     }
   }, [])
 
@@ -73,7 +74,7 @@ function Pet() {
 
   useEffect(() => {
     let mounted = true
-    petApi.getConfig().then((value) => {
+    petApi.getConfig(instanceId).then((value) => {
       if (!mounted) return
       setConfig(value)
       applyChatVisibility(value?.settings?.chatOpen)
@@ -90,7 +91,7 @@ function Pet() {
       unsubscribe()
       unsubscribeAction()
       unsubscribeChat()
-      petApi.setMousePassthrough(true)
+      petApi.setMousePassthrough(true, instanceId)
     }
   }, [applyChatVisibility, changeState, performAction, stopMotion])
 
@@ -98,7 +99,7 @@ function Pet() {
     const handleKeyDown = (event) => {
       if (event.key !== 'Escape' || !chatOpenRef.current) return
       applyChatVisibility(false)
-      petApi.setChatOpen(false).catch(() => {})
+        petApi.setChatOpen(false, instanceId).catch(() => {})
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -130,7 +131,7 @@ function Pet() {
       }
       let area
       try {
-        area = await petApi.getMovementArea()
+        area = await petApi.getMovementArea(instanceId)
       } catch (_) {
         scheduleRoam()
         return
@@ -174,7 +175,7 @@ function Pet() {
         if (index >= route.length) {
           walkTimerRef.current = null
           changeState('idle')
-          petApi.savePosition()
+          petApi.savePosition(instanceId)
           scheduleRoam()
           return
         }
@@ -198,7 +199,7 @@ function Pet() {
           step += 1
           const progress = Math.min(1, step / steps)
           const eased = 0.5 - Math.cos(Math.PI * progress) / 2
-          petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased))
+          petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased), instanceId)
           if (step >= steps) {
             clearInterval(walkTimerRef.current)
             walkTimerRef.current = null
@@ -233,7 +234,7 @@ function Pet() {
 
   const handleMouseDown = (event) => {
     if (event.button !== 0) return
-    petApi.setMousePassthrough(false)
+    petApi.setMousePassthrough(false, instanceId)
     stopMotion()
     clearTimeout(ambientTimerRef.current)
     clearTimeout(actionTimerRef.current)
@@ -258,7 +259,7 @@ function Pet() {
       const nextY = dragRef.current.originY + deltaY
       if (!dragRef.current.moved && Math.hypot(deltaX, deltaY) <= 4) return
       dragRef.current.moved = true
-      petApi.move(nextX, nextY)
+      petApi.move(nextX, nextY, instanceId)
     }
     const handleUp = (event) => {
       if (!dragRef.current) return
@@ -266,11 +267,11 @@ function Pet() {
       dragRef.current = null
       draggingRef.current = false
       setDragging(false)
-      petApi.savePosition()
+      petApi.savePosition(instanceId)
       if (!moved) {
         const nextOpen = !chatOpenRef.current
         applyChatVisibility(nextOpen)
-        petApi.setChatOpen(nextOpen).catch(() => applyChatVisibility(!nextOpen))
+        petApi.setChatOpen(nextOpen, instanceId).catch(() => applyChatVisibility(!nextOpen))
         if (nextOpen) {
           const greetings = [
             t('petCenter.petBubbleReady'),
@@ -278,8 +279,8 @@ function Pet() {
             t('petCenter.petBubbleNext')
           ]
           const greeting = greetings[Math.floor(Math.random() * greetings.length)]
-          petApi.performAction({ state: 'wave', duration: 1800 }).catch(() => {})
-          petApi.showBubble(greeting).catch(() => {})
+          petApi.performAction({ state: 'wave', duration: 1800 }, instanceId)
+          petApi.showBubble(greeting, undefined, instanceId).catch(() => {})
         }
       } else {
         changeState('idle')
@@ -287,7 +288,7 @@ function Pet() {
       scheduleRoam()
       scheduleAmbient()
       const element = document.elementFromPoint(event.clientX, event.clientY)
-      if (!chatOpenRef.current && !element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true)
+      if (!chatOpenRef.current && !element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true, instanceId)
     }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
@@ -305,13 +306,13 @@ function Pet() {
     >
       <div
         className="pet-interaction-zone"
-        onMouseEnter={() => petApi.setMousePassthrough(false)}
+        onMouseEnter={() => petApi.setMousePassthrough(false, instanceId)}
         onMouseLeave={() => {
-          if (!draggingRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true)
+          if (!draggingRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true, instanceId)
         }}
         onMouseDown={handleMouseDown}
         onDoubleClick={() => petApi.openMain().catch(() => {})}
-        onContextMenu={(event) => { event.preventDefault(); petApi.showMenu().catch(() => {}) }}
+        onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}
       >
         <PetSprite model={config?.model} state={petState} size={spriteSize} />
       </div>

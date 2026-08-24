@@ -4,6 +4,7 @@ import { renderMarkdown } from '../lib/markdown'
 import './PetBubble.css'
 
 function PetBubble() {
+  const instanceId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('instance') || undefined
   const [payload, setPayload] = useState(null)
   const [placement, setPlacement] = useState('top')
   const bubbleRef = useRef(null)
@@ -21,7 +22,7 @@ function PetBubble() {
     if (!payload || !bubbleRef.current) return
     const report = () => {
       const rect = bubbleRef.current.getBoundingClientRect()
-      petApi.reportBubbleSize({ width: rect.width + 12, height: rect.height + 12 })
+      petApi.reportBubbleSize({ width: rect.width + 12, height: rect.height + 12 }, instanceId)
     }
     const frame = requestAnimationFrame(report)
     const observer = new ResizeObserver(report)

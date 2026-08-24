@@ -111,6 +111,7 @@ const CREATE_TABLES_SQL = `
 
   CREATE TABLE IF NOT EXISTS ai_memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_model_id TEXT NOT NULL DEFAULT 'builtin-launchbot',
     type TEXT NOT NULL DEFAULT 'preference',
     content TEXT NOT NULL,
     confidence REAL NOT NULL DEFAULT 0.8,
@@ -126,6 +127,60 @@ const CREATE_TABLES_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_ai_memories_active
     ON ai_memories(archived, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pet_interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_a_id TEXT NOT NULL,
+    pet_b_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    summary TEXT NOT NULL DEFAULT '',
+    trigger_type TEXT NOT NULL DEFAULT 'manual',
+    status TEXT NOT NULL DEFAULT 'running',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS pet_interaction_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    interaction_id INTEGER NOT NULL,
+    speaker_pet_id TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (interaction_id) REFERENCES pet_interactions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pet_interaction_messages
+    ON pet_interaction_messages(interaction_id, id);
+
+  CREATE TABLE IF NOT EXISTS pet_diary_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_model_id TEXT NOT NULL,
+    entry_date TEXT NOT NULL DEFAULT (date('now', 'localtime')),
+    category TEXT NOT NULL DEFAULT 'daily',
+    content TEXT NOT NULL,
+    source_conversation_id INTEGER,
+    shareable INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (source_conversation_id) REFERENCES ai_conversations(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pet_diary_owner_day
+    ON pet_diary_entries(pet_model_id, entry_date, id DESC);
+
+  CREATE TABLE IF NOT EXISTS pet_relationship_memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_a_id TEXT NOT NULL,
+    pet_b_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    importance REAL NOT NULL DEFAULT 0.7,
+    source_interaction_id INTEGER,
+    last_recalled_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (source_interaction_id) REFERENCES pet_interactions(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pet_relationship_pair
+    ON pet_relationship_memories(pet_a_id, pet_b_id, id DESC);
 
 `
 
@@ -160,13 +215,15 @@ const MIGRATIONS = [
   {
     table: 'ai_memories',
     columns: [
-      { name: 'confirmed', definition: 'INTEGER NOT NULL DEFAULT 1' }
+      { name: 'confirmed', definition: 'INTEGER NOT NULL DEFAULT 1' },
+      { name: 'pet_model_id', definition: "TEXT NOT NULL DEFAULT 'builtin-launchbot'" }
     ]
   }
 ]
 
 function applyMigrations(database) {
   let addedConversationPetModel = false
+  let addedMemoryPetModel = false
   for (const migration of MIGRATIONS) {
     const cols = database.prepare(`PRAGMA table_info(${migration.table})`).all()
     const existing = new Set(cols.map((c) => c.name))
@@ -178,6 +235,9 @@ function applyMigrations(database) {
         if (migration.table === 'ai_conversations' && column.name === 'pet_model_id') {
           addedConversationPetModel = true
         }
+        if (migration.table === 'ai_memories' && column.name === 'pet_model_id') {
+          addedMemoryPetModel = true
+        }
       }
     }
   }
@@ -188,7 +248,15 @@ function applyMigrations(database) {
     try { petModelId = String(JSON.parse(row?.value || '"builtin-launchbot"')) } catch (_) {}
     database.prepare('UPDATE ai_conversations SET pet_model_id = ?').run(petModelId)
   }
+  if (addedMemoryPetModel) {
+    const row = database.prepare('SELECT value FROM app_settings WHERE key = ?').get('petModelId')
+    let petModelId = 'builtin-launchbot'
+    try { petModelId = String(JSON.parse(row?.value || '"builtin-launchbot"')) } catch (_) {}
+    database.prepare('UPDATE ai_memories SET pet_model_id = ?').run(petModelId)
+  }
   database.exec('CREATE INDEX IF NOT EXISTS idx_ai_conversations_pet ON ai_conversations(pet_model_id, updated_at DESC)')
+  database.exec('DROP INDEX IF EXISTS idx_ai_memories_active')
+  database.exec('CREATE INDEX IF NOT EXISTS idx_ai_memories_active ON ai_memories(pet_model_id, archived, updated_at DESC)')
   // 旧版本用“非默认 📦 emoji”表示用户自定义图标，迁移后保留原有显示语义。
   database.prepare(`
     UPDATE software

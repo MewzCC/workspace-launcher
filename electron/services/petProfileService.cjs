@@ -39,6 +39,9 @@ function normalize(profile = {}, defaults = {}) {
     petName: String(profile.petName || defaults.displayName || t('pet.defaultName')).trim().slice(0, 40),
     personality: String(profile.personality || t('pet.defaultPersonality')).trim().slice(0, 1200),
     mode,
+    memoryMode: ['off', 'manual', 'auto'].includes(profile.memoryMode)
+      ? profile.memoryMode
+      : (['off', 'manual', 'auto'].includes(settingsDao.get('aiMemoryMode')) ? settingsDao.get('aiMemoryMode') : 'manual'),
     scale: clamp(profile.scale, 0.65, 1.35, DEFAULT_BEHAVIOR.scale),
     opacity: clamp(profile.opacity, 0.55, 1, DEFAULT_BEHAVIOR.opacity),
     roaming: typeof profile.roaming === 'boolean' ? profile.roaming : DEFAULT_BEHAVIOR.roaming,
@@ -57,6 +60,7 @@ function legacyProfile(defaults = {}) {
       ? t('pet.defaultPersonality')
       : storedPersonality,
     mode: 'concise',
+    memoryMode: settingsDao.get('aiMemoryMode'),
     scale: settingsDao.get('petScale'),
     opacity: settingsDao.get('petOpacity'),
     roaming: settingsDao.get('petRoaming'),

@@ -40,10 +40,16 @@ export function keyToAccelerator(event) {
 }
 
 function ShortcutKeys({ value }) {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+  const displayKey = (key) => {
+    if (key === 'CommandOrControl') return isMac ? 'Cmd' : 'Ctrl'
+    if (key === 'Super') return isMac ? 'Cmd' : 'Win'
+    return key
+  }
   return value.split('+').map((key, index) => (
     <React.Fragment key={`${key}-${index}`}>
       {index > 0 && <span className="shortcut-plus" aria-hidden="true">+</span>}
-      <kbd className="shortcut-key">{key === 'Super' ? 'Win' : key}</kbd>
+      <kbd className="shortcut-key">{displayKey(key)}</kbd>
     </React.Fragment>
   ))
 }
@@ -53,7 +59,11 @@ export default function ShortcutInput({
   onChange,
   error = '',
   validationStatus = 'idle',
-  validationMessage = ''
+  validationMessage = '',
+  ariaLabel = '',
+  placeholder = '',
+  recordingMessage = '',
+  hint = ''
 }) {
   const t = useT()
   const [invalid, setInvalid] = useState(false)
@@ -97,11 +107,12 @@ export default function ShortcutInput({
           onKeyDown={handleKeyDown}
           onFocus={() => { setRecording(true); setInvalid(false) }}
           onBlur={() => setRecording(false)}
-          aria-label={t('workspaces.shortcut')}
+          aria-label={ariaLabel || t('workspaces.shortcut')}
+          title={value}
         >
           <Keyboard size={16} aria-hidden="true" />
           <span className="shortcut-recorder-content">
-            {value ? <ShortcutKeys value={value} /> : t('workspaces.shortcutPlaceholder')}
+            {value ? <ShortcutKeys value={value} /> : placeholder || t('workspaces.shortcutPlaceholder')}
           </span>
           {recording && <span className="shortcut-recording-dot" aria-hidden="true" />}
           {!recording && displayStatus === 'checking' && (
@@ -124,8 +135,8 @@ export default function ShortcutInput({
         aria-live="polite"
       >
         {recording
-          ? t('workspaces.shortcutRecording')
-          : message || t('workspaces.shortcutHint')}
+          ? recordingMessage || t('workspaces.shortcutRecording')
+          : message || hint || t('workspaces.shortcutHint')}
       </p>
     </div>
   )

@@ -991,8 +991,69 @@ async function generateInteractionMemory({ petAId, petBId, messages = [], topic 
   return String(result.text || '').trim().slice(0, 1600)
 }
 
+async function generateStudyItems({ language = 'en', topic = 'daily life', count = 12 } = {}) {
+  const safeLanguage = String(language || 'en').trim().slice(0, 40)
+  const safeTopic = String(topic || 'daily life').trim().slice(0, 120)
+  const safeCount = Math.min(30, Math.max(3, Number(count) || 12))
+  const result = await requestModel(
+    'Create accurate language-learning flashcards. Return a JSON array only, without markdown. Each object must have exactly: term, meaning, pronunciation, example, exampleTranslation. Keep definitions concise, examples natural, and never include unsafe or adult content.',
+    [{ role: 'user', content: `Target language/code: ${safeLanguage}\nTopic: ${safeTopic}\nCount: ${safeCount}\nMeanings and example translations should be Simplified Chinese.` }],
+    45000,
+    { tools: false }
+  )
+  const raw = String(result.text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  let parsed
+  try { parsed = JSON.parse(raw) } catch (_) {
+    const match = raw.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error('AI 返回的词库格式无效，请重试')
+    parsed = JSON.parse(match[0])
+  }
+  if (!Array.isArray(parsed)) throw new Error('AI 返回的词库格式无效，请重试')
+  return parsed.slice(0, safeCount).map((item) => ({
+    language: safeLanguage.toLowerCase(),
+    term: String(item?.term || '').trim().slice(0, 120),
+    meaning: String(item?.meaning || '').trim().slice(0, 500),
+    pronunciation: String(item?.pronunciation || '').trim().slice(0, 120),
+    example: String(item?.example || '').trim().slice(0, 500),
+    exampleTranslation: String(item?.exampleTranslation || '').trim().slice(0, 500),
+    source: 'ai'
+  })).filter((item) => item.term)
+}
+
+async function generateStudyEntry({ language = 'en', term = '' } = {}) {
+  const safeLanguage = String(language || 'en').trim().toLowerCase().slice(0, 40) || 'en'
+  const safeTerm = String(term || '').trim().slice(0, 120)
+  if (!safeTerm) throw new Error('请输入单词或短语')
+  const result = await requestModel(
+    'You create one accurate language-learning flashcard. Return one JSON object only, without markdown, with exactly these string fields: meaning, pronunciation, example, exampleTranslation. meaning and exampleTranslation must be concise Simplified Chinese. pronunciation should use IPA when appropriate. The example must be natural, short, and clearly demonstrate the requested term. Do not change or replace the requested term.',
+    [{ role: 'user', content: `Target language/code: ${safeLanguage}\nTerm: ${safeTerm}` }],
+    45000,
+    { tools: false }
+  )
+  const raw = String(result.text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  let parsed
+  try { parsed = JSON.parse(raw) } catch (_) {
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('AI 返回的词条格式无效，请重试')
+    parsed = JSON.parse(match[0])
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AI 返回的词条格式无效，请重试')
+  const entry = {
+    language: safeLanguage,
+    term: safeTerm,
+    meaning: String(parsed.meaning || '').trim().slice(0, 500),
+    pronunciation: String(parsed.pronunciation || '').trim().slice(0, 120),
+    example: String(parsed.example || '').trim().slice(0, 500),
+    exampleTranslation: String(parsed.exampleTranslation || '').trim().slice(0, 500),
+    source: 'ai'
+  }
+  if (!entry.meaning || !entry.example) throw new Error('AI 未能生成完整词条，请重试')
+  return entry
+}
+
 module.exports = {
   getConfig, saveConfig, chat,
   getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
-  setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory
+  setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory,
+  generateStudyItems, generateStudyEntry
 }

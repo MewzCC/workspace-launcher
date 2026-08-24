@@ -155,6 +155,23 @@ contextBridge.exposeInMainWorld('api', {
     stopInteraction: () => ipcRenderer.invoke('pet:interaction:stop'),
     getInteractionMemories: (petAId, petBId) => ipcRenderer.invoke('pet:interaction:memories', petAId, petBId),
     clearInteractionMemories: (petAId, petBId) => ipcRenderer.invoke('pet:interaction:clearMemories', petAId, petBId),
+    studyGet: (instanceId) => ipcRenderer.invoke('pet:study:get', instanceId),
+    studyUpdateSettings: (instanceId, settings) => ipcRenderer.invoke('pet:study:updateSettings', instanceId, settings),
+    studyAdd: (instanceId, entry) => ipcRenderer.invoke('pet:study:add', instanceId, entry),
+    studyAddWithAI: (instanceId, request) => ipcRenderer.invoke('pet:study:addWithAI', instanceId, request),
+    studyList: (instanceId, language, limit) => ipcRenderer.invoke('pet:study:list', instanceId, language, limit),
+    studyReview: (instanceId, itemId, rating) => ipcRenderer.invoke('pet:study:review', instanceId, itemId, rating),
+    studyRemove: (instanceId, itemId) => ipcRenderer.invoke('pet:study:remove', instanceId, itemId),
+    studyGenerate: (instanceId, request) => ipcRenderer.invoke('pet:study:generate', instanceId, request),
+    studyClick: (instanceId) => ipcRenderer.invoke('pet:study:click', instanceId),
+    studyOpenAdd: (instanceId) => ipcRenderer.invoke('pet:study:openAdd', instanceId),
+    studyValidateShortcut: (instanceId, accelerator) => ipcRenderer.invoke('pet:study:validateShortcut', instanceId, accelerator),
+    studyCloseAdd: (instanceId) => ipcRenderer.invoke('pet:study:closeAdd', instanceId),
+    onStudyChanged: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('pet:studyChanged', handler)
+      return () => ipcRenderer.removeListener('pet:studyChanged', handler)
+    },
     onInteractionChanged: (callback) => {
       const handler = (_event, payload) => callback(payload)
       ipcRenderer.on('pet:interactionChanged', handler)

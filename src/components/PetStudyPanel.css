@@ -1,0 +1,250 @@
+.pet-study-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+  gap: 18px;
+}
+
+.pet-study-control,
+.pet-study-add-card,
+.pet-study-library {
+  min-width: 0;
+}
+
+.pet-study-modes {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.pet-study-modes button {
+  text-align: left;
+  border: 1px solid var(--pet-line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: var(--brand-input);
+  color: var(--pet-ink);
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.pet-study-modes button strong,
+.pet-study-modes button small {
+  display: block;
+}
+
+.pet-study-modes button small {
+  margin-top: 3px;
+  color: var(--brand-muted-foreground);
+}
+
+.pet-study-modes button.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, .1);
+  box-shadow: inset 3px 0 #6366f1;
+}
+
+.pet-study-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.pet-study-fields label {
+  position: relative;
+  display: grid;
+  grid-template-columns: 125px 1fr;
+  align-items: center;
+  font-size: 13px;
+}
+
+.pet-study-fields input,
+.pet-study-fields select,
+.pet-study-manual input,
+.pet-study-ai input {
+  border: 1px solid var(--pet-line);
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: var(--brand-input);
+  color: var(--pet-ink);
+}
+
+.pet-study-fields select {
+  min-height: 40px;
+  cursor: pointer;
+  color-scheme: light;
+}
+
+.pet-study-fields select option {
+  color: var(--brand-foreground);
+  background: var(--brand-card-solid);
+}
+
+html.dark .pet-study-fields select {
+  color-scheme: dark;
+}
+
+.pet-study-fields label span {
+  position: absolute;
+  right: 10px;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+}
+
+.pet-study-shortcut {
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr);
+  align-items: start;
+  font-size: 13px;
+}
+
+.pet-study-shortcut > strong {
+  padding-top: 12px;
+  font-weight: 500;
+}
+
+.pet-study-shortcut .shortcut-hint {
+  margin-bottom: 0;
+}
+
+.pet-study-shortcut .shortcut-recorder-content {
+  overflow: visible;
+}
+
+.pet-study-shortcut .shortcut-key {
+  flex: 0 0 auto;
+}
+
+.pet-study-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.pet-study-stats span {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 11px;
+  background: rgba(99, 102, 241, .08);
+  color: var(--brand-muted-foreground);
+  font-size: 11px;
+}
+
+.pet-study-stats b {
+  display: block;
+  color: var(--pet-ink);
+  font-size: 19px;
+}
+
+.pet-study-manual,
+.pet-study-ai {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pet-study-ai {
+  grid-template-columns: 1fr auto;
+}
+
+.pet-study-hint {
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pet-study-library {
+  grid-column: 1 / -1;
+}
+
+.pet-study-list {
+  display: grid;
+  gap: 8px;
+  max-height: 430px;
+  overflow: auto;
+  margin-top: 14px;
+}
+
+.pet-study-list article {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) 65px auto 32px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--pet-line);
+  border-radius: 12px;
+  background: var(--brand-input);
+}
+
+.pet-study-list strong {
+  margin-right: 8px;
+}
+
+.pet-study-list small {
+  color: var(--brand-muted-foreground);
+}
+
+.pet-study-list p {
+  margin: 3px 0 0;
+  color: var(--brand-muted-foreground);
+  font-size: 12px;
+}
+
+.pet-study-list .state {
+  font-size: 11px;
+  color: #6366f1;
+}
+
+.pet-study-ratings {
+  display: flex;
+  gap: 4px;
+}
+
+.pet-study-ratings button,
+.pet-study-list .delete {
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 7px;
+  color: var(--brand-muted-foreground);
+  background: rgba(148, 163, 184, .12);
+  cursor: pointer;
+}
+
+.pet-study-ratings button:hover {
+  color: white;
+  background: #6366f1;
+}
+
+.pet-study-list .delete:hover {
+  color: white;
+  background: #ef4444;
+}
+
+.pet-study-empty,
+.pet-study-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--brand-muted-foreground);
+}
+
+@media (max-width: 900px) {
+  .pet-study-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-study-library {
+    grid-column: auto;
+  }
+
+  .pet-study-list article {
+    grid-template-columns: 1fr auto;
+  }
+
+  .pet-study-ratings {
+    grid-column: 1 / -1;
+  }
+
+  .pet-study-manual {
+    grid-template-columns: 1fr;
+  }
+}

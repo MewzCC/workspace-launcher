@@ -182,6 +182,57 @@ const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_pet_relationship_pair
     ON pet_relationship_memories(pet_a_id, pet_b_id, id DESC);
 
+  CREATE TABLE IF NOT EXISTS pet_study_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    language TEXT NOT NULL DEFAULT 'en',
+    term TEXT NOT NULL,
+    normalized_term TEXT NOT NULL,
+    meaning TEXT NOT NULL DEFAULT '',
+    pronunciation TEXT NOT NULL DEFAULT '',
+    example TEXT NOT NULL DEFAULT '',
+    example_translation TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'user',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(language, normalized_term)
+  );
+
+  CREATE TABLE IF NOT EXISTS pet_study_cards (
+    pet_model_id TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'new',
+    due_at INTEGER NOT NULL DEFAULT 0,
+    stability REAL NOT NULL DEFAULT 0,
+    difficulty REAL NOT NULL DEFAULT 5,
+    reps INTEGER NOT NULL DEFAULT 0,
+    lapses INTEGER NOT NULL DEFAULT 0,
+    last_review_at INTEGER,
+    last_shown_at INTEGER,
+    scheduled_days REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (pet_model_id, item_id),
+    FOREIGN KEY (item_id) REFERENCES pet_study_items(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pet_study_due
+    ON pet_study_cards(pet_model_id, due_at, last_shown_at);
+
+  CREATE TABLE IF NOT EXISTS pet_study_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_model_id TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL,
+    state_before TEXT NOT NULL,
+    stability_before REAL NOT NULL,
+    difficulty_before REAL NOT NULL,
+    elapsed_days REAL NOT NULL DEFAULT 0,
+    scheduled_days REAL NOT NULL DEFAULT 0,
+    reviewed_at INTEGER NOT NULL,
+    FOREIGN KEY (item_id) REFERENCES pet_study_items(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pet_study_reviews_time
+    ON pet_study_reviews(pet_model_id, reviewed_at DESC);
+
 `
 
 // 轻量迁移：为已存在的旧表补充新增列

@@ -7,6 +7,7 @@ body.pet-bubble-window-body #root {
   min-height: 0;
   overflow: hidden;
   background: transparent !important;
+  border-radius: 15px;
 }
 
 body.pet-bubble-window-body::before,
@@ -26,10 +27,7 @@ body.pet-bubble-window-body::after { display: none; }
     color-mix(in srgb, var(--brand-popover) 98%, var(--brand-card-solid));
   border: 1px solid color-mix(in srgb, var(--brand-primary) 42%, var(--brand-border));
   border-radius: 15px;
-  box-shadow:
-    0 12px 34px color-mix(in srgb, var(--brand-background) 62%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--brand-foreground) 8%, transparent);
-  backdrop-filter: blur(24px) saturate(135%);
+  box-shadow: none;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.62;
@@ -59,9 +57,7 @@ html:not(.light):not(.dark) .pet-floating-bubble {
 }
 
 html.light .pet-floating-bubble {
-  box-shadow:
-    0 12px 32px rgba(31, 35, 58, .18),
-    inset 0 1px 0 rgba(255, 255, 255, .92);
+  box-shadow: none;
 }
 
 .pet-bubble-md p { margin: 0 0 5px; }

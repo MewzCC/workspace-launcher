@@ -35,6 +35,7 @@ const DEFAULTS = {
     doNotDisturbEnd: '08:00'
   },
   petInteractionLastAt: 0,
+  petStudySettings: {},
   aiActiveConversationIds: {},
   aiBaseUrl: 'https://api.openai.com/v1',
   aiProvider: 'openai',

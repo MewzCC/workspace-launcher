@@ -7,6 +7,7 @@ body.pet-chat-window-body #root {
   min-height: 0;
   overflow: hidden;
   background: transparent !important;
+  border-radius: 14px;
 }
 
 body.pet-chat-window-body::before,
@@ -24,8 +25,7 @@ body.pet-chat-window-body::after { display: none; }
   background: color-mix(in srgb, var(--brand-card) 96%, transparent);
   border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, var(--brand-border));
   border-radius: 14px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-background) 30%, transparent);
-  backdrop-filter: blur(18px);
+  box-shadow: none;
   animation: pet-chat-drop 180ms cubic-bezier(.2, .8, .2, 1);
 }
 

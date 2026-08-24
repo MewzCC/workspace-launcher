@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  Archive, Bot, Box, Brain, Check, CircleHelp, Eraser, FolderOpen, Import,
+  Archive, Bot, Box, Brain, BookOpen, Check, CircleHelp, Eraser, FolderOpen, Import,
   KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
   Terminal, Trash2, WandSparkles
 } from 'lucide-react'
@@ -8,6 +8,7 @@ import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import PetSprite from '../components/PetSprite'
 import TutorialDrawer from '../components/TutorialDrawer'
+import PetStudyPanel from '../components/PetStudyPanel'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import { aiApi, dialogApi, petApi } from '../lib/ipc'
 import { renderMarkdown } from '../lib/markdown'
@@ -29,7 +30,7 @@ const AI_PROVIDERS = {
 }
 
 const CUSTOM_MODEL = '__custom__'
-const PET_TAB_KEYS = ['companion', 'memory', 'models', 'settings']
+const PET_TAB_KEYS = ['companion', 'study', 'memory', 'models', 'settings']
 const CHAT_MODES = ['concise', 'focus', 'creative', 'casual']
 
 function PetCenter() {
@@ -495,6 +496,7 @@ function PetCenter() {
   const panelMotionClass = `pet-tab-panel pet-tab-panel--${tabDirection}`
   const tabs = [
     ['companion', MessageCircle, t('petCenter.tabCompanion')],
+    ['study', BookOpen, '学习模式'],
     ['memory', Brain, t('petCenter.tabMemory')],
     ['models', Box, t('petCenter.tabModels')],
     ['settings', Settings2, t('petCenter.tabSettings')]
@@ -642,6 +644,12 @@ function PetCenter() {
               <button type="submit" disabled={!draft.trim() || chatting} aria-label={t('petCenter.send')}><Send size={18} /></button>
             </form>
           </div>
+        </section>
+      )}
+
+      {activeTab === 'study' && (
+        <section id="pet-panel-study" role="tabpanel" aria-labelledby="pet-tab-study" className={panelMotionClass}>
+          <PetStudyPanel instanceId={config?.model?.id} onNotice={setNotice} />
         </section>
       )}
 

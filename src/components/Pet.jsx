@@ -121,7 +121,7 @@ function Pet() {
 
   const scheduleRoam = useCallback(() => {
     clearTimeout(roamTimerRef.current)
-    if (!config?.settings?.roaming || chatOpenRef.current) return
+    if (!config?.settings?.roaming || config?.settings?.study?.mode !== 'companion' || chatOpenRef.current) return
     const activity = Math.min(2, Math.max(0.5, Number(config.settings.roamActivity) || 1))
     const delay = (IDLE_MIN + Math.random() * (IDLE_MAX - IDLE_MIN)) / activity
     roamTimerRef.current = setTimeout(async () => {
@@ -214,7 +214,7 @@ function Pet() {
       }
       walkSegment(0)
     }, delay)
-  }, [changeState, chatOpen, config?.settings?.roamActivity, config?.settings?.roamRange, config?.settings?.roaming])
+  }, [changeState, chatOpen, config?.settings?.roamActivity, config?.settings?.roamRange, config?.settings?.roaming, config?.settings?.study?.mode])
 
   scheduleRoamRef.current = scheduleRoam
   scheduleAmbientRef.current = scheduleAmbient
@@ -261,7 +261,7 @@ function Pet() {
       dragRef.current.moved = true
       petApi.move(nextX, nextY, instanceId)
     }
-    const handleUp = (event) => {
+    const handleUp = async (event) => {
       if (!dragRef.current) return
       const moved = dragRef.current.moved
       dragRef.current = null
@@ -269,6 +269,13 @@ function Pet() {
       setDragging(false)
       petApi.savePosition(instanceId)
       if (!moved) {
+        const studyResult = await petApi.studyClick(instanceId).catch(() => ({ handled: false }))
+        if (studyResult?.handled) {
+          scheduleRoam()
+          scheduleAmbient()
+          petApi.setMousePassthrough(true, instanceId)
+          return
+        }
         const nextOpen = !chatOpenRef.current
         applyChatVisibility(nextOpen)
         petApi.setChatOpen(nextOpen, instanceId).catch(() => applyChatVisibility(!nextOpen))

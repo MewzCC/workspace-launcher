@@ -1,0 +1,135 @@
+.pet-study-add-window-body {
+    background: transparent;
+    overflow: hidden;
+    border-radius: 16px;
+}
+
+.pet-study-add-window-body #root {
+    height: 100vh;
+    overflow: hidden;
+    border-radius: 16px;
+    background: transparent !important;
+}
+
+.pet-study-add {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    border: 1px solid rgba(99, 102, 241, .3);
+    border-radius: 16px;
+    background: rgba(250, 250, 255, .96);
+    box-shadow: none;
+    color: #1e293b;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dark .pet-study-add {
+    background: rgba(17, 24, 39, .96);
+    color: #e5e7eb;
+}
+
+.pet-study-add header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 750;
+    font-size: 14px;
+    -webkit-app-region: drag;
+}
+
+.pet-study-add header span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pet-study-add header button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 4px;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+
+.pet-study-add input {
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, .35);
+    border-radius: 11px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, .7);
+    color: inherit;
+    outline: none;
+}
+
+.dark .pet-study-add input {
+    background: rgba(30, 41, 59, .8);
+}
+
+.pet-study-add input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+}
+
+.pet-study-add__row {
+    display: flex;
+    gap: 8px;
+}
+
+.pet-study-add__row .language {
+    box-sizing: border-box;
+    width: 82px;
+    flex: 0 0 82px;
+    border: 1px solid rgba(148, 163, 184, .35);
+    border-radius: 11px;
+    background: rgba(99, 102, 241, .1);
+    color: #6366f1;
+    padding: 0 7px;
+    font: 700 11px/1 var(--brand-font-sans);
+    cursor: pointer;
+    color-scheme: light;
+}
+
+.dark .pet-study-add__row .language {
+    color-scheme: dark;
+}
+
+.pet-study-add__row .language option {
+    color: var(--brand-foreground);
+    background: var(--brand-card-solid);
+}
+
+.pet-study-add__submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 11px;
+    padding: 8px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pet-study-add__submit:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.pet-study-add p {
+    min-height: 18px;
+    margin: 0;
+    text-align: center;
+    font-size: 10px;
+    color: #64748b;
+}
+
+.pet-study-add p.success {
+    color: #059669;
+}

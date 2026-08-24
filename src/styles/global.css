@@ -27,6 +27,22 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* 透明桌宠子窗口覆盖主应用画布，避免 Windows 合成层露出矩形黑/白底。 */
+html.pet-overlay-html,
+html.pet-overlay-html body,
+html.pet-overlay-html body #root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+html.pet-overlay-html body::before,
+html.pet-overlay-html body::after {
+  display: none !important;
+}
+
 /* 主色光晕球：左上区域 */
 body::before {
   content: '';

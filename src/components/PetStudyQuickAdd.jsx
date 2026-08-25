@@ -19,10 +19,15 @@ export default function PetStudyQuickAdd() {
 
   useEffect(() => {
     petApi.studyGet(instanceId).then((data) => setLanguage(data.settings?.language || 'en')).catch(() => {})
-    inputRef.current?.focus()
+    const focusInput = () => window.requestAnimationFrame(() => inputRef.current?.focus())
+    focusInput()
     const onKey = (event) => { if (event.key === 'Escape') petApi.studyCloseAdd(instanceId) }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('focus', focusInput)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('focus', focusInput)
+    }
   }, [])
 
   const submit = async (event) => {

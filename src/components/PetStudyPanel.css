@@ -82,6 +82,7 @@ html.dark .pet-study-fields select { color-scheme: dark; }
 .pet-study-state { display: inline-flex; max-width: 100%; align-items: center; gap: 5px; padding: 5px 8px; overflow: hidden; color: var(--brand-primary); border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--brand-primary) 9%, transparent); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .pet-study-state::before { width: 5px; height: 5px; flex: 0 0 auto; content: ''; border-radius: 50%; background: currentColor; }
 .pet-study-state--review { color: var(--brand-state-success); border-color: color-mix(in srgb, var(--brand-state-success) 22%, transparent); background: color-mix(in srgb, var(--brand-state-success) 8%, transparent); }
+.pet-study-state--mastered { color: var(--brand-state-success); border-color: color-mix(in srgb, var(--brand-state-success) 30%, transparent); background: color-mix(in srgb, var(--brand-state-success) 12%, transparent); }
 .pet-study-state--relearning { color: var(--brand-state-warning); border-color: color-mix(in srgb, var(--brand-state-warning) 22%, transparent); background: color-mix(in srgb, var(--brand-state-warning) 8%, transparent); }
 .pet-study-ratings { display: grid; grid-template-columns: repeat(4, minmax(30px, 1fr)); gap: 4px; }
 .pet-study-ratings button,
@@ -89,6 +90,9 @@ html.dark .pet-study-fields select { color-scheme: dark; }
 .pet-study-ratings button:hover { color: white; border-color: color-mix(in srgb, var(--brand-primary) 76%, transparent); background: var(--brand-primary); transform: translateY(-1px); }
 .pet-study-delete { width: 32px; margin-inline: auto; }
 .pet-study-delete:hover { color: white; background: var(--brand-state-error); transform: translateY(-1px); }
+.pet-study-table .resizable-table th.pet-study-col-actions,
+.pet-study-table .resizable-table td.pet-study-col-actions { padding-inline: 8px; text-align: center; }
+.pet-study-table .resizable-table th.pet-study-col-actions > span { white-space: nowrap; }
 
 .pet-study-empty,
 .pet-study-loading { padding: clamp(36px, 5vw, 64px); color: var(--brand-muted-foreground); text-align: center; }

@@ -304,7 +304,9 @@ const acceptedPayloads = {
   'pet:updateSettings': [{ scale: 1.1, opacity: 0.9, alwaysOnTop: true }],
   'pet:importModel': ['D:\\models\\pet.json'],
   'pet:selectModel': ['builtin-launchbot'],
-  'pet:study:search': ['builtin-launchbot', { language: 'en', query: '验证', limit: 25, offset: 0 }]
+  'pet:study:search': ['builtin-launchbot', { language: 'en', query: '验证', limit: 25, offset: 0 }],
+  'pet:study:updateSettings': ['builtin-launchbot', { quickAddShortcut: 'CommandOrControl+Alt+W', modeSwitchShortcut: 'CommandOrControl+Alt+M', ignoredField: true }],
+  'pet:study:validateShortcut': ['builtin-launchbot', 'CommandOrControl+Alt+M', 'modeSwitch']
 }
 let acceptedCount = 0
 let rejectedCount = 0
@@ -361,7 +363,8 @@ const attackPayloads = {
   'ai:memory:create#内容为空': [{ content: '' }],
   'ai:memory:create#置信度越界': [{ content: 'x', confidence: 99 }],
   'pet:study:search#分页非法': ['builtin-launchbot', { language: 'en', offset: -1 }],
-  'pet:study:search#关键词超长': ['builtin-launchbot', { language: 'en', query: 'x'.repeat(201) }]
+  'pet:study:search#关键词超长': ['builtin-launchbot', { language: 'en', query: 'x'.repeat(201) }],
+  'pet:study:validateShortcut#类型非法': ['builtin-launchbot', 'Ctrl+Alt+M', 'delete-all']
 }
 for (const [name, args] of Object.entries(attackPayloads)) {
   const [channel] = name.split('#')

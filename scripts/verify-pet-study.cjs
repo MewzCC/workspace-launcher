@@ -30,12 +30,14 @@ app.whenReady().then(() => {
     const before = dao.get(created.itemId, petId)
     const reviewed = dao.saveReview(
       { ...before, pet_model_id: petId, item_id: created.itemId },
-      { state: 'review', dueAt: Date.now() + 86400000, stability: 2.5, difficulty: 5, scheduledDays: 1 },
+      { state: 'mastered', dueAt: Date.now() + 36500 * 86400000, stability: 2.5, difficulty: 5, scheduledDays: 36500 },
       3,
       0
     )
     assert.strictEqual(reviewed.reps, 1)
-    assert.strictEqual(reviewed.state, 'review')
+    assert.strictEqual(reviewed.state, 'mastered')
+    const nextAfterMastered = dao.next(petId, 'en', [wildcard.itemId, paged.itemId])
+    assert.notStrictEqual(nextAfterMastered?.itemId, created.itemId, '已掌握词条不应再次进入记忆循环')
     assert.strictEqual(dao.list(petId, 'en', 10).length, 3)
     dao.remove(created.itemId, petId)
     console.log('桌宠学习数据层验证通过 ✓')

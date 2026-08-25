@@ -132,7 +132,7 @@ function next(petModelId, language, recentIds = []) {
   const exclusion = excluded.length ? `AND i.id NOT IN (${excluded.map(() => '?').join(',')})` : ''
   params.push(...excluded, now)
   let row = getDb().prepare(`SELECT i.*,c.* FROM pet_study_cards c JOIN pet_study_items i ON i.id=c.item_id
-    WHERE c.pet_model_id=? AND i.language=? ${exclusion}
+    WHERE c.pet_model_id=? AND i.language=? AND c.state<>'mastered' ${exclusion}
     ORDER BY CASE WHEN c.due_at<=? THEN 0 ELSE 1 END,
       CASE WHEN c.due_at<=? THEN c.due_at ELSE COALESCE(c.last_shown_at,0) END ASC LIMIT 1`).get(...params, now)
   if (!row && excluded.length) return next(petModelId, language, [])
@@ -157,7 +157,7 @@ function remove(itemId, petModelId) {
 
 function stats(petModelId, language) {
   const id = String(petModelId), lang = String(language || 'en').toLowerCase(), now = Date.now(), day = now - 86400000
-  const cards = getDb().prepare(`SELECT COUNT(*) total,SUM(c.state='new') new_count,SUM(c.state<>'new' AND c.due_at<=?) due_count,SUM(c.state='review') review_count
+  const cards = getDb().prepare(`SELECT COUNT(*) total,SUM(c.state='new') new_count,SUM(c.state<>'new' AND c.state<>'mastered' AND c.due_at<=?) due_count,SUM(c.state IN ('review','mastered')) review_count
     FROM pet_study_cards c JOIN pet_study_items i ON i.id=c.item_id WHERE c.pet_model_id=? AND i.language=?`).get(now, id, lang)
   const today = getDb().prepare(`SELECT COUNT(*) count FROM pet_study_reviews r JOIN pet_study_items i ON i.id=r.item_id
     WHERE r.pet_model_id=? AND i.language=? AND r.reviewed_at>=?`).get(id, lang, day).count

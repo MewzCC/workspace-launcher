@@ -32,6 +32,8 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
   const [generating, setGenerating] = useState(false)
   const [shortcutDraft, setShortcutDraft] = useState('')
   const [shortcutValidation, setShortcutValidation] = useState({ status: 'idle', message: '' })
+  const [modeShortcutDraft, setModeShortcutDraft] = useState('')
+  const [modeShortcutValidation, setModeShortcutValidation] = useState({ status: 'idle', message: '' })
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -42,6 +44,7 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
   const load = () => petApi.studyGet(instanceId).then((next) => {
     setData(next)
     setShortcutDraft(next.settings?.quickAddShortcut || '')
+    setModeShortcutDraft(next.settings?.modeSwitchShortcut || '')
     setLibraryVersion((value) => value + 1)
   }).catch((error) => onNotice(error.message))
 
@@ -93,7 +96,7 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
     { key: 'meaning', label: t('petStudy.colMeaning'), width: 25, minWidth: 170, resizable: true, className: 'pet-study-col-meaning', resizeLabel: t('petStudy.resizeColumn', { column: t('petStudy.colMeaning') }) },
     { key: 'state', label: t('petStudy.colState'), width: 11, minWidth: 82, resizable: true, className: 'pet-study-col-state', resizeLabel: t('petStudy.resizeColumn', { column: t('petStudy.colState') }) },
     { key: 'review', label: t('petStudy.colReview'), fixedWidth: 176, className: 'pet-study-col-review' },
-    { key: 'actions', label: t('petStudy.colActions'), fixedWidth: 46, className: 'pet-study-col-actions' }
+    { key: 'actions', label: t('petStudy.colActions'), fixedWidth: 64, className: 'pet-study-col-actions' }
   ], [t])
 
   if (!data) return <div className="pet-study-loading">{t('petStudy.loading')}</div>
@@ -123,30 +126,36 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
     } catch (error) { onNotice(error.message) } finally { setGenerating(false) }
   }
 
-  const changeShortcut = async (accelerator) => {
-    setShortcutDraft(accelerator)
+  const saveShortcut = async (kind, accelerator, setDraft, setValidation) => {
+    const setting = kind === 'modeSwitch' ? 'modeSwitchShortcut' : 'quickAddShortcut'
+    setDraft(accelerator)
     if (!accelerator) {
-      setShortcutValidation({ status: 'idle', message: '' })
-      await update({ quickAddShortcut: '' })
+      setValidation({ status: 'idle', message: '' })
+      await update({ [setting]: '' })
       return
     }
-    setShortcutValidation({ status: 'checking', message: t('petStudy.shortcutChecking') })
+    setValidation({ status: 'checking', message: t('petStudy.shortcutChecking') })
     try {
-      const result = await petApi.studyValidateShortcut(accelerator, instanceId)
+      const result = await petApi.studyValidateShortcut(accelerator, instanceId, kind)
       if (!result.valid) {
         const message = result.reason === 'duplicate'
           ? t('petStudy.shortcutDuplicate', { name: result.workspaceName })
-          : result.reason === 'occupied' ? t('petStudy.shortcutOccupied') : t('petStudy.shortcutInvalid')
-        setShortcutValidation({ status: 'error', message })
+          : result.reason === 'study-conflict' ? t('petStudy.shortcutStudyConflict')
+            : result.reason === 'occupied' ? t('petStudy.shortcutOccupied') : t('petStudy.shortcutInvalid')
+        setValidation({ status: 'error', message })
         return
       }
-      await update({ quickAddShortcut: accelerator })
-      setShortcutValidation({ status: 'valid', message: t('petStudy.shortcutSaved') })
-    } catch (error) { setShortcutValidation({ status: 'error', message: error.message }) }
+      await update({ [setting]: accelerator })
+      setValidation({ status: 'valid', message: t('petStudy.shortcutSaved') })
+    } catch (error) { setValidation({ status: 'error', message: error.message }) }
   }
+
+  const changeShortcut = (accelerator) => saveShortcut('quickAdd', accelerator, setShortcutDraft, setShortcutValidation)
+  const changeModeShortcut = (accelerator) => saveShortcut('modeSwitch', accelerator, setModeShortcutDraft, setModeShortcutValidation)
 
   const stateLabel = (item) => {
     if (item.state === 'new') return t('petStudy.stateNew')
+    if (item.state === 'mastered') return t('petStudy.stateMastered')
     if (item.due_at <= Date.now()) return t('petStudy.stateDue')
     return t('petStudy.stateLearning')
   }
@@ -179,6 +188,7 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
           <label>{t('petStudy.targetLanguage')}<select value={data.settings.language} onChange={(event) => update({ language: event.target.value })}>{LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
           <label>{t('petStudy.interval')}<input type="number" min="5" max="600" value={data.settings.intervalSeconds} onChange={(event) => update({ intervalSeconds: Number(event.target.value) })} /><span>{t('petStudy.seconds')}</span></label>
           <div className="pet-study-shortcut"><strong>{t('petStudy.shortcut')}</strong><ShortcutInput value={shortcutDraft} onChange={changeShortcut} validationStatus={shortcutValidation.status} validationMessage={shortcutValidation.message} ariaLabel={t('petStudy.shortcut')} placeholder={t('petStudy.shortcutPlaceholder')} recordingMessage={t('petStudy.shortcutRecording')} hint={t('petStudy.shortcutHint')} /></div>
+          <div className="pet-study-shortcut"><strong>{t('petStudy.modeSwitchShortcut')}</strong><ShortcutInput value={modeShortcutDraft} onChange={changeModeShortcut} validationStatus={modeShortcutValidation.status} validationMessage={modeShortcutValidation.message} ariaLabel={t('petStudy.modeSwitchShortcut')} placeholder={t('petStudy.shortcutPlaceholder')} recordingMessage={t('petStudy.shortcutRecording')} hint={t('petStudy.modeSwitchHint')} /></div>
         </div>
         <div className="pet-study-stats"><span><b>{data.stats.total}</b>{t('petStudy.statTerms')}</span><span><b>{data.stats.due}</b>{t('petStudy.statDue')}</span><span><b>{data.stats.reviewedToday}</b>{t('petStudy.statToday')}</span><span><b>{data.stats.learning}</b>{t('petStudy.statMemory')}</span></div>
       </section>

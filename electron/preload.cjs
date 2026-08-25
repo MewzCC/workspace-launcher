@@ -170,7 +170,7 @@ contextBridge.exposeInMainWorld('api', {
     studyGenerate: (instanceId, request) => ipcRenderer.invoke('pet:study:generate', instanceId, request),
     studyClick: (instanceId) => ipcRenderer.invoke('pet:study:click', instanceId),
     studyOpenAdd: (instanceId) => ipcRenderer.invoke('pet:study:openAdd', instanceId),
-    studyValidateShortcut: (instanceId, accelerator) => ipcRenderer.invoke('pet:study:validateShortcut', instanceId, accelerator),
+    studyValidateShortcut: (instanceId, accelerator, kind) => ipcRenderer.invoke('pet:study:validateShortcut', instanceId, accelerator, kind),
     studyCloseAdd: (instanceId) => ipcRenderer.invoke('pet:study:closeAdd', instanceId),
     onStudyChanged: (callback) => {
       const handler = (_event, payload) => callback(payload)

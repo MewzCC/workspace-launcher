@@ -275,6 +275,15 @@ class PetInstance {
     this.positionOverlays()
     if (!win.webContents.isLoading()) { win.show(); win.focus() }
   }
+  toggleQuickAdd() {
+    if (this.quickAddWindow && !this.quickAddWindow.isDestroyed() && this.quickAddWindow.isVisible()) {
+      this.quickAddWindow.destroy()
+      this.quickAddWindow = null
+      return { success: true, open: false }
+    }
+    this.openQuickAdd()
+    return { success: true, open: true }
+  }
   positionOverlays(width, height, petBounds) {
     if (!this.petWindow || this.petWindow.isDestroyed()) return
     // 目标 bounds 是桌宠移动的唯一可信位置。Windows 的 getBounds() 在连续
@@ -391,7 +400,11 @@ function popupMenu(id) {
     { label: '桌宠模式', type: 'radio', checked: study.mode === 'companion', click: () => petStudyService.updateSettings(item.id, { mode: 'companion' }) },
     { label: '单词学习模式', type: 'radio', checked: study.mode === 'study', click: () => petStudyService.updateSettings(item.id, { mode: 'study' }) },
     { label: '摸鱼学习模式', type: 'radio', checked: study.mode === 'stealth-study', click: () => petStudyService.updateSettings(item.id, { mode: 'stealth-study' }) },
-    { label: '添加学习词条', accelerator: study.quickAddShortcut || undefined, click: () => item.openQuickAdd() },
+    {
+      label: study.mode === 'study' ? '认识当前词条' : '快速添加词条',
+      accelerator: study.quickAddShortcut || undefined,
+      click: () => petStudyService.triggerQuickAction(item.id)
+    },
     {
       label: '记忆反馈', submenu: [
         { label: '忘记了', click: () => review(1) },
@@ -416,7 +429,7 @@ const actionSchema = v.obj({ state: v.optional(v.oneOf(PET_ACTIONS)), bubble: v.
 const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(v.num()) })
 const settingsSchema = v.obj({ scale: v.optional(v.num()), opacity: v.optional(v.num()), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
 const studyEntrySchema = v.obj({ language: v.optional(v.str({ max: 24 })), term: v.str({ min: 1, max: 120 }), meaning: v.optional(v.str({ max: 500 })), pronunciation: v.optional(v.str({ max: 120 })), example: v.optional(v.str({ max: 500 })), exampleTranslation: v.optional(v.str({ max: 500 })) })
-const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
+const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), modeSwitchShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
 const studySearchSchema = v.obj({ language: v.str({ min: 1, max: 24 }), query: v.optional(v.str({ max: 200 })), limit: v.optional(v.num({ integer: true, min: 1, max: 100 })), offset: v.optional(v.num({ integer: true, min: 0, max: 100000 })) })
 const petRoutes = [
   { channel: 'pet:move', kind: 'on', schema: [v.or(idSchema, positionSchema), v.optional(positionSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const p = old ? first : second; instance(old ? undefined : first)?.queueMove(p.x, p.y) } },
@@ -455,7 +468,7 @@ const petRoutes = [
   { channel: 'pet:study:generate', schema: [idSchema, v.obj({ language: v.optional(v.str({ max: 40 })), topic: v.optional(v.str({ max: 120 })), count: v.optional(v.num({ integer: true, min: 3, max: 30 })) })], handler: (_e, id, request) => petStudyService.generate(id, request) },
   { channel: 'pet:study:click', schema: [idSchema], handler: (_e, id) => petStudyService.handleClick(id) },
   { channel: 'pet:study:openAdd', schema: [idSchema], handler: (_e, id) => petStudyService.openQuickAdd(id) },
-  { channel: 'pet:study:validateShortcut', schema: [idSchema, v.optional(v.str({ max: 80 }))], handler: (_e, id, accelerator) => petStudyService.validateShortcut(id, accelerator) },
+  { channel: 'pet:study:validateShortcut', schema: [idSchema, v.optional(v.str({ max: 80 })), v.optional(v.oneOf(['quickAdd', 'modeSwitch']))], handler: (_e, id, accelerator, kind) => petStudyService.validateShortcut(id, accelerator, kind) },
   { channel: 'pet:study:closeAdd', schema: [idSchema], handler: (_e, id) => { const item = instance(id, false); item?.quickAddWindow?.close(); return { success: true } } },
   { channel: 'pet:interaction:status', schema: [], handler: () => interactionService.status() },
   { channel: 'pet:interaction:list', schema: [v.optional(v.num({ integer: true, min: 1, max: 100 }))], handler: (_e, limit) => require('../db/index.cjs').petInteractionDao.list(limit) },
@@ -480,6 +493,7 @@ function init(nextCallbacks) {
     isPetActive: (id) => activeIds().includes(String(id)),
     showBubble: (id, text, duration) => instance(id, false)?.bubble(text, duration),
     openQuickAdd: (id) => instance(id)?.openQuickAdd(),
+    toggleQuickAdd: (id) => instance(id)?.toggleQuickAdd(),
     configChanged: (id) => { const item = instance(id, false); if (item?.petWindow && !item.petWindow.isDestroyed()) item.petWindow.webContents.send('pet:configChanged', item.config()) }
   })
 }

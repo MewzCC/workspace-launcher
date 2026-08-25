@@ -9,13 +9,14 @@ const DEFAULTS = {
   intervalSeconds: 10,
   intervalVersion: 2,
   quickAddShortcut: 'CommandOrControl+Alt+W',
+  modeSwitchShortcut: 'CommandOrControl+Alt+M',
   autoSeedEnglish: true,
 }
 const timers = new Map()
 const recent = new Map()
 const current = new Map()
 let callbacks = {}
-let registeredShortcut = ''
+const registeredShortcuts = { quickAdd: '', modeSwitch: '' }
 
 function profileId(value) {
   return String(value || callbacks.getSelectedPetId?.() || 'builtin-launchbot')
@@ -62,6 +63,7 @@ function updateSettings(id, patch = {}) {
     next.intervalSeconds = Math.min(600, Math.max(5, Math.round(Number(patch.intervalSeconds) || 10)))
   }
   if (patch.quickAddShortcut != null) next.quickAddShortcut = String(patch.quickAddShortcut || '').trim().slice(0, 80)
+  if (patch.modeSwitchShortcut != null) next.modeSwitchShortcut = String(patch.modeSwitchShortcut || '').trim().slice(0, 80)
   if (patch.autoSeedEnglish != null) next.autoSeedEnglish = Boolean(patch.autoSeedEnglish)
   settingsDao.set('petStudySettings', { ...allSettings(), [key]: next })
   if (next.autoSeedEnglish && next.language === 'en' && petStudyDao.stats(key).total === 0) {
@@ -155,6 +157,11 @@ function calculateReview(card, rating) {
     state = 'learning'
     scheduledDays = 10 / 1440
     dueAt = now + 600000
+  } else if (rating === 3) {
+    // “会”表示用户已经认识该词：保留记录与统计，但永久退出轮播队列。
+    state = 'mastered'
+    scheduledDays = 36500
+    dueAt = now + scheduledDays * 86400000
   }
   return { state, dueAt: Math.round(dueAt), stability, difficulty, scheduledDays, elapsedDays }
 }
@@ -171,6 +178,7 @@ function review(id, itemId, rating) {
     safeRating,
     next.elapsedDays,
   )
+  if (Number(current.get(key)) === Number(card.itemId)) current.delete(key)
   emit(key)
   setTimeout(() => showNext(key, true), 160)
   return saved
@@ -211,8 +219,8 @@ function handleClick(id) {
   const key = profileId(id)
   const mode = getSettings(key).mode
   if (mode === 'stealth-study') {
-    callbacks.openQuickAdd?.(key)
-    return { handled: true, action: 'quick-add' }
+    callbacks.toggleQuickAdd?.(key)
+    return { handled: true, action: 'quick-add-toggle' }
   }
   if (mode === 'study') {
     if (current.get(key)) review(key, current.get(key), 3)
@@ -222,16 +230,43 @@ function handleClick(id) {
   return { handled: false }
 }
 
+function triggerQuickAction(id) {
+  const key = profileId(id)
+  const mode = getSettings(key).mode
+  if (mode === 'study') {
+    if (current.get(key)) review(key, current.get(key), 3)
+    else showNext(key, true)
+    return { handled: true, action: 'review-good' }
+  }
+  callbacks.toggleQuickAdd?.(key)
+  return { handled: true, action: 'quick-add-toggle' }
+}
+
+function switchMode(id) {
+  const key = profileId(id)
+  const settings = getSettings(key)
+  const index = MODES.indexOf(settings.mode)
+  const mode = MODES[(index + 1) % MODES.length]
+  updateSettings(key, { mode })
+  return { success: true, mode }
+}
+
 function openQuickAdd(id) {
   callbacks.openQuickAdd?.(profileId(id))
   return { success: true }
 }
 
-function validateShortcut(id, accelerator) {
+function validateShortcut(id, accelerator, kind = 'quickAdd') {
   const accel = String(accelerator || '').trim()
   if (!accel) return { valid: true }
   const normalized = accel.toLowerCase()
-  if (registeredShortcut && registeredShortcut.toLowerCase() === normalized) return { valid: true }
+  const shortcutKind = kind === 'modeSwitch' ? 'modeSwitch' : 'quickAdd'
+  const otherKind = shortcutKind === 'quickAdd' ? 'modeSwitch' : 'quickAdd'
+  const settings = getSettings(id)
+  if (String(settings[`${otherKind}Shortcut`] || '').trim().toLowerCase() === normalized) {
+    return { valid: false, reason: 'study-conflict' }
+  }
+  if (registeredShortcuts[shortcutKind]?.toLowerCase() === normalized) return { valid: true }
   const duplicate = workspaceDao.list().find((workspace) =>
     String(workspace.shortcut || '').trim().toLowerCase() === normalized
   )
@@ -247,19 +282,25 @@ function validateShortcut(id, accelerator) {
 }
 
 function syncShortcut() {
-  if (registeredShortcut) {
-    globalShortcut.unregister(registeredShortcut)
-    registeredShortcut = ''
+  for (const kind of Object.keys(registeredShortcuts)) {
+    if (registeredShortcuts[kind]) globalShortcut.unregister(registeredShortcuts[kind])
+    registeredShortcuts[kind] = ''
   }
   const ids = callbacks.getActivePetIds?.() || []
   const target = ids.find((id) => getSettings(id).mode !== 'companion') || ids[0]
   if (!target) return
-  const accel = getSettings(target).quickAddShortcut
-  if (!accel) return
-  try {
-    if (globalShortcut.register(accel, () => callbacks.openQuickAdd?.(target))) registeredShortcut = accel
-  } catch (error) {
-    console.warn('[pet-study] 快捷键注册失败:', error.message)
+  const settings = getSettings(target)
+  const entries = [
+    ['quickAdd', settings.quickAddShortcut, () => triggerQuickAction(target)],
+    ['modeSwitch', settings.modeSwitchShortcut, () => setImmediate(() => switchMode(target))],
+  ]
+  for (const [kind, accel, action] of entries) {
+    if (!accel || (kind === 'modeSwitch' && String(settings.quickAddShortcut || '').toLowerCase() === String(accel).toLowerCase())) continue
+    try {
+      if (globalShortcut.register(accel, action)) registeredShortcuts[kind] = accel
+    } catch (error) {
+      console.warn(`[pet-study] ${kind} 快捷键注册失败:`, error.message)
+    }
   }
 }
 
@@ -272,8 +313,10 @@ function init(nextCallbacks) {
 function shutdown() {
   for (const timer of timers.values()) clearTimeout(timer)
   timers.clear()
-  if (registeredShortcut) globalShortcut.unregister(registeredShortcut)
-  registeredShortcut = ''
+  for (const kind of Object.keys(registeredShortcuts)) {
+    if (registeredShortcuts[kind]) globalShortcut.unregister(registeredShortcuts[kind])
+    registeredShortcuts[kind] = ''
+  }
 }
 
 module.exports = {
@@ -291,6 +334,8 @@ module.exports = {
   generate,
   addWithAI,
   handleClick,
+  triggerQuickAction,
+  switchMode,
   openQuickAdd,
   validateShortcut,
   stats: (id, language) => petStudyDao.stats(profileId(id), language || getSettings(id).language),

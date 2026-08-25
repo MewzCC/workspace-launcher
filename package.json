@@ -25,6 +25,7 @@
     "test:ipc": "node scripts/verify-ipc.cjs",
     "test:pet-drag": "electron scripts/verify-pet-drag-animation.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
+    "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps",
     "dist": "electron-vite build && electron-builder",

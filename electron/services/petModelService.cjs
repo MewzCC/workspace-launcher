@@ -11,6 +11,7 @@ const ATLAS_HEIGHTS = {
   2: 2288
 }
 const BUILTIN_ID = 'builtin-launchbot'
+const DRAG_ATLAS_STATES = new Set(['idle', 'wave', 'jump', 'failed', 'waiting', 'working', 'review'])
 let dataUrlCache = new Map()
 let resolvedModelsRoot = null
 
@@ -197,18 +198,27 @@ function validateManifest(manifest) {
   if (manifest.dragAnimation != null) {
     const rawAnimation = manifest.dragAnimation
     const frames = Array.isArray(rawAnimation?.frames) ? rawAnimation.frames : []
-    if (frames.length < 2 || frames.length > 12) throw new Error('dragAnimation.frames 必须包含 2-12 张图片')
-    const normalizedFrames = frames.map((value) => {
-      const raw = String(value || '').trim().replace(/\\/g, '/')
-      const normalized = path.posix.normalize(raw)
-      if (!raw || path.posix.isAbsolute(raw) || normalized === '..' || normalized.startsWith('../') || !/\.(png|webp)$/i.test(normalized)) {
-        throw new Error('dragAnimation.frames 必须是模型目录内的 PNG 或 WebP 相对路径')
-      }
-      return normalized
-    })
+    const atlasState = String(rawAnimation?.atlasState || '').trim()
+    let normalizedFrames
+    if (frames.length) {
+      if (frames.length < 2 || frames.length > 12) throw new Error('dragAnimation.frames 必须包含 2-12 张图片')
+      normalizedFrames = frames.map((value) => {
+        const raw = String(value || '').trim().replace(/\\/g, '/')
+        const normalized = path.posix.normalize(raw)
+        if (!raw || path.posix.isAbsolute(raw) || normalized === '..' || normalized.startsWith('../') || !/\.(png|webp)$/i.test(normalized)) {
+          throw new Error('dragAnimation.frames 必须是模型目录内的 PNG 或 WebP 相对路径')
+        }
+        return normalized
+      })
+    } else if (!DRAG_ATLAS_STATES.has(atlasState)) {
+      throw new Error('dragAnimation 必须提供有效的 atlasState 或 2-12 张动画帧')
+    }
     const rawDurations = Array.isArray(rawAnimation?.durations) ? rawAnimation.durations : []
-    const durations = normalizedFrames.map((_, index) => Math.min(1000, Math.max(60, Number(rawDurations[index]) || 150)))
-    dragAnimation = { frames: normalizedFrames, durations }
+    const durationCount = normalizedFrames?.length || ({ idle: 6, wave: 4, jump: 5, failed: 8, waiting: 6, working: 6, review: 6 }[atlasState])
+    const durations = Array.from({ length: durationCount }, (_, index) => Math.min(1000, Math.max(60, Number(rawDurations[index]) || 150)))
+    dragAnimation = normalizedFrames
+      ? { frames: normalizedFrames, durations }
+      : { atlasState, durations }
   }
   return {
     id,
@@ -237,6 +247,7 @@ function validateAtlas(filePath, spriteVersionNumber) {
 
 function validateDragAnimation(directory, animation) {
   if (!animation) return null
+  if (animation.atlasState) return animation
   const root = path.resolve(directory)
   const framePaths = animation.frames.map((relativePath) => {
     const filePath = path.resolve(directory, ...relativePath.split('/'))
@@ -304,6 +315,9 @@ function fileDataUrl(cacheKey, filePath) {
 
 function runtimeDragAnimation(item) {
   if (!item.dragAnimation) return undefined
+  if (item.dragAnimation.atlasState) {
+    return { atlasState: item.dragAnimation.atlasState, durations: item.dragAnimation.durations }
+  }
   return {
     durations: item.dragAnimation.durations,
     frameDataUrls: item.dragAnimation.framePaths.map((filePath, index) => fileDataUrl(`${item.id}:drag:${index}`, filePath))
@@ -366,15 +380,19 @@ function importFromManifest(inputPath) {
   fs.copyFileSync(sourceSprite, path.join(destination, spriteName))
   let normalizedDragAnimation
   if (sourceDragAnimation) {
-    const frames = sourceDragAnimation.framePaths.map((sourceFrame, index) => {
-      const extension = path.extname(sourceFrame).toLowerCase()
-      const relativePath = `animations/dragging/${String(index).padStart(2, '0')}${extension}`
-      const destinationFrame = path.join(destination, ...relativePath.split('/'))
-      fs.mkdirSync(path.dirname(destinationFrame), { recursive: true })
-      if (!samePath(sourceFrame, destinationFrame)) fs.copyFileSync(sourceFrame, destinationFrame)
-      return relativePath
-    })
-    normalizedDragAnimation = { frames, durations: sourceDragAnimation.durations }
+    if (sourceDragAnimation.atlasState) {
+      normalizedDragAnimation = { atlasState: sourceDragAnimation.atlasState, durations: sourceDragAnimation.durations }
+    } else {
+      const frames = sourceDragAnimation.framePaths.map((sourceFrame, index) => {
+        const extension = path.extname(sourceFrame).toLowerCase()
+        const relativePath = `animations/dragging/${String(index).padStart(2, '0')}${extension}`
+        const destinationFrame = path.join(destination, ...relativePath.split('/'))
+        fs.mkdirSync(path.dirname(destinationFrame), { recursive: true })
+        if (!samePath(sourceFrame, destinationFrame)) fs.copyFileSync(sourceFrame, destinationFrame)
+        return relativePath
+      })
+      normalizedDragAnimation = { frames, durations: sourceDragAnimation.durations }
+    }
   }
   const normalized = {
     ...manifest,

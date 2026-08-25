@@ -13,12 +13,12 @@ app.whenReady().then(() => {
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
   const klee = modelService.getRuntimeModel('klee-spark-knight')
 
-  assert.strictEqual(lanxi.dragAnimation.frameDataUrls.length, 6)
-  assert.deepStrictEqual(lanxi.dragAnimation.durations, [160, 135, 135, 170, 135, 160])
-  assert(lanxi.dragAnimation.frameDataUrls.every((value) => value.startsWith('data:image/png;base64,')))
+  assert.strictEqual(lanxi.dragAnimation.atlasState, 'jump')
+  assert.deepStrictEqual(lanxi.dragAnimation.durations, [150, 130, 170, 130, 190])
+  assert.strictEqual(Boolean(lanxi.dragAnimation.frameDataUrls), false)
   assert.strictEqual(Boolean(klee.dragAnimation), false)
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').dragAnimation.frameDataUrls.length, 6)
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').dragAnimation.frameDataUrls.length, 6)
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
 
   const { calculateBubbleBounds } = require('../electron/services/petOverlayPlacement.cjs')
   const area = { x: 0, y: 0, width: 1707, height: 1067 }

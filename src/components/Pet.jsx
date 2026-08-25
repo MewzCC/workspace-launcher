@@ -255,7 +255,7 @@ function Pet() {
       moved: false
     }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    changeState(config?.model?.dragAnimation?.frameDataUrls?.length ? 'dragging' : 'idle')
+    changeState(config?.model?.dragAnimation ? 'dragging' : 'idle')
   }
 
   useEffect(() => {

@@ -18,9 +18,14 @@ export function PetSprite({ model, state = 'idle', size = 160, className = '' })
   const t = useT()
   const dragFrames = state === 'dragging' ? model?.dragAnimation?.frameDataUrls : null
   const usesDragFrames = Array.isArray(dragFrames) && dragFrames.length > 1
+  const dragAtlasState = state === 'dragging' && model?.dragAnimation?.atlasState
+    ? model.dragAnimation.atlasState
+    : null
   const animation = usesDragFrames
     ? { frames: dragFrames.length, durations: model.dragAnimation.durations || [] }
-    : (STATES[state] || STATES.idle)
+    : (dragAtlasState
+        ? { ...STATES[dragAtlasState], durations: model.dragAnimation.durations || STATES[dragAtlasState].durations }
+        : (STATES[state] || STATES.idle))
   const [frame, setFrame] = useState(0)
 
   useEffect(() => {
@@ -112,7 +117,7 @@ export function PetSprite({ model, state = 'idle', size = 160, className = '' })
 
   return (
     <div
-      className={`pet-sprite pet-sprite--atlas ${className}`}
+      className={`pet-sprite pet-sprite--atlas${dragAtlasState ? ' pet-sprite--drag-atlas' : ''} ${className}`}
       style={{ width: size, height: size * (208 / 192) }}
       role="img"
       aria-label={model.displayName || t('nav.petCenter')}

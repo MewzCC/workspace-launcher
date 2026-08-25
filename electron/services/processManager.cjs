@@ -99,6 +99,154 @@ function launchExe(exePath, args = [], options = {}) {
   })
 }
 
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code === 'EPERM'
+  }
+}
+
+// Windows Shell 可以把系统应用别名（如 System32\\notepad.exe）解析为
+// 真正的打包应用进程。直接 spawn 只能拿到短命的引导进程 PID，
+// Start-Process -PassThru 则能返回最终应用 PID，后续才能精准关闭验证窗口。
+function startValidationProcessWindows(targetPath, args, cwd) {
+  return new Promise((resolve, reject) => {
+    const script = [
+      "$ErrorActionPreference = 'Stop'",
+      "$launchArgs = @()",
+      "if ($env:LAUNCHPAD_VALIDATION_ARGS -ne '[]') { $launchArgs = @($env:LAUNCHPAD_VALIDATION_ARGS | ConvertFrom-Json) }",
+      "$params = @{ FilePath = $env:LAUNCHPAD_VALIDATION_EXE; WorkingDirectory = $env:LAUNCHPAD_VALIDATION_CWD; PassThru = $true; ErrorAction = 'Stop' }",
+      "if ($launchArgs.Count -gt 0) { $params.ArgumentList = [string[]]$launchArgs }",
+      '$started = Start-Process @params',
+      "[ordered]@{ pid = [int]$started.Id } | ConvertTo-Json -Compress"
+    ].join('; ')
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      {
+        windowsHide: true,
+        timeout: 15000,
+        env: {
+          ...process.env,
+          LAUNCHPAD_VALIDATION_EXE: targetPath,
+          LAUNCHPAD_VALIDATION_CWD: cwd,
+          LAUNCHPAD_VALIDATION_ARGS: JSON.stringify(args)
+        }
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(friendlyLaunchError(error, targetPath, String(stderr || '').trim()))
+          return
+        }
+        try {
+          const pid = Number(JSON.parse(String(stdout).trim()).pid)
+          if (!Number.isInteger(pid) || pid <= 0) throw new Error('PID missing')
+          resolve(pid)
+        } catch (parseError) {
+          reject(friendlyLaunchError(parseError, targetPath))
+        }
+      }
+    )
+  })
+}
+
+// 验证可执行文件确实能够持续运行，并在验证完成后只结束本次启动的进程树。
+// 与 launchExe 不同，此方法不会把验证程序留在用户桌面上，也不会按路径结束
+// 用户原本已经运行的同名程序。
+async function validateExeLaunch(exePath, args = [], options = {}) {
+  let targetPath
+  try {
+    targetPath = validateExecutablePath(exePath)
+  } catch (error) {
+    throw error
+  }
+
+  const argArr = parseArgs(args)
+  const validationMs = Math.max(500, Number(options.validationMs) || 2000)
+  const cwd = options.cwd || path.dirname(targetPath)
+
+  if (process.platform === 'win32') {
+    const pid = await startValidationProcessWindows(targetPath, argArr, cwd)
+    await new Promise((resolve) => setTimeout(resolve, validationMs))
+    if (!isProcessAlive(pid)) {
+      throw new Error(t('errors.validationExitedCode', { code: 'UNKNOWN' }))
+    }
+    try {
+      await terminateProcessTree(pid)
+    } catch (error) {
+      // 检查与结束之间进程自行退出，等价于已完成清理。
+      if (isProcessAlive(pid)) {
+        throw new Error(t('errors.validationCleanupFailed', { message: error.message }))
+      }
+    }
+    return {
+      pid,
+      exePath: targetPath,
+      method: 'shell',
+      validated: true,
+      terminated: true
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(targetPath, argArr, {
+      detached: false,
+      stdio: 'ignore',
+      windowsHide: false,
+      cwd
+    })
+
+    let observing = true
+    let timer = null
+
+    const finish = (callback) => {
+      if (!observing) return false
+      observing = false
+      if (timer) clearTimeout(timer)
+      callback()
+      return true
+    }
+
+    child.once('error', (err) => {
+      finish(() => reject(friendlyLaunchError(err, targetPath)))
+    })
+
+    child.once('exit', (code, signal) => {
+      finish(() => {
+        const reason = signal
+          ? t('errors.validationExitedSignal', { signal })
+          : t('errors.validationExitedCode', { code: code ?? 'UNKNOWN' })
+        reject(new Error(reason))
+      })
+    })
+
+    child.once('spawn', () => {
+      timer = setTimeout(async () => {
+        if (!observing) return
+        observing = false
+        try {
+          child.kill('SIGTERM')
+          child.unref()
+          resolve({
+            pid: child.pid,
+            exePath: targetPath,
+            method: 'spawn',
+            validated: true,
+            terminated: true
+          })
+        } catch (error) {
+          // 清理失败时不把软件判定为验证成功，避免入库的同时留下验证窗口。
+          child.unref()
+          reject(new Error(t('errors.validationCleanupFailed', { message: error.message })))
+        }
+      }, validationMs)
+    })
+  })
+}
+
 // 启动可执行文件并完全独立（调用 unref 让子进程脱离父进程生命周期）
 // 与 launchExe 的区别：调用 unref() 后父进程可独立退出，子进程继续运行
 // 返回 Promise<{pid, exePath}>
@@ -591,6 +739,7 @@ function terminateProcessTree(pid) {
 
 module.exports = {
   launchExe,
+  validateExeLaunch,
   launchExeDetached,
   launchBatch,
   validateExecutablePath,

@@ -23,6 +23,7 @@
     "build": "electron-vite build",
     "test:ai-memory": "electron scripts/verify-ai-memory.cjs",
     "test:ipc": "node scripts/verify-ipc.cjs",
+    "test:pet-drag": "electron scripts/verify-pet-drag-animation.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps",

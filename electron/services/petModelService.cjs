@@ -14,6 +14,13 @@ const BUILTIN_ID = 'builtin-launchbot'
 let dataUrlCache = new Map()
 let resolvedModelsRoot = null
 
+function clearModelCache(id) {
+  const prefix = `${id}:`
+  for (const key of dataUrlCache.keys()) {
+    if (key === id || key.startsWith(prefix)) dataUrlCache.delete(key)
+  }
+}
+
 function installRoot() {
   if (process.env.PORTABLE_EXECUTABLE_DIR) return path.resolve(process.env.PORTABLE_EXECUTABLE_DIR)
   if (app.isPackaged) return path.resolve(path.dirname(process.execPath))
@@ -186,12 +193,30 @@ function validateManifest(manifest) {
   if (!spriteName || !/\.(png|webp)$/i.test(spriteName)) {
     throw new Error(t('pet.invalidSpritePath'))
   }
+  let dragAnimation
+  if (manifest.dragAnimation != null) {
+    const rawAnimation = manifest.dragAnimation
+    const frames = Array.isArray(rawAnimation?.frames) ? rawAnimation.frames : []
+    if (frames.length < 2 || frames.length > 12) throw new Error('dragAnimation.frames 必须包含 2-12 张图片')
+    const normalizedFrames = frames.map((value) => {
+      const raw = String(value || '').trim().replace(/\\/g, '/')
+      const normalized = path.posix.normalize(raw)
+      if (!raw || path.posix.isAbsolute(raw) || normalized === '..' || normalized.startsWith('../') || !/\.(png|webp)$/i.test(normalized)) {
+        throw new Error('dragAnimation.frames 必须是模型目录内的 PNG 或 WebP 相对路径')
+      }
+      return normalized
+    })
+    const rawDurations = Array.isArray(rawAnimation?.durations) ? rawAnimation.durations : []
+    const durations = normalizedFrames.map((_, index) => Math.min(1000, Math.max(60, Number(rawDurations[index]) || 150)))
+    dragAnimation = { frames: normalizedFrames, durations }
+  }
   return {
     id,
     displayName: String(manifest.displayName || id).trim().slice(0, 80),
     description: String(manifest.description || '').trim().slice(0, 240),
     spriteVersionNumber,
-    spritesheetPath: spriteName
+    spritesheetPath: spriteName,
+    ...(dragAnimation ? { dragAnimation } : {})
   }
 }
 
@@ -208,6 +233,20 @@ function validateAtlas(filePath, spriteVersionNumber) {
     throw new Error(t('pet.invalidAtlasSize', { version: spriteVersionNumber, width: ATLAS_WIDTH, height: expectedHeight, actualWidth: size.width, actualHeight: size.height }))
   }
   return size
+}
+
+function validateDragAnimation(directory, animation) {
+  if (!animation) return null
+  const root = path.resolve(directory)
+  const framePaths = animation.frames.map((relativePath) => {
+    const filePath = path.resolve(directory, ...relativePath.split('/'))
+    if (filePath !== root && !filePath.startsWith(`${root}${path.sep}`)) throw new Error('拖拽动画路径超出模型目录')
+    if (!fs.existsSync(filePath)) throw new Error(`找不到拖拽动画帧：${relativePath}`)
+    const size = readImageSize(filePath)
+    if (size.width !== 192 || size.height !== 208) throw new Error(`拖拽动画帧必须为 192×208：${relativePath}`)
+    return filePath
+  })
+  return { ...animation, framePaths }
 }
 
 function resolveManifestPath(inputPath) {
@@ -240,7 +279,8 @@ function readPetDirectory(directory) {
     const manifest = validateManifest(raw)
     const spritePath = path.join(directory, manifest.spritesheetPath)
     validateAtlas(spritePath, manifest.spriteVersionNumber)
-    return { ...manifest, directory, spritePath, imported: true }
+    const dragAnimation = validateDragAnimation(directory, manifest.dragAnimation)
+    return { ...manifest, ...(dragAnimation ? { dragAnimation } : {}), directory, spritePath, imported: true }
   } catch (_) {
     return null
   }
@@ -254,6 +294,22 @@ function spriteDataUrl(item) {
   return dataUrlCache.get(item.id)
 }
 
+function fileDataUrl(cacheKey, filePath) {
+  if (!dataUrlCache.has(cacheKey)) {
+    const mime = path.extname(filePath).toLowerCase() === '.png' ? 'image/png' : 'image/webp'
+    dataUrlCache.set(cacheKey, `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`)
+  }
+  return dataUrlCache.get(cacheKey)
+}
+
+function runtimeDragAnimation(item) {
+  if (!item.dragAnimation) return undefined
+  return {
+    durations: item.dragAnimation.durations,
+    frameDataUrls: item.dragAnimation.framePaths.map((filePath, index) => fileDataUrl(`${item.id}:drag:${index}`, filePath))
+  }
+}
+
 function list() {
   const imported = fs.readdirSync(petsRoot(), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -265,7 +321,8 @@ function list() {
       return {
         ...rest,
         builtin: false,
-        spritesheetDataUrl: spriteDataUrl({ ...rest, spritePath })
+        spritesheetDataUrl: spriteDataUrl({ ...rest, spritePath }),
+        ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation(item) } : {})
       }
     })
   return [
@@ -296,14 +353,36 @@ function importFromManifest(inputPath) {
   } catch (error) {
     throw new Error(t('pet.spriteValidationFailed', { name: path.basename(sourceSprite), message: error.message }))
   }
+  let sourceDragAnimation
+  try {
+    sourceDragAnimation = validateDragAnimation(sourceDir, manifest.dragAnimation)
+  } catch (error) {
+    throw new Error(`拖拽动画校验失败：${error.message}`)
+  }
 
   const destination = path.join(petsRoot(), manifest.id)
   fs.mkdirSync(destination, { recursive: true })
   const spriteName = `spritesheet${path.extname(sourceSprite).toLowerCase()}`
   fs.copyFileSync(sourceSprite, path.join(destination, spriteName))
-  const normalized = { ...manifest, spritesheetPath: spriteName }
+  let normalizedDragAnimation
+  if (sourceDragAnimation) {
+    const frames = sourceDragAnimation.framePaths.map((sourceFrame, index) => {
+      const extension = path.extname(sourceFrame).toLowerCase()
+      const relativePath = `animations/dragging/${String(index).padStart(2, '0')}${extension}`
+      const destinationFrame = path.join(destination, ...relativePath.split('/'))
+      fs.mkdirSync(path.dirname(destinationFrame), { recursive: true })
+      if (!samePath(sourceFrame, destinationFrame)) fs.copyFileSync(sourceFrame, destinationFrame)
+      return relativePath
+    })
+    normalizedDragAnimation = { frames, durations: sourceDragAnimation.durations }
+  }
+  const normalized = {
+    ...manifest,
+    spritesheetPath: spriteName,
+    ...(normalizedDragAnimation ? { dragAnimation: normalizedDragAnimation } : {})
+  }
   fs.writeFileSync(path.join(destination, 'pet.json'), JSON.stringify(normalized, null, 2), 'utf8')
-  dataUrlCache.delete(manifest.id)
+  clearModelCache(manifest.id)
   settingsDao.set('petModelId', manifest.id)
   return { ...normalized, sourceDirectory: sourceDir }
 }
@@ -322,7 +401,7 @@ function remove(id) {
   const root = path.resolve(petsRoot())
   if (path.dirname(directory) !== root) throw new Error(t('pet.invalidPetPath'))
   fs.rmSync(directory, { recursive: true, force: true })
-  dataUrlCache.delete(target)
+  clearModelCache(target)
   if (settingsDao.get('petModelId') === target) settingsDao.set('petModelId', BUILTIN_ID)
   return { success: true }
 }
@@ -347,7 +426,8 @@ function getRuntimeModel(modelId) {
     description: item.description,
     spriteVersionNumber: item.spriteVersionNumber,
     builtin: false,
-    spritesheetDataUrl: spriteDataUrl(item)
+    spritesheetDataUrl: spriteDataUrl(item),
+    ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation(item) } : {})
   }
 }
 
@@ -355,4 +435,12 @@ function openFolder() {
   return petsRoot()
 }
 
-module.exports = { list, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, createFromAi, BUILTIN_ID }
+function refresh() {
+  dataUrlCache.clear()
+  const models = list()
+  const selected = String(settingsDao.get('petModelId') || BUILTIN_ID)
+  if (!models.some((item) => item.id === selected)) settingsDao.set('petModelId', BUILTIN_ID)
+  return models
+}
+
+module.exports = { list, refresh, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, createFromAi, BUILTIN_ID }

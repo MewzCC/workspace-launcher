@@ -1,17 +1,25 @@
 /* 主布局样式：固定左侧 Sidebar + 右侧主区域，对齐设计稿 ml-[240px] p-8 */
 
 .layout {
-  min-height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 主区域：左侧留出 240px 侧边栏宽度，内边距 32px */
 .main-view {
   margin-left: 240px;
-  min-height: 100vh;
+  width: calc(100% - 240px);
+  height: 100dvh;
+  min-height: 0;
   background: var(--brand-background);
   color: var(--brand-foreground);
-  padding: 32px 40px;
+  padding: var(--app-page-padding-block) var(--app-page-padding-inline);
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     background-color 0.3s ease, color 0.3s ease;
 }
@@ -25,6 +33,8 @@
 .monitor-page,
 .process-page,
 .settings {
+  width: 100%;
+  margin-inline: auto;
   min-height: calc(100vh - 64px);
 }
 
@@ -48,6 +58,7 @@
 @media (max-width: 1024px) {
   .main-view {
     margin-left: 0;
+    width: 100%;
     padding: 72px 16px 32px;
   }
 
@@ -68,9 +79,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--app-section-gap);
   flex-wrap: wrap;
-  margin-bottom: 32px;
+  margin-bottom: clamp(20px, 2.6vw, 32px);
 }
 
 .page-header-left {
@@ -78,7 +89,7 @@
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: clamp(21px, 2.2vw, 25px);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--brand-foreground);

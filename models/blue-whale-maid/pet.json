@@ -3,5 +3,16 @@
   "displayName": "澜汐",
   "description": "一位蓝发鲸尾女仆桌宠，安静温柔，会灵动行走、跳跃、招手、等待、工作与观察四周。",
   "spriteVersionNumber": 2,
-  "spritesheetPath": "spritesheet.webp"
+  "spritesheetPath": "spritesheet.webp",
+  "dragAnimation": {
+    "frames": [
+      "animations/dragging/00.png",
+      "animations/dragging/01.png",
+      "animations/dragging/02.png",
+      "animations/dragging/03.png",
+      "animations/dragging/04.png",
+      "animations/dragging/05.png"
+    ],
+    "durations": [160, 135, 135, 170, 135, 160]
+  }
 }

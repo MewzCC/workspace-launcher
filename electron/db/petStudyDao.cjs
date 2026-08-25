@@ -85,6 +85,47 @@ function list(petModelId, language, limit = 200) {
     ORDER BY c.due_at ASC,i.created_at DESC LIMIT ?`).all(...params)
 }
 
+function normalizeSearchQuery(value, language) {
+  return String(value || '')
+    .trim()
+    .slice(0, 200)
+    .normalize('NFKC')
+    .toLocaleLowerCase(String(language || 'en'))
+    .replace(/\s+/g, ' ')
+}
+
+function escapeLike(value) {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`)
+}
+
+function search(petModelId, options = {}) {
+  const language = String(options.language || 'en').trim().toLowerCase().slice(0, 24) || 'en'
+  const query = normalizeSearchQuery(options.query, language)
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || 25))
+  const offset = Math.min(100000, Math.max(0, Number(options.offset) || 0))
+  const params = [String(petModelId), language]
+  let filter = ''
+
+  if (query) {
+    const pattern = `%${escapeLike(query)}%`
+    filter = `AND (
+      i.normalized_term LIKE ? ESCAPE '\\' OR
+      LOWER(i.term) LIKE ? ESCAPE '\\' OR
+      LOWER(i.pronunciation) LIKE ? ESCAPE '\\' OR
+      LOWER(i.meaning) LIKE ? ESCAPE '\\' OR
+      LOWER(i.example_translation) LIKE ? ESCAPE '\\'
+    )`
+    params.push(pattern, pattern, pattern, pattern, pattern)
+  }
+
+  const base = `FROM pet_study_cards c JOIN pet_study_items i ON i.id=c.item_id
+    WHERE c.pet_model_id=? AND i.language=? ${filter}`
+  const total = getDb().prepare(`SELECT COUNT(*) count ${base}`).get(...params).count || 0
+  const items = getDb().prepare(`SELECT i.*,c.state,c.due_at,c.stability,c.difficulty,c.reps,c.lapses,c.last_review_at,c.last_shown_at
+    ${base} ORDER BY c.due_at ASC,i.created_at DESC LIMIT ? OFFSET ?`).all(...params, limit, offset)
+  return { items, total }
+}
+
 function next(petModelId, language, recentIds = []) {
   const now = Date.now(), params = [String(petModelId), String(language || 'en').toLowerCase()]
   const excluded = recentIds.slice(-5).map(Number).filter(Number.isInteger)
@@ -123,4 +164,4 @@ function stats(petModelId, language) {
   return { total: cards.total || 0, new: cards.new_count || 0, due: cards.due_count || 0, learning: cards.review_count || 0, reviewedToday: today || 0 }
 }
 
-module.exports = { add, seedEnglish, get, list, next, saveReview, remove, stats }
+module.exports = { add, seedEnglish, get, list, search, next, saveReview, remove, stats }

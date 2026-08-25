@@ -5,11 +5,14 @@
   --pet-soft-accent-hover: color-mix(in srgb, var(--brand-primary) 23%, var(--brand-card-solid));
   --pet-soft-accent-border: color-mix(in srgb, var(--brand-primary) 30%, var(--pet-line));
   --pet-soft-accent-ink: color-mix(in srgb, var(--brand-primary) 42%, var(--pet-ink));
-  max-width: 1320px;
+  width: 100%;
+  max-width: 1400px;
   min-height: 100%;
   margin: 0 auto;
-  padding: 34px 36px 48px;
+  padding: 0 0 clamp(18px, 2vw, 30px);
 }
+
+#pet-panel-study { container-type: inline-size; }
 
 .pet-center-loading { min-height: 70vh; display: grid; place-content: center; gap: 12px; color: var(--brand-muted-foreground); }
 .pet-center-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
@@ -143,7 +146,7 @@
 .pet-memory-card__foot button.danger:hover { color: var(--brand-state-error); background: color-mix(in srgb, var(--brand-state-error) 7%, transparent); }
 
 .pet-models-layout { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(480px, 1.25fr); gap: 18px; }
-.pet-import-card, .pet-model-library, .pet-settings-card { padding: 24px; }
+.pet-import-card, .pet-model-library, .pet-settings-card { padding: var(--app-card-padding); }
 .pet-import-card { align-self: start; background: radial-gradient(circle at 90% 5%, color-mix(in srgb, var(--brand-primary) 15%, transparent), transparent 35%), color-mix(in srgb, var(--brand-card-solid) 90%, transparent); }
 .pet-import-icon { display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: 24px; color: var(--brand-primary); border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, transparent); border-radius: 15px; background: color-mix(in srgb, var(--brand-primary) 10%, transparent); }
 .pet-import-card > span, .pet-section-title span { color: var(--brand-primary); font-family: var(--brand-font-mono); font-size: 9px; font-weight: 800; letter-spacing: .13em; }
@@ -157,6 +160,13 @@
 .pet-section-title { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
 .pet-section-title h2 { margin-bottom: 0; }
 .pet-section-title > b { display: grid; place-items: center; width: 32px; height: 32px; color: var(--brand-primary); border-radius: 50%; background: color-mix(in srgb, var(--brand-primary) 10%, transparent); font-family: var(--brand-font-mono); font-size: 12px; }
+.pet-model-library-title { align-items: center; flex-wrap: wrap; gap: 10px; }
+.pet-model-library-tools { display: flex; align-items: center; gap: 8px; }
+.pet-model-library-tools > b { display: grid; place-items: center; width: 32px; height: 32px; color: var(--brand-primary); border-radius: 50%; background: color-mix(in srgb, var(--brand-primary) 10%, transparent); font-family: var(--brand-font-mono); font-size: 12px; }
+.pet-model-refresh { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 7px 11px; color: var(--brand-primary); border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--pet-line)); border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 11%, transparent), color-mix(in srgb, var(--brand-card-solid) 82%, transparent)); box-shadow: inset 0 1px rgba(255, 255, 255, .08); font-size: 10px; font-weight: 750; transition: transform 180ms ease, border-color 180ms ease, background 180ms ease; }
+.pet-model-refresh:hover:not(:disabled) { transform: translateY(-1px); border-color: color-mix(in srgb, var(--brand-primary) 48%, var(--pet-line)); background: color-mix(in srgb, var(--brand-primary) 14%, var(--brand-card-solid)); }
+.pet-model-refresh:disabled { cursor: wait; opacity: .68; }
+.pet-model-refresh .is-spinning { animation: pet-model-refresh-spin 720ms linear infinite; }
 .pet-model-list { display: flex; flex-direction: column; gap: 9px; }
 .pet-model-card { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 14px; padding: 11px; border: 1px solid var(--pet-line); border-radius: 15px; transition: var(--brand-transition); }
 .pet-model-card.active { border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent); background: color-mix(in srgb, var(--brand-primary) 6%, transparent); }
@@ -204,11 +214,12 @@
 
 @keyframes pet-typing { from { transform: translateY(1px); opacity: .45; } to { transform: translateY(-2px); opacity: 1; } }
 @keyframes pet-conversation-editor-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pet-model-refresh-spin { to { transform: rotate(360deg); } }
 @keyframes pet-panel-forward { from { opacity: 0; transform: translate3d(24px, 0, 0) scale(.992); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes pet-panel-backward { from { opacity: 0; transform: translate3d(-24px, 0, 0) scale(.992); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
-@media (max-width: 1060px) { .pet-companion-grid, .pet-models-layout, .pet-settings-grid, .pet-memory-layout { grid-template-columns: 1fr; }.pet-stage-card { min-height: 460px; }.pet-center-page { padding: 28px 24px 42px; } }
-@media (max-width: 680px) { .pet-center-page { padding: 72px 14px 30px; }.pet-center-header { align-items: flex-start; flex-direction: column; }.pet-center-tabs { display: flex; width: 100%; overflow-x: auto; }.pet-center-tabs button { flex: 0 0 auto; justify-content: center; padding-inline: 10px; }.pet-chat-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }.pet-conversation-actions { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) repeat(4, 32px); width: 100%; }.pet-conversation-editor { grid-template-columns: auto minmax(0, 1fr); }.pet-conversation-editor button { justify-content: center; }.pet-model-card { grid-template-columns: 72px 1fr; }.pet-model-thumb { width: 72px; height: 72px; }.pet-model-actions { grid-column: 1 / -1; justify-content: flex-end; }.pet-form-row, .pet-api-format, .pet-chat-mode-grid { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .pet-center-tabs { scroll-behavior: auto; }.pet-center-tabs__indicator, .pet-center-tabs button, .pet-center-tabs button svg { transition: none; }.pet-tab-panel--forward, .pet-tab-panel--backward, .pet-typing-indicator i, .pet-conversation-editor { animation: none; }.pet-center-page .glow-btn, .pet-chat-compose button { transition: none; } }
+@media (max-width: 1060px) { .pet-companion-grid, .pet-models-layout, .pet-settings-grid, .pet-memory-layout { grid-template-columns: 1fr; }.pet-companion-grid { height: auto; }.pet-stage-card { min-height: 460px; }.pet-chat-card { min-height: min(620px, calc(100dvh - 150px)); } }
+@media (max-width: 680px) { .pet-center-header { align-items: flex-start; flex-direction: column; }.pet-center-tabs { display: flex; width: 100%; overflow-x: auto; }.pet-center-tabs button { flex: 0 0 auto; justify-content: center; padding-inline: 10px; }.pet-chat-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }.pet-conversation-actions { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) repeat(4, 32px); width: 100%; }.pet-conversation-editor { grid-template-columns: auto minmax(0, 1fr); }.pet-conversation-editor button { justify-content: center; }.pet-model-card { grid-template-columns: 72px 1fr; }.pet-model-thumb { width: 72px; height: 72px; }.pet-model-actions { grid-column: 1 / -1; justify-content: flex-end; }.pet-form-row, .pet-api-format, .pet-chat-mode-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .pet-center-tabs { scroll-behavior: auto; }.pet-center-tabs__indicator, .pet-center-tabs button, .pet-center-tabs button svg { transition: none; }.pet-tab-panel--forward, .pet-tab-panel--backward, .pet-typing-indicator i, .pet-conversation-editor, .pet-model-refresh .is-spinning { animation: none; }.pet-center-page .glow-btn, .pet-chat-compose button { transition: none; } }
 
 .pet-shell-permission { margin-top: 0; border-color: color-mix(in srgb, var(--brand-state-error) 38%, var(--pet-line)); background: color-mix(in srgb, var(--brand-state-error) 3%, transparent); }
 .pet-shell-permission-desc { margin: 0 0 6px; color: var(--brand-muted-foreground); font-size: 11px; line-height: 1.6; }

@@ -7,8 +7,8 @@
 /* 工作空间网格：自适应列宽 */
 .workspace-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--app-section-gap);
 }
 
 /* 工作空间卡片：纵向弹性布局 */

@@ -187,7 +187,7 @@
 
 .bat-script-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
   gap: 16px;
 }
 
@@ -355,7 +355,7 @@
 /* 软件卡片网格：自适应列宽 */
 .software-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
   gap: 16px;
 }
 

@@ -1,0 +1,91 @@
+.resizable-table-shell {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--brand-border);
+  border-radius: clamp(12px, 1.3vw, 16px);
+  background: color-mix(in srgb, var(--brand-card-solid) 62%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--brand-foreground) 4%, transparent);
+}
+
+.resizable-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.resizable-table th {
+  position: relative;
+  height: 44px;
+  padding: 0 clamp(10px, 1.25vw, 16px);
+  color: var(--brand-muted-foreground);
+  border-bottom: 1px solid var(--brand-border);
+  background: color-mix(in srgb, var(--brand-muted) 56%, var(--brand-card-solid));
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .025em;
+  text-align: left;
+}
+
+.resizable-table td {
+  min-width: 0;
+  padding: clamp(10px, 1.25vw, 15px) clamp(10px, 1.25vw, 16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-border) 72%, transparent);
+  color: var(--brand-foreground);
+  vertical-align: middle;
+}
+
+.resizable-table tbody tr {
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.resizable-table tbody tr:hover {
+  background: color-mix(in srgb, var(--brand-primary) 5%, transparent);
+  box-shadow: inset 2px 0 color-mix(in srgb, var(--brand-primary) 72%, transparent);
+}
+
+.resizable-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.resizable-table__handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: -5px;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizable-table__handle::after {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 1px;
+  height: 16px;
+  content: '';
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary) 56%, var(--brand-border));
+  opacity: 0;
+  transition: opacity 150ms ease, height 150ms ease, box-shadow 150ms ease;
+}
+
+.resizable-table th:hover .resizable-table__handle::after,
+.resizable-table__handle:hover::after,
+.resizable-table__handle:focus-visible::after {
+  opacity: 1;
+  height: 22px;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--brand-primary) 48%, transparent);
+}
+
+.resizable-table__handle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 48%, transparent);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resizable-table tbody tr,
+  .resizable-table__handle::after { transition: none; }
+}

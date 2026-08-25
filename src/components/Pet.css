@@ -36,6 +36,7 @@ body.pet-window-body::after { display: none; }
   justify-content: center;
   flex: 0 0 auto;
   pointer-events: auto;
+  touch-action: none;
   cursor: grab;
 }
 
@@ -47,6 +48,7 @@ body.pet-window-body::after { display: none; }
 
 .pet-interaction-zone:hover > .pet-sprite { filter: brightness(1.035); }
 .pet-root--dragging .pet-interaction-zone > .pet-sprite { filter: brightness(1.04); }
+.pet-root--dragging .pet-shadow { transform: translateX(-50%) scaleX(.58); opacity: .045; }
 
 .pet-shadow {
   position: absolute;
@@ -60,6 +62,7 @@ body.pet-window-body::after { display: none; }
   filter: blur(4px);
   border-radius: 50%;
   pointer-events: none;
+  transition: transform 160ms ease, opacity 160ms ease;
 }
 
 .pet-root--walkLeft .pet-shadow,

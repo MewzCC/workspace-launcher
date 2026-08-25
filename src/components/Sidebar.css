@@ -357,3 +357,13 @@
     display: inline-flex;
   }
 }
+
+@media (max-height: 680px) {
+  .sidebar-logo { padding: 16px 18px 10px; }
+  .nav-list { gap: 1px; padding: 4px 12px; overflow-y: hidden; }
+  .nav-item { gap: 10px; padding: 8px 12px; font-size: 12px; }
+  .sidebar-footer { gap: 7px; padding: 9px 12px; }
+  .theme-toggle { padding: 7px 12px; font-size: 12px; }
+  .version-card { padding: 7px 10px; }
+  .version-label { display: none; }
+}

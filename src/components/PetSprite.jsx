@@ -16,12 +16,16 @@ const STATES = {
 
 export function PetSprite({ model, state = 'idle', size = 160, className = '' }) {
   const t = useT()
-  const animation = STATES[state] || STATES.idle
+  const dragFrames = state === 'dragging' ? model?.dragAnimation?.frameDataUrls : null
+  const usesDragFrames = Array.isArray(dragFrames) && dragFrames.length > 1
+  const animation = usesDragFrames
+    ? { frames: dragFrames.length, durations: model.dragAnimation.durations || [] }
+    : (STATES[state] || STATES.idle)
   const [frame, setFrame] = useState(0)
 
   useEffect(() => {
     setFrame(0)
-  }, [state, model?.id])
+  }, [state, model?.id, usesDragFrames])
 
   useEffect(() => {
     if (model?.builtin || model?.renderer === 'svg') return undefined
@@ -89,6 +93,19 @@ export function PetSprite({ model, state = 'idle', size = 160, className = '' })
           <rect className="pet-sprite__foot pet-sprite__foot--left" x="38" y="94" width="16" height="8" rx="4" fill={params.bodyInnerColor || '#4f46e5'} />
           <rect className="pet-sprite__foot pet-sprite__foot--right" x="66" y="94" width="16" height="8" rx="4" fill={params.bodyInnerColor || '#4f46e5'} />
         </svg>
+      </div>
+    )
+  }
+
+  if (usesDragFrames) {
+    return (
+      <div
+        className={`pet-sprite pet-sprite--drag-frames ${className}`}
+        style={{ width: size, height: size * (208 / 192) }}
+        role="img"
+        aria-label={model.displayName || t('nav.petCenter')}
+      >
+        <img src={dragFrames[frame]} alt="" draggable="false" />
       </div>
     )
   }

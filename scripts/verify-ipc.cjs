@@ -295,12 +295,16 @@ const acceptedPayloads = {
   'language:set': ['zh-CN'],
   'system:setUpdateMode': ['background'],
   'pet:move': [{ x: 1200, y: 800 }],
+  'pet:dragStart': ['builtin-launchbot'],
+  'pet:dragMove': ['builtin-launchbot'],
+  'pet:dragEnd': ['builtin-launchbot'],
   'pet:performAction': [{ state: 'wave', bubble: '嗨', duration: 1800 }],
   'pet:showBubble': ['你好呀', 4000],
   'pet:bubbleSize': [{ width: 220, height: 64 }],
   'pet:updateSettings': [{ scale: 1.1, opacity: 0.9, alwaysOnTop: true }],
   'pet:importModel': ['D:\\models\\pet.json'],
-  'pet:selectModel': ['builtin-launchbot']
+  'pet:selectModel': ['builtin-launchbot'],
+  'pet:study:search': ['builtin-launchbot', { language: 'en', query: '验证', limit: 25, offset: 0 }]
 }
 let acceptedCount = 0
 let rejectedCount = 0
@@ -355,7 +359,9 @@ const attackPayloads = {
   'system:setUpdateMode#模式非法': ['instant'],
   'shortcut:validate#快捷键超长': ['Ctrl+' + 'A'.repeat(100)],
   'ai:memory:create#内容为空': [{ content: '' }],
-  'ai:memory:create#置信度越界': [{ content: 'x', confidence: 99 }]
+  'ai:memory:create#置信度越界': [{ content: 'x', confidence: 99 }],
+  'pet:study:search#分页非法': ['builtin-launchbot', { language: 'en', offset: -1 }],
+  'pet:study:search#关键词超长': ['builtin-launchbot', { language: 'en', query: 'x'.repeat(201) }]
 }
 for (const [name, args] of Object.entries(attackPayloads)) {
   const [channel] = name.split('#')

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Archive, Bot, Box, Brain, BookOpen, Check, CircleHelp, Eraser, FolderOpen, Import,
   KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
-  Terminal, Trash2, WandSparkles
+  RefreshCw, Terminal, Trash2, WandSparkles
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
@@ -42,6 +42,7 @@ function PetCenter() {
   const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false })
   const [config, setConfig] = useState(null)
   const [models, setModels] = useState([])
+  const [refreshingModels, setRefreshingModels] = useState(false)
   const [interactionStatus, setInteractionStatus] = useState(null)
   const [interactions, setInteractions] = useState([])
   const [interactionPair, setInteractionPair] = useState(['', ''])
@@ -140,9 +141,14 @@ function PetCenter() {
   }, [interactionPair[0], interactionPair[1], interactions])
   useEffect(() => {
     if (activeTab !== 'models') return undefined
-    const refreshModels = () => petApi.listInstances().then(setModels).catch(() => {})
-    window.addEventListener('focus', refreshModels)
-    return () => window.removeEventListener('focus', refreshModels)
+    const refreshModelList = () => petApi.refreshModels()
+      .then(async (nextModels) => {
+        setModels(nextModels)
+        setConfig(await petApi.getConfig())
+      })
+      .catch(() => {})
+    window.addEventListener('focus', refreshModelList)
+    return () => window.removeEventListener('focus', refreshModelList)
   }, [activeTab])
   useEffect(() => {
     const unsubscribeConversation = aiApi.onConversationChanged(async (payload) => {
@@ -223,6 +229,23 @@ function PetCenter() {
       await petApi.openModelsStorage()
     } catch (error) {
       setNotice(error.message)
+    }
+  }
+
+  const refreshModels = async () => {
+    if (refreshingModels) return
+    setRefreshingModels(true)
+    setNotice('')
+    try {
+      const nextModels = await petApi.refreshModels()
+      const nextConfig = await petApi.getConfig()
+      setModels(nextModels)
+      setConfig(nextConfig)
+      setNotice(t('petCenter.modelsRefreshSuccess', { count: nextModels.length }))
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setRefreshingModels(false)
     }
   }
 
@@ -755,7 +778,16 @@ function PetCenter() {
                 </div>
               )}
             </div>
-            <div className="pet-section-title"><div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div><b>{models.length}</b></div>
+            <div className="pet-section-title pet-model-library-title">
+              <div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div>
+              <div className="pet-model-library-tools">
+                <b aria-label={t('petCenter.modelCount', { count: models.length })}>{models.length}</b>
+                <button type="button" className="pet-model-refresh" onClick={refreshModels} disabled={refreshingModels} aria-busy={refreshingModels}>
+                  <RefreshCw size={14} className={refreshingModels ? 'is-spinning' : ''} />
+                  {refreshingModels ? t('petCenter.refreshingModels') : t('petCenter.refreshModels')}
+                </button>
+              </div>
+            </div>
             <div className="pet-model-list">
               {models.map((model) => {
                 const selected = config.model.id === model.id

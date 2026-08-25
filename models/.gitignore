@@ -1,2 +1,6 @@
 
 !.gitignore
+
+# 桌宠生成/扩展动画帧仅保存在本地模型目录，不纳入版本控制。
+**/animations/**/*.png
+**/animations/**/*.webp

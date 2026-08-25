@@ -35,6 +35,7 @@ body.pet-bubble-window-body::after { display: none; }
   white-space: normal;
   overflow-wrap: anywhere;
   animation: pet-bubble-drop 190ms cubic-bezier(.2, .8, .2, 1);
+  contain: layout style;
 }
 
 @keyframes pet-bubble-drop {

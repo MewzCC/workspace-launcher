@@ -72,7 +72,7 @@ export default {
     companion: '工作伙伴', conciseMode: '简短陪伴模式', chatMode: '对话模式', mode_concise: '简洁陪伴', mode_conciseDesc: '直达核心，给出清晰的下一步', mode_focus: '专注教练', mode_focusDesc: '拆解目标，减少分心并推动执行', mode_creative: '灵感共创', mode_creativeDesc: '探索多种思路与意外联系', mode_casual: '轻松聊天', mode_casualDesc: '温和自然地陪伴，不强调效率', aiConnected: 'AI 已连接', awaitingConfig: '等待配置', chatPlaceholder: '告诉它你现在准备完成什么…', desktopChatPlaceholder: '和桌宠说点什么…', send: '发送',
     importTitle: '把新的伙伴带回家', importDescriptionBefore: '打开安装目录中的 models 桌宠库，将包含', importDescriptionAfter: '的完整桌宠文件夹放入即可；也可直接选择桌宠导入。',
     chooseFolder: '打开桌宠文件夹', chooseManifest: '选择桌宠', contractV1: 'v1：8×9 动画图集', contractV2: 'v2：8×11 动画图集', contractLegacy: '旧版可省略 spriteVersionNumber', contractImage: 'PNG / WebP 透明背景',
-    modelLibrary: '模型衣橱', customPetDescription: 'Codex v{version} 自定义桌宠', inUse: '使用中', setAsPet: '管理设置', selectedPet: '当前管理', openPet: '开启桌宠', closePet: '关闭桌宠', multiPetReady: '多桌宠已就绪', multiPetNeedsAnother: '请再开启一个不同模型', multiPetActiveCount: '当前已开启 {count} 个不同模型',
+    modelLibrary: '模型衣橱', refreshModels: '刷新模型', refreshingModels: '正在刷新', modelsRefreshSuccess: '已重新载入 {count} 个桌宠模型，开启中的桌宠已同步更新。', modelCount: '共 {count} 个模型', customPetDescription: 'Codex v{version} 自定义桌宠', inUse: '使用中', setAsPet: '管理设置', selectedPet: '当前管理', openPet: '开启桌宠', closePet: '关闭桌宠', multiPetReady: '多桌宠已就绪', multiPetNeedsAnother: '请再开启一个不同模型', multiPetActiveCount: '当前已开启 {count} 个不同模型',
     multiPetTitle: '多桌宠编队', multiPetDesc: '同时开启多只桌宠，并为它们保留独立的位置、性格、会话与记忆。互动会话使用单独上下文，且永不调用系统工具。', autoInteraction: '空闲自动互动', autoInteractionDesc: '仅在系统空闲且冷却结束后触发', interactionTurns: '每次互动轮数', chooseFirstPet: '选择第一只桌宠', chooseSecondPet: '选择第二只桌宠', interactionTopic: '互动主题（可选）', startInteraction: '开始互动', stopInteraction: '停止互动', petInteraction: '桌宠互动',
     interactionMemory: '保留互动记忆', interactionMemoryDesc: '记住彼此聊过的趣事、约定和共同经历', shareOwnerMoments: '分享主人今日动态', shareOwnerMomentsDesc: '把与主人聊天中可分享的生活摘要带入桌宠互动，不发送原始对话和敏感内容', sharedMemoryTitle: '共同生活记忆', relationshipMemories: '彼此的共同回忆', todayOwnerMoments: '今天关于主人的小事', noRelationshipMemories: '互动几次后，这里会长出共同回忆。', noOwnerMoments: '今天还没有可分享的小事。', clearRelationshipMemory: '清除共同回忆', clearInteractionMemoryConfirm: '确定清除这两只桌宠之间的共同回忆吗？互动聊天记录不会被删除。',
     desktopBehavior: '桌面行为', showPet: '显示桌宠', showPetDesc: '在桌面显示透明置顶的工作伙伴', roaming: '自然漫游', roamingDesc: '空闲时散步、巡游并自动避开屏幕边缘', roamRange: '漫游范围', roamActivity: '活跃程度', alwaysOnTop: '保持置顶', alwaysOnTopDesc: '让桌宠显示在其他窗口上方', petSize: '桌宠大小', opacity: '透明度',
@@ -89,6 +89,14 @@ export default {
     shellPermissionOff: '完全权限已关闭。',
     shellPermissionActive: '⚠ 完全权限已开启：桌宠可以结束进程并执行 Shell 命令。',
     animation: { idle: '待机', walkRight: '右行', walkLeft: '左行', wave: '招手', jump: '跳跃', failed: '失败', waiting: '等待', working: '工作', review: '检查' }
+  },
+  petStudy: {
+    loading: '正在加载学习引擎…', title: '桌宠学习模式',
+    modeCompanion: '桌宠模式', modeCompanionDesc: '保持普通单击聊天，不轮播词条', modeStudy: '单词学习', modeStudyDesc: '气泡自动轮播；单击表示“记住了”', modeStealth: '摸鱼学习', modeStealthDesc: '低打扰轮播；单击或快捷键快速添加',
+    targetLanguage: '目标语言', interval: '轮播间隔', seconds: '秒', shortcut: '快速添加快捷键', shortcutChecking: '正在检查快捷键…', shortcutDuplicate: '已被工作空间“{name}”使用', shortcutOccupied: '快捷键已被其他程序占用', shortcutInvalid: '无效的快捷键组合', shortcutSaved: '快捷键可用并已保存', shortcutPlaceholder: '点击后按下组合键', shortcutRecording: '请按下新的快捷键组合，Esc 取消', shortcutHint: '全局生效，至少包含一个修饰键，例如 Ctrl+Alt+W',
+    statTerms: '词条', statDue: '待复习', statToday: '今日完成', statMemory: '长期记忆', addTitle: '添加与 AI 创建', termPlaceholder: '只需输入单词或短语', adding: 'AI 补全中…', addWithAi: 'AI 补全并添加', defaultTopic: '日常高频词汇', topicPlaceholder: '让 AI 创建的主题，例如：商务英语', generating: '创建中…', generate: 'AI 创建 12 条', aiHint: 'AI 使用桌宠中心已配置的模型，内容会按当前目标语言生成。', addedNotice: 'AI 已补全词条并加入智能复习队列', generatedNotice: 'AI 已创建 {count} 条 {language} 学习卡片',
+    libraryTitle: '当前词库', searchPlaceholder: '搜索 {language} 词条或中文释义', searchAria: '搜索当前语言词库', searching: '搜索中…', results: '{count} 条结果', resetColumns: '重置列宽', colTerm: '词条', colPronunciation: '音标', colMeaning: '中文释义', colState: '状态', colReview: '复习反馈', colActions: '操作', resizeColumn: '调整“{column}”列宽', tableCaption: '{language} 学习词库', meaningMissing: '待补充释义', stateNew: '新词', stateDue: '待复习', stateLearning: '学习中',
+    ratingAgainShort: '忘', ratingAgain: '忘记', ratingHardShort: '难', ratingHard: '困难', ratingGoodShort: '会', ratingGood: '记住', ratingEasyShort: '易', ratingEasy: '简单', deleteItem: '删除词条“{term}”', emptyLibrary: '还没有该语言的词条，手动添加或让 AI 创建一组。', noResults: '没有找到匹配的词条或中文释义。', pagination: '词库分页', previousPage: '上一页', nextPage: '下一页', pageStatus: '第 {page} / {pages} 页'
   },
   dashboard: {
     subtitle: '准备进入你的工作状态',

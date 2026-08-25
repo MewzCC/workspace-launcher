@@ -43,6 +43,13 @@
   /* 字体 */
   --brand-font-sans: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --brand-font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* 全应用自适应尺寸 */
+  --app-page-padding-inline: clamp(16px, 3vw, 40px);
+  --app-page-padding-block: clamp(24px, 3vw, 36px);
+  --app-section-gap: clamp(14px, 1.7vw, 22px);
+  --app-card-padding: clamp(16px, 2vw, 24px);
+  --app-control-height: clamp(38px, 4vw, 42px);
 }
 
 /* ===== 暗色主题（默认） ===== */

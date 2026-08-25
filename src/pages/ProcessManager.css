@@ -492,7 +492,7 @@
   .process-page { height: auto; min-height: calc(100vh - 104px); }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .process-page { min-height: calc(100vh - 104px); }
   .process-stats { grid-template-columns: 1fr; }
   .process-toolbar { align-items: stretch; flex-direction: column; }

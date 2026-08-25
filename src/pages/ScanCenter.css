@@ -381,7 +381,7 @@
   50% { opacity: 0.55; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1000px) {
   .scan-search {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }

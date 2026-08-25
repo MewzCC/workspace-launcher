@@ -10,6 +10,7 @@ const v = require('../ipc/validate.cjs')
 const { t } = require('../i18n.cjs')
 const interactionModule = require('./petInteractionService.cjs')
 const petStudyService = require('./petStudyService.cjs')
+const { calculateBubbleBounds } = require('./petOverlayPlacement.cjs')
 
 const SPRITE_WIDTH = 116
 const CHAT = { width: 244, height: 48 }
@@ -84,6 +85,14 @@ function clamp(id, x, y) {
   }
 }
 
+function setBoundsIfChanged(win, next) {
+  if (!win || win.isDestroyed()) return false
+  const current = win.getBounds()
+  if (current.x === next.x && current.y === next.y && current.width === next.width && current.height === next.height) return false
+  win.setBounds(next, false)
+  return true
+}
+
 class PetInstance {
   constructor(id) {
     this.id = id
@@ -94,6 +103,12 @@ class PetInstance {
     this.chatOpen = false
     this.bubbleTimer = null
     this.bubblePayload = null
+    this.bubblePlacement = null
+    this.bubbleMeasuredSize = null
+    this.petBounds = null
+    this.pendingMove = null
+    this.moveImmediate = null
+    this.dragOffset = null
     this.enforcing = false
   }
   config() {
@@ -106,6 +121,7 @@ class PetInstance {
     const size = dimensions(this.id)
     const point = clamp(this.id, x, y)
     const bounds = { ...point, width: size.width, height: size.height }
+    this.petBounds = bounds
     this.enforcing = true
     try {
       this.petWindow.setBounds(bounds, false)
@@ -114,7 +130,44 @@ class PetInstance {
       this.positionOverlays(undefined, undefined, bounds)
     } finally { this.enforcing = false }
   }
+  queueMove(x, y) {
+    this.pendingMove = { x, y }
+    if (this.moveImmediate) return
+    this.moveImmediate = setImmediate(() => {
+      this.moveImmediate = null
+      const next = this.pendingMove
+      this.pendingMove = null
+      if (next) this.setBounds(next.x, next.y)
+    })
+  }
+  flushMove() {
+    if (this.moveImmediate) clearImmediate(this.moveImmediate)
+    this.moveImmediate = null
+    const next = this.pendingMove
+    this.pendingMove = null
+    if (next) this.setBounds(next.x, next.y)
+  }
+  startDrag() {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    this.flushMove()
+    const cursor = screen.getCursorScreenPoint()
+    const pet = this.petBounds || this.petWindow.getBounds()
+    this.dragOffset = { x: cursor.x - pet.x, y: cursor.y - pet.y }
+  }
+  moveDrag() {
+    if (!this.dragOffset) return
+    const cursor = screen.getCursorScreenPoint()
+    this.queueMove(cursor.x - this.dragOffset.x, cursor.y - this.dragOffset.y)
+  }
+  endDrag() {
+    if (!this.dragOffset) return
+    this.moveDrag()
+    this.flushMove()
+    this.dragOffset = null
+    this.savePosition()
+  }
   savePosition() {
+    this.flushMove()
     if (!this.petWindow || this.petWindow.isDestroyed()) return
     const [x, y] = this.petWindow.getPosition()
     petProfileService.update(this.id, { position: { x, y } })
@@ -130,21 +183,32 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.petWindow = win
+    this.petBounds = win.getBounds()
     win.setAlwaysOnTop(p.alwaysOnTop, 'screen-saver')
     win.setOpacity(p.opacity)
     win.setIgnoreMouseEvents(true, { forward: true })
     win.on('closed', () => { if (this.petWindow === win) this.petWindow = null })
     win.on('resize', () => { if (!this.enforcing) this.setBounds(win.getBounds().x, win.getBounds().y) })
     let timer
-    win.on('move', () => { this.positionOverlays(); clearTimeout(timer); timer = setTimeout(() => this.savePosition(), 700) })
+    // 所有桌宠移动都经过 setBounds，并已使用目标坐标同步浮层。
+    // 此处不能再读取 move 事件发生时的窗口坐标去移动浮层：Windows 会延迟或合并
+    // 高频 move 事件，旧事件会把气泡拉回历史位置，造成拖拽结束后仍持续漂移。
+    win.on('move', () => { clearTimeout(timer); timer = setTimeout(() => this.savePosition(), 700) })
     load(win, 'pet', this.id)
     return win
   }
   show() { const win = this.createPet(); win.showInactive(); return win }
   destroy() {
     clearTimeout(this.bubbleTimer)
+    if (this.moveImmediate) clearImmediate(this.moveImmediate)
+    this.moveImmediate = null
+    this.pendingMove = null
+    this.dragOffset = null
     for (const win of [this.chatWindow, this.bubbleWindow, this.quickAddWindow, this.petWindow]) if (win && !win.isDestroyed()) win.destroy()
     this.chatWindow = this.bubbleWindow = this.quickAddWindow = this.petWindow = null
+    this.bubblePlacement = null
+    this.bubbleMeasuredSize = null
+    this.petBounds = null
     this.chatOpen = false
   }
   createChat() {
@@ -172,14 +236,24 @@ class PetInstance {
   createBubble() {
     if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) return this.bubbleWindow
     const win = new BrowserWindow({
-      width: 220, height: 64, transparent: true, backgroundColor: '#00000000', frame: false, show: false, focusable: false, resizable: false,
+      // 宽度足够完成最终排版，高度保持最小；内容可自然溢出并回报真实高度。
+      // 即使尺寸回报延迟，也不会留下大块不断增长的透明画布。
+      width: 360, height: 64, transparent: true, backgroundColor: '#00000000', frame: false, show: false, focusable: false, resizable: false,
       alwaysOnTop: profile(this.id).alwaysOnTop, skipTaskbar: true, hasShadow: false,
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.bubbleWindow = win
     win.setIgnoreMouseEvents(true)
-    win.webContents.on('did-finish-load', () => { if (this.bubblePayload) win.webContents.send('pet:bubbleContent', this.bubblePayload) })
-    win.on('closed', () => { if (this.bubbleWindow === win) this.bubbleWindow = null })
+    win.webContents.on('did-finish-load', () => {
+      if (this.bubblePayload) win.webContents.send('pet:bubbleContent', this.bubblePayload)
+      if (this.bubblePlacement) win.webContents.send('pet:bubblePlacement', this.bubblePlacement)
+    })
+    win.on('closed', () => {
+      if (this.bubbleWindow === win) {
+        this.bubbleWindow = null
+        this.bubblePlacement = null
+      }
+    })
     load(win, 'pet-bubble', this.id)
     return win
   }
@@ -203,24 +277,25 @@ class PetInstance {
   }
   positionOverlays(width, height, petBounds) {
     if (!this.petWindow || this.petWindow.isDestroyed()) return
-    const pet = petBounds || this.petWindow.getBounds()
+    // 目标 bounds 是桌宠移动的唯一可信位置。Windows 的 getBounds() 在连续
+    // setBounds 后可能短暂返回旧坐标，尺寸回报不能使用它重新锚定气泡。
+    const pet = petBounds || this.petBounds || this.petWindow.getBounds()
     const { workArea } = screen.getDisplayNearestPoint({ x: pet.x, y: pet.y })
     if (this.chatWindow && !this.chatWindow.isDestroyed()) {
       const x = Math.min(workArea.x + workArea.width - CHAT.width, Math.max(workArea.x, Math.round(pet.x + pet.width / 2 - CHAT.width / 2)))
       const y = Math.min(workArea.y + workArea.height - CHAT.height, pet.y + pet.height + 6)
-      this.chatWindow.setBounds({ x, y, width: CHAT.width, height: CHAT.height }, false)
+      setBoundsIfChanged(this.chatWindow, { x, y, width: CHAT.width, height: CHAT.height })
     }
     if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
       const w = width || this.bubbleWindow.getBounds().width
       const h = height || this.bubbleWindow.getBounds().height
-      let x = Math.round(pet.x + pet.width / 2 - w / 2)
-      let y = pet.y - h - 6
-      let placement = 'top'
-      if (y < workArea.y) { y = pet.y + pet.height + 6; placement = 'bottom' }
-      x = Math.min(workArea.x + workArea.width - w, Math.max(workArea.x, x))
-      y = Math.min(workArea.y + workArea.height - h, Math.max(workArea.y, y))
-      this.bubbleWindow.setBounds({ x, y, width: w, height: h }, false)
-      this.bubbleWindow.webContents.send('pet:bubblePlacement', placement)
+      const target = calculateBubbleBounds(pet, { width: w, height: h }, workArea)
+      setBoundsIfChanged(this.bubbleWindow, { x: target.x, y: target.y, width: w, height: h })
+      const placement = target.placement
+      if (this.bubblePlacement !== placement) {
+        this.bubblePlacement = placement
+        this.bubbleWindow.webContents.send('pet:bubblePlacement', placement)
+      }
     }
     if (this.quickAddWindow && !this.quickAddWindow.isDestroyed()) {
       const size = this.quickAddWindow.getBounds()
@@ -229,18 +304,38 @@ class PetInstance {
       if (y < workArea.y) y = pet.y + pet.height + 10
       x = Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, x))
       y = Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, y))
-      this.quickAddWindow.setBounds({ x, y, width: size.width, height: size.height }, false)
+      setBoundsIfChanged(this.quickAddWindow, { x, y, width: size.width, height: size.height })
     }
+  }
+  resizeBubble(size = {}) {
+    if (!this.bubbleWindow || this.bubbleWindow.isDestroyed()) return
+    let width = Math.min(360, Math.max(120, Math.ceil(size.width || 220)))
+    let height = Math.min(420, Math.max(42, Math.ceil(size.height || 64)))
+    // 同一段气泡内容只允许首次测量决定尺寸；后续布局/字体回调可以收缩，
+    // 但绝不能继续放大透明窗口，从主进程侧彻底阻断尺寸正反馈。
+    if (this.bubbleMeasuredSize) {
+      width = Math.min(width, this.bubbleMeasuredSize.width)
+      height = Math.min(height, this.bubbleMeasuredSize.height)
+    }
+    this.bubbleMeasuredSize = { width, height }
+    this.positionOverlays(width, height)
+    this.bubbleWindow.showInactive()
   }
   bubble(text, minimum) {
     const content = String(text || '').trim().slice(0, 1200)
     if (!content || !activeIds().includes(this.id)) return { success: false }
     const duration = calculatePetBubbleDuration(content, minimum)
     this.bubblePayload = { text: content, duration, instanceId: this.id }
+    this.bubbleMeasuredSize = null
     const win = this.createBubble()
     if (!win.webContents.isLoading()) win.webContents.send('pet:bubbleContent', this.bubblePayload)
     clearTimeout(this.bubbleTimer)
-    this.bubbleTimer = setTimeout(() => { if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) this.bubbleWindow.destroy(); this.bubbleWindow = null }, duration)
+    this.bubbleTimer = setTimeout(() => {
+      if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) this.bubbleWindow.destroy()
+      this.bubbleWindow = null
+      this.bubblePlacement = null
+      this.bubbleMeasuredSize = null
+    }, duration)
     return { success: true, duration }
   }
   action(action = {}) {
@@ -322,20 +417,25 @@ const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(
 const settingsSchema = v.obj({ scale: v.optional(v.num()), opacity: v.optional(v.num()), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
 const studyEntrySchema = v.obj({ language: v.optional(v.str({ max: 24 })), term: v.str({ min: 1, max: 120 }), meaning: v.optional(v.str({ max: 500 })), pronunciation: v.optional(v.str({ max: 120 })), example: v.optional(v.str({ max: 500 })), exampleTranslation: v.optional(v.str({ max: 500 })) })
 const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
+const studySearchSchema = v.obj({ language: v.str({ min: 1, max: 24 }), query: v.optional(v.str({ max: 200 })), limit: v.optional(v.num({ integer: true, min: 1, max: 100 })), offset: v.optional(v.num({ integer: true, min: 0, max: 100000 })) })
 const petRoutes = [
-  { channel: 'pet:move', kind: 'on', schema: [v.or(idSchema, positionSchema), v.optional(positionSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const p = old ? first : second; instance(old ? undefined : first)?.setBounds(p.x, p.y) } },
+  { channel: 'pet:move', kind: 'on', schema: [v.or(idSchema, positionSchema), v.optional(positionSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const p = old ? first : second; instance(old ? undefined : first)?.queueMove(p.x, p.y) } },
+  { channel: 'pet:dragStart', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.startDrag() },
+  { channel: 'pet:dragMove', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.moveDrag() },
+  { channel: 'pet:dragEnd', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.endDrag() },
   { channel: 'pet:setMousePassthrough', kind: 'on', schema: [idSchema, v.bool()], handler: (_e, id, value) => instance(id)?.petWindow?.setIgnoreMouseEvents(Boolean(value), value ? { forward: true } : undefined) },
   { channel: 'pet:savePosition', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.savePosition() },
   { channel: 'pet:performAction', kind: 'on', schema: [v.or(idSchema, actionSchema), v.optional(actionSchema)], handler: (_e, first, second) => instance(typeof first === 'object' ? undefined : first)?.action(typeof first === 'object' ? first : second) },
   { channel: 'pet:setChatOpen', schema: [idSchema, v.bool()], handler: (_e, id, open) => instance(id).setChat(open) },
   { channel: 'pet:showBubble', schema: [idSchema, v.optional(v.or(v.str({ max: 1200 }), v.num())), v.optional(v.num())], handler: (_e, first, second, third) => { const legacy = typeof second === 'number'; return instance(legacy ? undefined : first).bubble(legacy ? first : second, legacy ? second : third) } },
-  { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); const size = old ? first : second; if (!item?.bubbleWindow) return; const w = Math.min(360, Math.max(120, Math.ceil(size.width || 220))); const h = Math.min(420, Math.max(42, Math.ceil(size.height || 64))); item.positionOverlays(w, h); item.bubbleWindow.showInactive() } },
+  { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); item?.resizeBubble(old ? first : second) } },
   { channel: 'pet:openMain', schema: [], handler: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.(); return { success: true } } },
   { channel: 'pet:showMenu', schema: [idSchema], handler: (_e, id) => { popupMenu(id); return { success: true } }, },
   { channel: 'pet:home', schema: [idSchema], handler: (_e, id) => { const item = instance(id); const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }); return { success: true } } },
   { channel: 'pet:getConfig', schema: [idSchema], handler: (_e, id) => instance(id).config() },
   { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: workArea.x + workArea.width - size.width, minY: workArea.y, maxY: workArea.y + workArea.height - size.height } } },
   { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
+  { channel: 'pet:refreshModels', schema: [], handler: () => { petModelService.refresh(); syncInstances(); return listInstances() } },
   { channel: 'pet:listInstances', schema: [], handler: () => listInstances() },
   { channel: 'pet:setInstanceEnabled', schema: [v.str({ max: 200 }), v.bool()], handler: (_e, id, enabled) => setInstanceEnabled(id, enabled) },
   { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
@@ -349,6 +449,7 @@ const petRoutes = [
   { channel: 'pet:study:add', schema: [idSchema, studyEntrySchema], handler: (_e, id, entry) => petStudyService.add(id, entry) },
   { channel: 'pet:study:addWithAI', schema: [idSchema, v.obj({ language: v.optional(v.str({ max: 40 })), term: v.str({ min: 1, max: 120 }) })], handler: (_e, id, request) => petStudyService.addWithAI(id, request) },
   { channel: 'pet:study:list', schema: [idSchema, v.optional(v.str({ max: 24 })), v.optional(v.num({ integer: true, min: 1, max: 1000 }))], handler: (_e, id, language, limit) => petStudyService.list(id, language, limit) },
+  { channel: 'pet:study:search', schema: [idSchema, studySearchSchema], handler: (_e, id, options) => petStudyService.search(id, options) },
   { channel: 'pet:study:review', schema: [idSchema, v.optional(v.num({ integer: true, min: 1 })), v.num({ integer: true, min: 1, max: 4 })], handler: (_e, id, itemId, rating) => petStudyService.review(id, itemId, rating) },
   { channel: 'pet:study:remove', schema: [idSchema, v.num({ integer: true, min: 1 })], handler: (_e, id, itemId) => petStudyService.remove(id, itemId) },
   { channel: 'pet:study:generate', schema: [idSchema, v.obj({ language: v.optional(v.str({ max: 40 })), topic: v.optional(v.str({ max: 120 })), count: v.optional(v.num({ integer: true, min: 3, max: 30 })) })], handler: (_e, id, request) => petStudyService.generate(id, request) },

@@ -223,7 +223,7 @@ function SoftwareCard({ item, testStatus, onEdit, onDelete, onTest }) {
     status === 'fail' ? <X size={14} /> : <Play size={14} />
   const testText =
     status === 'testing' ? t('common.starting') :
-    status === 'success' ? t('common.started') :
+    status === 'success' ? t('common.success') :
     status === 'fail' ? t('common.failed') : t('software.test')
   const testClass =
     status === 'success' ? 'btn-test-success' :
@@ -276,7 +276,7 @@ function SoftwareRow({ item, testStatus, onEdit, onDelete, onTest }) {
     status === 'fail' ? <X size={14} /> : <Play size={14} />
   const testText =
     status === 'testing' ? t('common.starting') :
-    status === 'success' ? t('common.started') :
+    status === 'success' ? t('common.success') :
     status === 'fail' ? t('common.failed') : t('software.test')
   const testClass =
     status === 'success' ? 'btn-test-success' :

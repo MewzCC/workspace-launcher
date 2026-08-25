@@ -186,6 +186,10 @@ function list(id, language, limit) {
   return petStudyDao.list(profileId(id), language, limit)
 }
 
+function search(id, options) {
+  return petStudyDao.search(profileId(id), options)
+}
+
 function remove(id, itemId) {
   const result = petStudyDao.remove(itemId, profileId(id))
   emit(id)
@@ -282,6 +286,7 @@ module.exports = {
   review,
   add,
   list,
+  search,
   remove,
   generate,
   addWithAI,

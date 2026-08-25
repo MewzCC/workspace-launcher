@@ -67,7 +67,7 @@ const softwareRoutes = [
       const software = softwareDao.get(softwareId)
       if (!software) return { success: false, message: t('errors.softwareNotExist') }
       try {
-        await processManager.launchExe(software.path, software.args)
+        await processManager.validateExeLaunch(software.path, software.args)
         return { success: true, message: t('engine.launchSuccess', { name: software.name }) }
       } catch (err) {
         return { success: false, message: err.message }
@@ -103,7 +103,7 @@ const softwareRoutes = [
     channel: 'software:createValidated',
     schema: [softwareDataSchema],
     handler: async (_e, data) => {
-      const launch = await processManager.launchExe(data.path, data.args)
+      const launch = await processManager.validateExeLaunch(data.path, data.args)
       const software = softwareDao.create(data)
       return { success: true, software, launch }
     }
@@ -112,7 +112,7 @@ const softwareRoutes = [
     channel: 'software:updateValidated',
     schema: [id(), softwareDataSchema],
     handler: async (_e, softwareId, data) => {
-      const launch = await processManager.launchExe(data.path, data.args)
+      const launch = await processManager.validateExeLaunch(data.path, data.args)
       const software = softwareDao.update(softwareId, data)
       return { success: true, software, launch }
     }
@@ -128,7 +128,7 @@ const softwareRoutes = [
       const failed = []
       for (const item of items) {
         try {
-          await processManager.launchExe(item.path, item.args)
+          await processManager.validateExeLaunch(item.path, item.args)
           created.push(softwareDao.create(item))
         } catch (err) {
           failed.push({ name: item.name || item.path, path: item.path, error: err.message })

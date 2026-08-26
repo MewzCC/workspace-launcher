@@ -74,14 +74,18 @@ function load(win, name, id) {
 function home(id, index = 0) {
   const { workArea } = screen.getPrimaryDisplay()
   const size = dimensions(id)
-  return { x: workArea.x + workArea.width - size.width - 28 - index * (size.width + 16), y: workArea.y + workArea.height - size.height - 8 }
+  const x = workArea.x + workArea.width - size.width - 28 - index * (size.width + 16)
+  const y = workArea.y + workArea.height - size.height - 8
+  return { x: Math.max(workArea.x, x), y: Math.max(workArea.y, y) }
 }
 function clamp(id, x, y) {
   const size = dimensions(id)
   const { workArea } = screen.getDisplayNearestPoint({ x: Number(x), y: Number(y) })
+  const maxX = Math.max(workArea.x, workArea.x + workArea.width - size.width)
+  const maxY = Math.max(workArea.y, workArea.y + workArea.height - size.height)
   return {
-    x: Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, Math.round(x))),
-    y: Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, Math.round(y)))
+    x: Math.min(maxX, Math.max(workArea.x, Math.round(x))),
+    y: Math.min(maxY, Math.max(workArea.y, Math.round(y)))
   }
 }
 
@@ -198,6 +202,11 @@ class PetInstance {
     return win
   }
   show() { const win = this.createPet(); win.showInactive(); return win }
+  applyOpacity(opacity = profile(this.id).opacity) {
+    for (const win of [this.petWindow, this.chatWindow, this.bubbleWindow, this.quickAddWindow]) {
+      if (win && !win.isDestroyed()) win.setOpacity(opacity)
+    }
+  }
   destroy() {
     clearTimeout(this.bubbleTimer)
     if (this.moveImmediate) clearImmediate(this.moveImmediate)
@@ -219,6 +228,7 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.chatWindow = win
+    win.setOpacity(profile(this.id).opacity)
     win.on('closed', () => { if (this.chatWindow === win) this.chatWindow = null })
     win.once('ready-to-show', () => { if (this.chatOpen) { this.positionOverlays(); win.show(); win.focus() } })
     load(win, 'pet-chat', this.id)
@@ -243,6 +253,7 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.bubbleWindow = win
+    win.setOpacity(profile(this.id).opacity)
     win.setIgnoreMouseEvents(true)
     win.webContents.on('did-finish-load', () => {
       if (this.bubblePayload) win.webContents.send('pet:bubbleContent', this.bubblePayload)
@@ -265,6 +276,7 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.quickAddWindow = win
+    win.setOpacity(profile(this.id).opacity)
     win.on('closed', () => { if (this.quickAddWindow === win) this.quickAddWindow = null })
     win.once('ready-to-show', () => { this.positionOverlays(); win.show(); win.focus() })
     load(win, 'pet-study-add', this.id)
@@ -358,7 +370,7 @@ class PetInstance {
     const p = profile(this.id)
     const b = win.getBounds()
     this.setBounds(b.x, b.y)
-    win.setOpacity(p.opacity)
+    this.applyOpacity(p.opacity)
     win.setAlwaysOnTop(p.alwaysOnTop, 'screen-saver')
     win.webContents.send('pet:configChanged', this.config())
   }
@@ -389,6 +401,20 @@ function setInstanceEnabled(id, enabled) {
   syncInstances()
   interactionService?.reschedule?.()
   petStudyService.reschedule(key)
+  petStudyService.syncShortcut()
+  return listInstances()
+}
+function setGlobalEnabled(enabled) {
+  const value = Boolean(enabled)
+  settingsDao.set('petEnabled', value)
+  if (value && activeIds().length === 0) {
+    const available = petModelService.list()
+    const preferred = selectedId()
+    const fallback = available.find((item) => item.id === preferred)?.id || available[0]?.id
+    if (fallback) settingsDao.set('petInstanceIds', [fallback])
+  }
+  syncInstances()
+  interactionService?.reschedule?.()
   petStudyService.syncShortcut()
   return listInstances()
 }
@@ -427,7 +453,7 @@ const idSchema = v.optional(v.str({ max: 200 }))
 const positionSchema = v.obj({ x: v.num(), y: v.num() })
 const actionSchema = v.obj({ state: v.optional(v.oneOf(PET_ACTIONS)), bubble: v.optional(v.str({ max: 1200 })), duration: v.optional(v.num()) })
 const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(v.num()) })
-const settingsSchema = v.obj({ scale: v.optional(v.num()), opacity: v.optional(v.num()), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
+const settingsSchema = v.obj({ scale: v.optional(v.num({ min: 0.65, max: 5 })), opacity: v.optional(v.num({ min: 0.55, max: 1 })), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
 const studyEntrySchema = v.obj({ language: v.optional(v.str({ max: 24 })), term: v.str({ min: 1, max: 120 }), meaning: v.optional(v.str({ max: 500 })), pronunciation: v.optional(v.str({ max: 120 })), example: v.optional(v.str({ max: 500 })), exampleTranslation: v.optional(v.str({ max: 500 })) })
 const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), modeSwitchShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
 const studySearchSchema = v.obj({ language: v.str({ min: 1, max: 24 }), query: v.optional(v.str({ max: 200 })), limit: v.optional(v.num({ integer: true, min: 1, max: 100 })), offset: v.optional(v.num({ integer: true, min: 0, max: 100000 })) })
@@ -446,7 +472,7 @@ const petRoutes = [
   { channel: 'pet:showMenu', schema: [idSchema], handler: (_e, id) => { popupMenu(id); return { success: true } }, },
   { channel: 'pet:home', schema: [idSchema], handler: (_e, id) => { const item = instance(id); const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }); return { success: true } } },
   { channel: 'pet:getConfig', schema: [idSchema], handler: (_e, id) => instance(id).config() },
-  { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: workArea.x + workArea.width - size.width, minY: workArea.y, maxY: workArea.y + workArea.height - size.height } } },
+  { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: Math.max(workArea.x, workArea.x + workArea.width - size.width), minY: workArea.y, maxY: Math.max(workArea.y, workArea.y + workArea.height - size.height) } } },
   { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
   { channel: 'pet:refreshModels', schema: [], handler: () => { petModelService.refresh(); syncInstances(); return listInstances() } },
   { channel: 'pet:listInstances', schema: [], handler: () => listInstances() },
@@ -510,4 +536,4 @@ function showPetBubble(text, duration, id) { return instance(id).bubble(text, du
 function getRuntimeConfig(id) { return instance(id).config() }
 function isAnyChatOpen() { return [...instances.values()].some((item) => item.chatOpen) }
 
-module.exports = { init, refresh, showPetWindow, hidePetWindow, destroyPetWindow, getRuntimeConfig, sendPetAction, showPetBubble, listInstances, setInstanceEnabled, isAnyChatOpen, petRoutes }
+module.exports = { init, refresh, showPetWindow, hidePetWindow, destroyPetWindow, getRuntimeConfig, sendPetAction, showPetBubble, listInstances, setInstanceEnabled, setGlobalEnabled, isAnyChatOpen, petRoutes }

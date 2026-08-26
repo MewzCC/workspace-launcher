@@ -42,7 +42,7 @@ function normalize(profile = {}, defaults = {}) {
     memoryMode: ['off', 'manual', 'auto'].includes(profile.memoryMode)
       ? profile.memoryMode
       : (['off', 'manual', 'auto'].includes(settingsDao.get('aiMemoryMode')) ? settingsDao.get('aiMemoryMode') : 'manual'),
-    scale: clamp(profile.scale, 0.65, 1.35, DEFAULT_BEHAVIOR.scale),
+    scale: clamp(profile.scale, 0.65, 5, DEFAULT_BEHAVIOR.scale),
     opacity: clamp(profile.opacity, 0.55, 1, DEFAULT_BEHAVIOR.opacity),
     roaming: typeof profile.roaming === 'boolean' ? profile.roaming : DEFAULT_BEHAVIOR.roaming,
     roamRange: clamp(profile.roamRange, 0.2, 1, DEFAULT_BEHAVIOR.roamRange),

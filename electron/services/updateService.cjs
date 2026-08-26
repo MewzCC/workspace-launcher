@@ -19,6 +19,8 @@ let startupTimer = null
 let intervalTimer = null
 let releasesCache = null
 let installing = false
+let checkingManually = false
+const statusListeners = new Set()
 
 const status = {
   state: 'idle',
@@ -115,7 +117,16 @@ function notifyRenderer() {
 function setStatus(patch) {
   Object.assign(status, patch)
   notifyRenderer()
+  for (const listener of statusListeners) {
+    try { listener(getStatus()) } catch (_) {}
+  }
   return getStatus()
+}
+
+function subscribeStatus(listener) {
+  if (typeof listener !== 'function') return () => {}
+  statusListeners.add(listener)
+  return () => statusListeners.delete(listener)
 }
 
 function normalizeReleaseNotes(notes) {
@@ -168,7 +179,7 @@ function configure() {
     const version = info?.version || ''
     // 用户选择跳过该版本时不再提示/下载，直到出现更高版本。
     const skipped = settingsDao.get('skippedVersion')
-    if (skipped && version && String(skipped) === String(version)) {
+    if (!checkingManually && skipped && version && String(skipped) === String(version)) {
       setStatus({
         state: 'skipped',
         version,
@@ -177,7 +188,8 @@ function configure() {
         releaseNotes: normalizeReleaseNotes(info?.releaseNotes),
         progress: 0,
         error: '',
-        checkedAt: Date.now()
+        checkedAt: Date.now(),
+        manual: checkingManually
       })
       return
     }
@@ -189,7 +201,8 @@ function configure() {
       releaseNotes: normalizeReleaseNotes(info?.releaseNotes),
       progress: 0,
       error: '',
-      checkedAt: Date.now()
+      checkedAt: Date.now(),
+      manual: checkingManually
     })
     // 后台静默更新：窗口隐藏在托盘时按更新方式自动下载，不打扰用户。
     const updateMode = settingsDao.get('updateMode')
@@ -207,7 +220,8 @@ function configure() {
       releaseNotes: '',
       progress: 0,
       error: '',
-      checkedAt: Date.now()
+      checkedAt: Date.now(),
+      manual: checkingManually
     })
   })
   autoUpdater.on('download-progress', (progress) => {
@@ -230,7 +244,8 @@ function configure() {
       releaseNotes: normalizeReleaseNotes(info?.releaseNotes) || status.releaseNotes,
       progress: 100,
       error: '',
-      checkedAt: Date.now()
+      checkedAt: Date.now(),
+      manual: checkingManually
     }
     setStatus(downloaded)
     // 记录本次更新内容，供安装重启后弹窗展示。
@@ -269,26 +284,61 @@ function configure() {
   })
 }
 
-async function checkForUpdates() {
+function waitForCheckCompletion(timeout = 30000) {
+  if (!checking && status.state !== 'checking') return Promise.resolve(getStatus())
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(result)
+    }
+    const unsubscribe = subscribeStatus((next) => {
+      if (next.state !== 'checking') finish(next)
+    })
+    const timer = setTimeout(() => finish({ ...getStatus(), state: 'error', error: 'timeout' }), timeout)
+  })
+}
+
+async function checkForUpdates(options = {}) {
   if (checking) return getStatus()
 
   const unsupported = getUnsupportedReason()
   if (unsupported) return setStatus({ state: 'unsupported', error: unsupported })
 
   configure()
+  checkingManually = Boolean(options.manual)
   checking = true
-  setStatus({ state: 'checking', error: '' })
+  setStatus({ state: 'checking', error: '', manual: checkingManually })
   try {
     await autoUpdater.checkForUpdates()
+    const result = await waitForCheckCompletion()
+    if (result.state === 'error' && result.error === 'timeout') {
+      checking = false
+      const timedOut = setStatus({
+        state: 'error',
+        error: t('tray.updateTimeout'),
+        checkedAt: Date.now(),
+        manual: checkingManually
+      })
+      checkingManually = false
+      return timedOut
+    }
+    checkingManually = false
+    return result
   } catch (error) {
     checking = false
+    const manual = checkingManually
+    checkingManually = false
     return setStatus({
       state: 'error',
       error: error?.message || String(error),
-      checkedAt: Date.now()
+      checkedAt: Date.now(),
+      manual
     })
   }
-  return getStatus()
 }
 
 async function downloadUpdate() {
@@ -400,5 +450,6 @@ module.exports = {
   skipVersion,
   getLastUpdate,
   clearLastUpdate,
+  subscribeStatus,
   getReleaseHistory
 }

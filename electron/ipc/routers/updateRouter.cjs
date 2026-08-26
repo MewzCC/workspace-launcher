@@ -8,7 +8,7 @@ const releaseDownloadSchema = str({ max: 2048 })
 
 const updateRoutes = [
   { channel: 'update:status', schema: [], handler: () => updateService.getStatus() },
-  { channel: 'update:check', schema: [], handler: () => updateService.checkForUpdates() },
+  { channel: 'update:check', schema: [], handler: () => updateService.checkForUpdates({ manual: true }) },
   { channel: 'update:download', schema: [], handler: () => updateService.downloadUpdate() },
   { channel: 'update:install', schema: [], handler: () => updateService.installUpdate() },
   { channel: 'update:skip', schema: [], handler: () => updateService.skipVersion() },

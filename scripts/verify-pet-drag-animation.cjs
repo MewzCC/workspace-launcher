@@ -20,6 +20,14 @@ app.whenReady().then(() => {
   assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
   assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
 
+  const profileService = require('../electron/services/petProfileService.cjs')
+  const maximumScale = profileService.update('blue-whale-maid', { scale: 9, opacity: 0.2 })
+  assert.strictEqual(maximumScale.scale, 5)
+  assert.strictEqual(maximumScale.opacity, 0.55)
+  const customScale = profileService.update('blue-whale-maid', { scale: 3.75, opacity: 0.8 })
+  assert.strictEqual(customScale.scale, 3.75)
+  assert.strictEqual(customScale.opacity, 0.8)
+
   const { calculateBubbleBounds } = require('../electron/services/petOverlayPlacement.cjs')
   const area = { x: 0, y: 0, width: 1707, height: 1067 }
   const bubble = { width: 348, height: 150 }

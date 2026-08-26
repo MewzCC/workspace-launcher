@@ -13,6 +13,8 @@ const { t } = require('./i18n.cjs')
 let mainWindow = null
 let isQuitting = false
 let trayHintShown = false
+let unsubscribeTrayUpdate = null
+let mainWindowHiddenToTray = true
 
 crashLogger.initialize()
 
@@ -27,17 +29,34 @@ function showMainWindow() {
     createWindow({ startHidden: false })
     return
   }
+  mainWindowHiddenToTray = false
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
   mainWindow.focus()
 }
 
+function hideMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindowHiddenToTray = true
+  mainWindow.hide()
+}
+
 function toggleMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-    mainWindow.hide()
+    hideMainWindow()
   } else {
     showMainWindow()
   }
+}
+
+function openMainView(view) {
+  showMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const send = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:navigate', view)
+  }
+  if (mainWindow.webContents.isLoading()) mainWindow.webContents.once('did-finish-load', send)
+  else send()
 }
 
 function quitApp() {
@@ -61,16 +80,21 @@ function createWindow({ startHidden = false } = {}) {
     }
   })
   mainWindow = win
+  mainWindowHiddenToTray = Boolean(startHidden)
   crashLogger.attachWindow(win)
 
   win.once('ready-to-show', () => {
-    if (!startHidden) win.show()
+    if (!startHidden) {
+      mainWindowHiddenToTray = false
+      win.show()
+    }
   })
 
   win.on('close', (event) => {
     const closeToTray = require('./db/index.cjs').settingsDao.get('closeToTray')
     if (!isQuitting && closeToTray && trayService.hasTray()) {
       event.preventDefault()
+      mainWindowHiddenToTray = true
       win.hide()
       if (!trayHintShown) {
         trayHintShown = true
@@ -80,8 +104,15 @@ function createWindow({ startHidden = false } = {}) {
   })
 
   win.on('closed', () => {
-    if (mainWindow === win) mainWindow = null
+    if (mainWindow === win) {
+      mainWindow = null
+      mainWindowHiddenToTray = true
+    }
   })
+  win.on('show', () => trayService.refreshTrayMenu())
+  win.on('hide', () => trayService.refreshTrayMenu())
+  win.on('minimize', () => setImmediate(() => trayService.refreshTrayMenu()))
+  win.on('restore', () => setImmediate(() => trayService.refreshTrayMenu()))
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -113,9 +144,16 @@ if (!gotSingleInstanceLock) {
     createWindow({ startHidden })
     trayService.createTray({
       showWindow: showMainWindow,
+      hideWindow: hideMainWindow,
       toggleWindow: toggleMainWindow,
-      quitApp
+      quitApp,
+      isWindowShown: () => Boolean(mainWindow && !mainWindow.isDestroyed() && !mainWindowHiddenToTray),
+      openView: openMainView,
+      checkForUpdates: () => updateService.checkForUpdates({ manual: true }),
+      getUpdateStatus: () => updateService.getStatus(),
+      setPetEnabled: (enabled) => petService.setGlobalEnabled(enabled)
     })
+    unsubscribeTrayUpdate = updateService.subscribeStatus(() => trayService.refreshTrayMenu())
     shortcutService.init({ showWindow: showMainWindow })
     shortcutService.syncShortcuts()
     updateService.start()
@@ -137,6 +175,8 @@ app.on('before-quit', () => {
 })
 
 app.on('will-quit', () => {
+  unsubscribeTrayUpdate?.()
+  unsubscribeTrayUpdate = null
   trayService.destroyTray()
   shortcutService.unregisterAll()
   updateService.stop()

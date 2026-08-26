@@ -1,4 +1,4 @@
-const { app, Menu, Tray, nativeImage } = require('electron')
+const { app, dialog, Menu, Tray, nativeImage } = require('electron')
 const path = require('path')
 const { workspaceDao } = require('../db/index.cjs')
 const workspaceEngine = require('./workspaceEngine.cjs')
@@ -10,6 +10,7 @@ const TRAY_ICON_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0
 let tray = null
 let callbacks = null
 const launching = new Set()
+let checkingUpdate = false
 
 function notify(title, content, iconType = 'info') {
   if (!tray || tray.isDestroyed()) return
@@ -35,10 +36,68 @@ async function launchWorkspaceFromTray(workspace) {
   }
 }
 
+async function checkUpdatesFromTray() {
+  if (checkingUpdate || !callbacks?.checkForUpdates) return
+  checkingUpdate = true
+  notify(t('tray.checkingUpdateTitle'), t('tray.checkingUpdateBody'))
+  refreshTrayMenu()
+  try {
+    const result = await callbacks.checkForUpdates()
+    if (result?.state === 'up-to-date') {
+      await dialog.showMessageBox({
+        type: 'info',
+        title: t('tray.updateUpToDateTitle'),
+        message: t('tray.updateUpToDateBody', { version: result.currentVersion || app.getVersion() }),
+        buttons: [t('tray.confirm')],
+        defaultId: 0,
+        noLink: true
+      })
+    } else if (result?.state === 'available') {
+      const choice = await dialog.showMessageBox({
+        type: 'info',
+        title: t('tray.updateAvailableTitle'),
+        message: t('tray.updateAvailableBody', { version: result.version || '' }),
+        buttons: [t('tray.viewUpdateAction'), t('tray.later')],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true
+      })
+      if (choice.response === 0) callbacks.openView?.('settings')
+    } else if (['error', 'unsupported'].includes(result?.state)) {
+      await dialog.showMessageBox({
+        type: 'error',
+        title: t('tray.updateFailedTitle'),
+        message: t('tray.updateFailedBody'),
+        detail: result.error || '',
+        buttons: [t('tray.confirm')],
+        defaultId: 0,
+        noLink: true
+      })
+    } else {
+      callbacks.openView?.('settings')
+    }
+  } catch (error) {
+    await dialog.showMessageBox({
+      type: 'error',
+      title: t('tray.updateFailedTitle'),
+      message: t('tray.updateFailedBody'),
+      detail: error.message || '',
+      buttons: [t('tray.confirm')],
+      defaultId: 0,
+      noLink: true
+    })
+  } finally {
+    checkingUpdate = false
+    refreshTrayMenu()
+  }
+}
+
 function refreshTrayMenu() {
   if (!tray || tray.isDestroyed()) return
   const workspaces = workspaceDao.list()
   const prefs = systemPreferences.getPreferences()
+  const updateStatus = callbacks?.getUpdateStatus?.() || { state: 'idle' }
+  const windowShown = Boolean(callbacks?.isWindowShown?.())
   const workspaceItems = workspaces.length
     ? workspaces.map((workspace) => ({
         label: `${workspace.icon || '🚀'} ${workspace.name}${launching.has(workspace.id) ? t('tray.launchingSuffix') : ''}`,
@@ -47,10 +106,39 @@ function refreshTrayMenu() {
       }))
     : [{ label: t('tray.noWorkspace'), enabled: false }]
 
+  const updateItem = updateStatus.state === 'downloaded'
+    ? { label: t('tray.updateReady', { version: updateStatus.version || '' }), click: () => callbacks.openView?.('settings') }
+    : ['available', 'downloading'].includes(updateStatus.state)
+      ? { label: t('tray.viewUpdate', { version: updateStatus.version || '' }), click: () => callbacks.openView?.('settings') }
+      : { label: checkingUpdate || updateStatus.state === 'checking' ? t('tray.checkingUpdate') : t('tray.checkUpdate'), enabled: !checkingUpdate && updateStatus.state !== 'checking', click: checkUpdatesFromTray }
+
   const menu = Menu.buildFromTemplate([
-    { label: t('tray.open'), click: callbacks.showWindow },
+    {
+      label: windowShown ? t('tray.hide') : t('tray.open'),
+      // 菜单显示什么就执行什么，避免最小化后 isVisible() 变化导致动作反转。
+      click: windowShown ? callbacks.hideWindow : callbacks.showWindow
+    },
     { type: 'separator' },
     { label: t('tray.launchWorkspace'), submenu: workspaceItems },
+    { type: 'separator' },
+    {
+      label: t('tray.petEnabled'),
+      type: 'checkbox',
+      checked: Boolean(prefs.petEnabled),
+      click: (item) => {
+        try {
+          callbacks.setPetEnabled?.(item.checked)
+        } catch (error) {
+          notify(t('tray.petFailedTitle'), error.message, 'error')
+        } finally {
+          refreshTrayMenu()
+        }
+      }
+    },
+    { label: t('tray.petCenter'), click: () => callbacks.openView?.('pet-center') },
+    { type: 'separator' },
+    updateItem,
+    { label: t('tray.settings'), click: () => callbacks.openView?.('settings') },
     { type: 'separator' },
     {
       label: t('tray.openAtLogin'),
@@ -94,6 +182,7 @@ function createTray(nextCallbacks) {
 function destroyTray() {
   if (tray && !tray.isDestroyed()) tray.destroy()
   tray = null
+  checkingUpdate = false
 }
 
 function hasTray() {

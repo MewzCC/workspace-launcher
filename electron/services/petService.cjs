@@ -12,7 +12,7 @@ const interactionModule = require('./petInteractionService.cjs')
 const petStudyService = require('./petStudyService.cjs')
 const { calculateBubbleBounds } = require('./petOverlayPlacement.cjs')
 const petRuntimeService = require('./petRuntime/petRuntimeService.cjs')
-const { resolveLocal } = require('./petPresentationService.cjs')
+const { resolveLocal, resolveHybrid, resolveAi } = require('./petPresentationService.cjs')
 
 const SPRITE_WIDTH = 116
 const CHAT = { width: 244, height: 48 }
@@ -129,6 +129,7 @@ class PetInstance {
     this.enforcing = false
     this.runtimeMotionTimer = null
     this.runtimeMotionToken = 0
+    this.presentationRequestToken = 0
     this.runtimeSnapshot = petRuntimeService.ensure(this.id, model(this.id), profile(this.id), (snapshot) => this.applyRuntimeSnapshot(snapshot))
   }
   config() {
@@ -519,7 +520,7 @@ const actionSchema = v.obj({ state: v.optional(v.oneOf(Object.keys(LEGACY_ACTION
 const runtimeEventSchema = v.obj({ type: v.oneOf(['POINTER_DOWN', 'DRAG_THRESHOLD', 'POINTER_UP', 'CLICK', 'DOUBLE_CLICK', 'ANIMATION_COMPLETED', 'MOTION_COMPLETED', 'CHAT_OPENED', 'CHAT_CLOSED']), intent: v.optional(intentSchema), playbackToken: v.optional(v.num({ integer: true, min: 0 })) })
 const presentationContextSchema = v.obj({ event: v.oneOf(['started', 'completed', 'failure', 'social', 'study']), userText: v.optional(v.str({ max: 2000 })), assistantText: v.optional(v.str({ max: 4000 })), toolFailed: v.optional(v.bool()), bubble: v.optional(v.str({ max: 1200 })) })
 const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(v.num()) })
-const settingsSchema = v.obj({ scale: v.optional(v.num({ min: 0.65, max: 5 })), opacity: v.optional(v.num({ min: 0.55, max: 1 })), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
+const settingsSchema = v.obj({ scale: v.optional(v.num({ min: 0.65, max: 5 })), opacity: v.optional(v.num({ min: 0.55, max: 1 })), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()), emotionMode: v.optional(v.oneOf(['local', 'hybrid', 'ai'])) })
 const studyEntrySchema = v.obj({ language: v.optional(v.str({ max: 24 })), term: v.str({ min: 1, max: 120 }), meaning: v.optional(v.str({ max: 500 })), pronunciation: v.optional(v.str({ max: 120 })), example: v.optional(v.str({ max: 500 })), exampleTranslation: v.optional(v.str({ max: 500 })) })
 const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), modeSwitchShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
 const studySearchSchema = v.obj({ language: v.str({ min: 1, max: 24 }), query: v.optional(v.str({ max: 200 })), limit: v.optional(v.num({ integer: true, min: 1, max: 100 })), offset: v.optional(v.num({ integer: true, min: 0, max: 100000 })) })
@@ -535,7 +536,19 @@ const petRoutes = [
   { channel: 'pet:runtime:event', kind: 'on', schema: [idSchema, runtimeEventSchema], handler: (_e, id, event) => instance(id)?.runtimeEvent(event) },
   { channel: 'pet:animationCompleted', kind: 'on', schema: [idSchema, v.num({ integer: true, min: 0 })], handler: (_e, id, playbackToken) => instance(id)?.runtimeEvent({ type: 'ANIMATION_COMPLETED', playbackToken }) },
   { channel: 'pet:present', schema: [idSchema, actionSchema], handler: (_e, id, action) => instance(id).action(action) },
-  { channel: 'pet:resolvePresentation', schema: [idSchema, presentationContextSchema], handler: (_e, id, context) => { const resolved = resolveLocal(context); return instance(id).action({ ...resolved, source: 'ai', priority: context.event === 'started' ? 80 : 80, bubble: context.bubble }) } },
+  { channel: 'pet:resolvePresentation', schema: [idSchema, presentationContextSchema], handler: async (_e, id, context) => {
+    const item = instance(id)
+    const requestToken = ++item.presentationRequestToken
+    const mode = profile(item.id).emotionMode
+    const resolved = mode === 'local'
+      ? resolveLocal(context)
+      : mode === 'ai'
+        ? await resolveAi(context, callbacks?.classifyPresentation)
+        : await resolveHybrid(context, callbacks?.classifyPresentation)
+    // 较早的分类结果不允许覆盖后续交互；拖拽等高优先级状态仍由状态机裁决。
+    if (requestToken !== item.presentationRequestToken) return item.runtimeSnapshot
+    return item.action({ ...resolved, priority: 80, bubble: context.bubble })
+  } },
   { channel: 'pet:setChatOpen', schema: [idSchema, v.bool()], handler: (_e, id, open) => instance(id).setChat(open) },
   { channel: 'pet:showBubble', schema: [idSchema, v.optional(v.or(v.str({ max: 1200 }), v.num())), v.optional(v.num())], handler: (_e, first, second, third) => { const legacy = typeof second === 'number'; return instance(legacy ? undefined : first).bubble(legacy ? first : second, legacy ? second : third) } },
   { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); item?.resizeBubble(old ? first : second) } },
@@ -588,7 +601,7 @@ function init(nextCallbacks) {
     getActivePetIds: activeIds,
     getSelectedPetId: selectedId,
     isPetActive: (id) => activeIds().includes(String(id)),
-    showBubble: (id, text, duration) => instance(id, false)?.bubble(text, duration),
+    showBubble: (id, text, duration) => instance(id, false)?.action({ intent: 'study.review', source: 'study', priority: 75, bubble: text, bubbleDuration: duration }),
     openQuickAdd: (id) => instance(id)?.openQuickAdd(),
     toggleQuickAdd: (id) => instance(id)?.toggleQuickAdd(),
     configChanged: (id) => { const item = instance(id, false); if (item?.petWindow && !item.petWindow.isDestroyed()) item.petWindow.webContents.send('pet:configChanged', item.config()) }

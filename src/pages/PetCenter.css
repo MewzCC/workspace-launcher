@@ -170,6 +170,9 @@
 .pet-model-list { display: flex; flex-direction: column; gap: 9px; }
 .pet-model-card { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 14px; padding: 11px; border: 1px solid var(--pet-line); border-radius: 15px; transition: var(--brand-transition); }
 .pet-model-card.active { border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent); background: color-mix(in srgb, var(--brand-primary) 6%, transparent); }
+.pet-model-card.invalid { border-color: color-mix(in srgb, #ef4444 45%, transparent); }
+.pet-model-card.invalid .pet-model-thumb { opacity: .45; }
+.pet-model-actions button:disabled { cursor: not-allowed; opacity: .45; }
 .pet-model-thumb { display: grid; place-items: center; width: 92px; height: 92px; overflow: hidden; color: var(--brand-muted-foreground); border-radius: 12px; background: var(--brand-muted); }
 .pet-model-info { min-width: 0; }.pet-model-info strong { display: block; font-size: 13px; }.pet-model-info p { margin: 5px 0 8px; color: var(--brand-muted-foreground); font-size: 11px; line-height: 1.45; }.pet-model-info span { color: var(--brand-primary); font-family: var(--brand-font-mono); font-size: 9px; }
 .pet-model-actions { display: flex; align-items: center; gap: 6px; }.pet-model-actions button { display: flex; align-items: center; gap: 5px; padding: 8px 10px; color: var(--brand-muted-foreground); border: 1px solid var(--pet-line); border-radius: 9px; font-size: 11px; }.pet-model-actions button.selected { color: var(--brand-state-success); }.pet-model-actions button.danger { padding: 8px; color: var(--brand-state-error); }

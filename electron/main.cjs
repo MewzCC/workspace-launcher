@@ -163,6 +163,7 @@ if (!gotSingleInstanceLock) {
     updateService.start()
     petService.init({
       showWindow: showMainWindow,
+      classifyPresentation: aiService.classifyPetPresentation,
       openPetCenter: () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('app:navigate', 'pet-center')

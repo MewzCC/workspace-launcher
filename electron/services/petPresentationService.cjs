@@ -24,4 +24,10 @@ async function resolveHybrid(input = {}, classify) {
   try { return sanitizePresentation({ ...(await classify(input, local)), source: 'hybrid' }, local) } catch (_) { return local }
 }
 
-module.exports = { EMOTIONS, INTENTS, resolveLocal, resolveHybrid, sanitizePresentation }
+async function resolveAi(input = {}, classify) {
+  const local = resolveLocal(input)
+  if (typeof classify !== 'function') return local
+  try { return sanitizePresentation({ ...(await classify(input, local)), source: 'ai' }, local) } catch (_) { return local }
+}
+
+module.exports = { EMOTIONS, INTENTS, resolveLocal, resolveHybrid, resolveAi, sanitizePresentation }

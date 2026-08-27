@@ -8,6 +8,8 @@ const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-ai-memory-'))
 process.env.PORTABLE_EXECUTABLE_DIR = testRoot
 
 app.whenReady().then(async () => {
+  // 同时隔离 appData，避免存储迁移逻辑把本机真实数据库复制进测试目录。
+  app.setPath('appData', path.join(testRoot, 'appData'))
   app.setPath('userData', path.join(testRoot, 'userData'))
   const db = require('../electron/db/index.cjs')
   const { conversationDao, memoryDao, petSocialMemoryDao, settingsDao } = db

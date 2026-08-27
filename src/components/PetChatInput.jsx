@@ -77,7 +77,7 @@ function PetChatInput() {
     setChatting(true)
     stopTypewriter()
     displayRef.current = ''
-    petApi.performAction({ state: 'working', duration: 12000 }, instanceId)
+    petApi.resolvePresentation({ event: 'started', userText: content }, instanceId).catch(() => {})
     petApi.showBubble(t('petCenter.bubbleThinking'), undefined, instanceId).catch(() => {})
     try {
       const result = await aiApi.chat({ conversationId: conversation?.id, content, petModelId: instanceId })
@@ -94,12 +94,12 @@ function PetChatInput() {
       }
       const snapshot = await aiApi.getConversation(result.conversation.id, instanceId)
       setMessages(snapshot.messages || [])
-      petApi.performAction({ state: 'wave', duration: 1800 }, instanceId)
+      petApi.resolvePresentation({ event: 'completed', userText: content, assistantText: response }, instanceId).catch(() => {})
       if (response) await petApi.showBubble(response, undefined, instanceId)
     } catch (error) {
       const message = t('petCenter.aiConnectFailed', { message: error.message })
       setMessages((items) => [...items.filter((item) => item.id), { role: 'assistant', content: message }])
-      petApi.performAction({ state: 'failed', duration: 2200 }, instanceId)
+      petApi.resolvePresentation({ event: 'failure', userText: content }, instanceId).catch(() => {})
       await petApi.showBubble(message, undefined, instanceId).catch(() => {})
     } finally {
       setChatting(false)

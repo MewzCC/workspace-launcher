@@ -10,6 +10,7 @@ const DEFAULT_BEHAVIOR = {
   roamRange: 0.7,
   roamActivity: 1,
   alwaysOnTop: true,
+  emotionMode: 'hybrid',
   position: null
 }
 
@@ -48,6 +49,7 @@ function normalize(profile = {}, defaults = {}) {
     roamRange: clamp(profile.roamRange, 0.2, 1, DEFAULT_BEHAVIOR.roamRange),
     roamActivity: clamp(profile.roamActivity, 0.5, 2, DEFAULT_BEHAVIOR.roamActivity),
     alwaysOnTop: typeof profile.alwaysOnTop === 'boolean' ? profile.alwaysOnTop : DEFAULT_BEHAVIOR.alwaysOnTop,
+    emotionMode: ['local', 'hybrid', 'ai'].includes(profile.emotionMode) ? profile.emotionMode : DEFAULT_BEHAVIOR.emotionMode,
     position: validPosition(profile.position)
   }
 }

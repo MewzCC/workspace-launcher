@@ -14,7 +14,8 @@ const FALLBACKS = {
   'move.walk': ['move.walk.right', 'move.walk.left', 'idle'],
   'interaction.drag': ['interaction.drag', 'idle'],
   error: ['error', 'react.concerned', 'idle'],
-  greet: ['greet', 'react.happy', 'idle']
+  greet: ['greet', 'react.happy', 'idle'],
+  'study.review': ['study.review', 'react.happy', 'rest.sit', 'idle']
 }
 
 function resolveAnimation(model, request = {}) {

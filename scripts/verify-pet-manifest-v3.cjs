@@ -66,6 +66,11 @@ try {
   const production = validateV3Manifest(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'models', 'blue-whale-maid', 'pet.json'), 'utf8')), path.join(__dirname, '..', 'models', 'blue-whale-maid'))
   assert.equal(production.assets.length, 70)
   assert.deepEqual(production.render.canvas, { width: 475, height: 734, anchorX: 0.5, anchorY: 1 })
+  assert.equal(production.render.animations.idle.timing.fps, 4)
+  assert.equal(production.render.animations.happy.timing.fps, 5)
+  assert.equal(production.render.animations.sleep.timing.fps, 3)
+  assert.ok(production.render.animations.walk_right.timing.fps <= 6)
+  assert.ok(production.render.animations.drag.timing.fps <= 6)
   console.log('桌宠 V3 清单、旧格式适配和澜汐 70 帧资源验证通过 ✓')
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true })

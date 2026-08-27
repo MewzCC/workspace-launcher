@@ -22,7 +22,7 @@ export function useClipFrame(clip, playbackToken, onComplete) {
         completedTokenRef.current = playbackToken
         onComplete?.(playbackToken)
       }
-      if (clip.timing?.playback === 'once') setFrame(0)
+      // 单次动画完成后停在末帧，等待运行时切换动作；不能自行从头循环。
     }, Math.min(5000, Math.max(30, duration)))
     return () => clearTimeout(timer)
   }, [clip, frame, frameCount, onComplete, playbackToken])

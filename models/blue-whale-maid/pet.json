@@ -25,7 +25,7 @@
           ]
         },
         "timing": {
-          "fps": 8,
+          "fps": 4,
           "playback": "loop"
         },
         "semantics": [
@@ -51,7 +51,7 @@
           ]
         },
         "timing": {
-          "fps": 12,
+          "fps": 7,
           "playback": "once"
         },
         "semantics": [
@@ -80,7 +80,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 6,
           "playback": "loop"
         },
         "semantics": [
@@ -109,7 +109,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 6,
           "playback": "loop"
         },
         "semantics": [
@@ -138,7 +138,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 5,
           "playback": "once"
         },
         "semantics": [
@@ -168,7 +168,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 5,
           "playback": "once"
         },
         "semantics": [
@@ -199,7 +199,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 5,
           "playback": "once"
         },
         "semantics": [
@@ -228,7 +228,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 4,
           "playback": "once"
         },
         "semantics": [
@@ -257,7 +257,7 @@
           ]
         },
         "timing": {
-          "fps": 6,
+          "fps": 3,
           "playback": "loop"
         },
         "semantics": [
@@ -283,7 +283,7 @@
           ]
         },
         "timing": {
-          "fps": 10,
+          "fps": 6,
           "playback": "loop"
         },
         "semantics": [

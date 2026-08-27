@@ -1,4 +1,5 @@
 const { app, BrowserWindow } = require('electron')
+const petAssetProtocol = require('./services/petAssetProtocol.cjs')
 const path = require('path')
 const { setupAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
@@ -16,6 +17,8 @@ let trayHintShown = false
 let unsubscribeTrayUpdate = null
 let mainWindowHiddenToTray = true
 
+// 自定义资源协议必须在 ready 前声明权限，避免序列帧退化为巨型 base64 IPC。
+petAssetProtocol.registerPrivileges()
 crashLogger.initialize()
 
 function getAppIconPath() {
@@ -132,6 +135,7 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     // 运行时版本唯一来源：package.json -> app.getVersion() -> preload/渲染层。
     process.env.LAUNCHPAD_VERSION = app.getVersion()
+    petAssetProtocol.install()
     const db = require('./db/index.cjs')
     db.getDb()
     require('./ipc/handlers.cjs').registerIpcHandlers()

@@ -24,6 +24,7 @@
     "test:ai-memory": "electron scripts/verify-ai-memory.cjs",
     "test:ipc": "node scripts/verify-ipc.cjs",
     "test:pet-drag": "electron scripts/verify-pet-drag-animation.cjs",
+    "test:pet-manifest-v3": "node scripts/verify-pet-manifest-v3.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",

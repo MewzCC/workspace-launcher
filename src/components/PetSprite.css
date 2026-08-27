@@ -5,33 +5,10 @@
   pointer-events: none;
 }
 
-.pet-sprite--atlas {
-  overflow: hidden;
-}
-
-.pet-sprite--drag-frames {
-  overflow: hidden;
-}
-
-.pet-sprite--drag-frames img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.pet-sprite--drag-atlas {
-  animation: pet-drag-suspend 880ms ease-in-out infinite;
-  transform-origin: 50% 24%;
-}
-
-.pet-sprite--atlas img {
-  position: absolute;
-  inset: 0 auto auto 0;
-  max-width: none;
-  image-rendering: auto;
-  transition: none;
-}
+.pet-renderer { overflow: hidden; }
+.pet-renderer__content { position: absolute; inset: 0; overflow: hidden; }
+.pet-renderer__sequence-frame { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.pet-renderer__atlas-image { position: absolute; inset: 0 auto auto 0; max-width: none; image-rendering: auto; transition: none; }
 
 .pet-sprite--builtin svg {
   width: 100%;

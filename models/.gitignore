@@ -4,3 +4,26 @@
 # 桌宠生成/扩展动画帧仅保存在本地模型目录，不纳入版本控制。
 **/animations/**/*.png
 **/animations/**/*.webp
+
+# 澜汐 V3 的正式序列帧属于运行时模型资源，需要随应用一同发布。
+!blue-whale-maid/animations/
+!blue-whale-maid/animations/angry/
+!blue-whale-maid/animations/angry/*.png
+!blue-whale-maid/animations/blink/
+!blue-whale-maid/animations/blink/*.png
+!blue-whale-maid/animations/drag/
+!blue-whale-maid/animations/drag/*.png
+!blue-whale-maid/animations/happy/
+!blue-whale-maid/animations/happy/*.png
+!blue-whale-maid/animations/idle/
+!blue-whale-maid/animations/idle/*.png
+!blue-whale-maid/animations/sit_down/
+!blue-whale-maid/animations/sit_down/*.png
+!blue-whale-maid/animations/sleep/
+!blue-whale-maid/animations/sleep/*.png
+!blue-whale-maid/animations/touch_head/
+!blue-whale-maid/animations/touch_head/*.png
+!blue-whale-maid/animations/walk_left/
+!blue-whale-maid/animations/walk_left/*.png
+!blue-whale-maid/animations/walk_right/
+!blue-whale-maid/animations/walk_right/*.png

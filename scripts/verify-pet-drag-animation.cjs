@@ -13,12 +13,17 @@ app.whenReady().then(() => {
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
   const klee = modelService.getRuntimeModel('klee-spark-knight')
 
-  assert.strictEqual(lanxi.dragAnimation.atlasState, 'jump')
-  assert.deepStrictEqual(lanxi.dragAnimation.durations, [150, 130, 170, 130, 190])
-  assert.strictEqual(Boolean(lanxi.dragAnimation.frameDataUrls), false)
-  assert.strictEqual(Boolean(klee.dragAnimation), false)
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
+  const lanxiDrag = lanxi.render.animations.drag
+  assert.strictEqual(lanxi.sourceFormat, 'pet-v3-sequence')
+  assert.strictEqual(lanxiDrag.source.type, 'sequence')
+  assert.strictEqual(lanxiDrag.source.frames.length, 4)
+  assert.strictEqual(lanxiDrag.timing.playback, 'loop')
+  assert.ok(lanxiDrag.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
+  assert.ok(lanxiDrag.source.frames.every((value) => !value.startsWith('data:')))
+  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['drag'])
+  assert.deepStrictEqual(klee.semantics.bindings['interaction.drag'], ['jump'])
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 4)
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 4)
 
   const profileService = require('../electron/services/petProfileService.cjs')
   const maximumScale = profileService.update('blue-whale-maid', { scale: 9, opacity: 0.2 })

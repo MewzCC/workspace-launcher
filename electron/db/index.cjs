@@ -16,5 +16,6 @@ module.exports = {
   memoryDao: require('./memoryDao.cjs'),
   petInteractionDao: require('./petInteractionDao.cjs'),
   petSocialMemoryDao: require('./petSocialMemoryDao.cjs'),
-  petStudyDao: require('./petStudyDao.cjs')
+  petStudyDao: require('./petStudyDao.cjs'),
+  petStateDao: require('./petStateDao.cjs')
 }

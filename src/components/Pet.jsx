@@ -4,268 +4,85 @@ import PetSprite from './PetSprite'
 import { useT } from '../hooks/useT'
 import './Pet.css'
 
-const MOVE_TICK = 32
-const IDLE_MIN = 6500
-const IDLE_MAX = 19000
-const AMBIENT_MIN = 9000
-const AMBIENT_MAX = 18000
-const AMBIENT_ACTIONS = [
-  { state: 'wave', duration: 1600 },
-  { state: 'jump', duration: 1500 },
-  { state: 'waiting', duration: 2200 },
-  { state: 'review', duration: 2400 }
-]
+const DRAG_THRESHOLD = 4
+const DOUBLE_CLICK_DELAY = 260
 
 function Pet() {
   const instanceId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('instance') || undefined
   const t = useT()
   const [config, setConfig] = useState(null)
-  const [petState, setPetState] = useState('idle')
-  const [dragging, setDragging] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
+  const [runtime, setRuntime] = useState(null)
   const dragRef = useRef(null)
   const dragFrameRef = useRef(null)
   const dragMovePendingRef = useRef(false)
-  const draggingRef = useRef(false)
+  const clickTimerRef = useRef(null)
   const chatOpenRef = useRef(false)
-  const stateRef = useRef('idle')
-  const roamTimerRef = useRef(null)
-  const walkTimerRef = useRef(null)
-  const routePauseRef = useRef(null)
-  const motionTokenRef = useRef(0)
-  const ambientTimerRef = useRef(null)
-  const actionTimerRef = useRef(null)
-  const scheduleRoamRef = useRef(null)
-  const scheduleAmbientRef = useRef(null)
 
   const applyChatVisibility = useCallback((open) => {
-    const visible = Boolean(open)
-    chatOpenRef.current = visible
-    setChatOpen(visible)
-    if (visible) {
-      petApi.setMousePassthrough(false, instanceId)
-    }
-  }, [])
-
-  const changeState = useCallback((next) => {
-    stateRef.current = next
-    setPetState(next)
-  }, [])
-
-  const stopMotion = useCallback(() => {
-    motionTokenRef.current += 1
-    clearTimeout(roamTimerRef.current)
-    clearInterval(walkTimerRef.current)
-    clearTimeout(routePauseRef.current)
-    walkTimerRef.current = null
-    routePauseRef.current = null
-  }, [])
-
-  const performAction = useCallback((action = {}) => {
-    if (draggingRef.current) return
-    stopMotion()
-    clearTimeout(ambientTimerRef.current)
-    clearTimeout(actionTimerRef.current)
-    changeState(action.state || 'idle')
-    actionTimerRef.current = setTimeout(() => {
-      changeState('idle')
-      scheduleRoamRef.current?.()
-      scheduleAmbientRef.current?.()
-    }, Math.max(800, Number(action.duration) || 1800))
-  }, [changeState, stopMotion])
+    chatOpenRef.current = Boolean(open)
+    if (open) petApi.setMousePassthrough(false, instanceId)
+  }, [instanceId])
 
   useEffect(() => {
     let mounted = true
     petApi.getConfig(instanceId).then((value) => {
       if (!mounted) return
       setConfig(value)
+      setRuntime(value?.runtime)
       applyChatVisibility(value?.settings?.chatOpen)
     }).catch(() => {})
-    const unsubscribe = petApi.onConfigChanged((value) => {
-      stopMotion()
-      changeState('idle')
-      setConfig(value)
-    })
-    const unsubscribeAction = petApi.onAction(performAction)
+    const unsubscribeConfig = petApi.onConfigChanged((value) => { setConfig(value); setRuntime(value?.runtime); applyChatVisibility(value?.settings?.chatOpen) })
+    const unsubscribeRuntime = petApi.onRuntimeChanged(setRuntime)
     const unsubscribeChat = petApi.onChatVisibility(applyChatVisibility)
     return () => {
       mounted = false
-      unsubscribe()
-      unsubscribeAction()
+      unsubscribeConfig()
+      unsubscribeRuntime()
       unsubscribeChat()
+      clearTimeout(clickTimerRef.current)
+      cancelAnimationFrame(dragFrameRef.current)
       petApi.setMousePassthrough(true, instanceId)
     }
-  }, [applyChatVisibility, changeState, performAction, stopMotion])
+  }, [applyChatVisibility, instanceId])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key !== 'Escape' || !chatOpenRef.current) return
       applyChatVisibility(false)
-        petApi.setChatOpen(false, instanceId).catch(() => {})
+      petApi.setChatOpen(false, instanceId).catch(() => {})
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [applyChatVisibility])
+  }, [applyChatVisibility, instanceId])
 
-  const scheduleAmbient = useCallback(() => {
-    clearTimeout(ambientTimerRef.current)
-    if (chatOpenRef.current) return
-    const delay = AMBIENT_MIN + Math.random() * (AMBIENT_MAX - AMBIENT_MIN)
-    ambientTimerRef.current = setTimeout(() => {
-      if (stateRef.current !== 'idle' || draggingRef.current || walkTimerRef.current) {
-        scheduleAmbient()
-        return
-      }
-      const action = AMBIENT_ACTIONS[Math.floor(Math.random() * AMBIENT_ACTIONS.length)]
-      performAction(action)
-    }, delay)
-  }, [chatOpen, performAction])
-
-  const scheduleRoam = useCallback(() => {
-    clearTimeout(roamTimerRef.current)
-    if (!config?.settings?.roaming || config?.settings?.study?.mode !== 'companion' || chatOpenRef.current) return
-    const activity = Math.min(2, Math.max(0.5, Number(config.settings.roamActivity) || 1))
-    const delay = (IDLE_MIN + Math.random() * (IDLE_MAX - IDLE_MIN)) / activity
-    roamTimerRef.current = setTimeout(async () => {
-      if (stateRef.current !== 'idle') {
-        scheduleRoam()
-        return
-      }
-      let area
-      try {
-        area = await petApi.getMovementArea(instanceId)
-      } catch (_) {
-        scheduleRoam()
-        return
-      }
-      if (stateRef.current !== 'idle' || draggingRef.current) return
-
-      const range = Math.min(1, Math.max(0.2, Number(config.settings.roamRange) || 0.7))
-      const routeLength = 1 + (Math.random() < 0.34 * activity ? 1 : 0) + (Math.random() < 0.12 * activity ? 1 : 0)
-      const route = []
-      let cursor = { x: window.screenX, y: window.screenY }
-      const horizontalSpan = Math.max(0, area.maxX - area.minX)
-      const verticalSpan = Math.max(0, area.maxY - area.minY)
-      const maxHorizontal = Math.max(70, horizontalSpan * range * 0.42)
-      const maxVertical = Math.max(24, verticalSpan * range * 0.15)
-      const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
-
-      for (let index = 0; index < routeLength; index += 1) {
-        const horizontal = (55 + Math.random() * Math.max(20, maxHorizontal - 55)) * (Math.random() < 0.5 ? -1 : 1)
-        const vertical = (-maxVertical + Math.random() * maxVertical * 2) * (index === 0 ? 1 : 0.72)
-        let target = {
-          x: clamp(Math.round(cursor.x + horizontal), area.minX, area.maxX),
-          y: clamp(Math.round(cursor.y + vertical), area.minY, area.maxY)
-        }
-        // 如果随机方向撞到边缘，就改为朝屏幕内部走，避免原地踏步。
-        if (Math.hypot(target.x - cursor.x, target.y - cursor.y) < 34) {
-          const centerX = (area.minX + area.maxX) / 2
-          const inward = cursor.x <= centerX ? 1 : -1
-          target = {
-            x: clamp(Math.round(cursor.x + inward * Math.max(60, maxHorizontal * 0.55)), area.minX, area.maxX),
-            y: clamp(Math.round(cursor.y + vertical), area.minY, area.maxY)
-          }
-        }
-        route.push(target)
-        cursor = target
-      }
-
-      const token = motionTokenRef.current + 1
-      motionTokenRef.current = token
-      const walkSegment = (index) => {
-        if (motionTokenRef.current !== token || draggingRef.current) return
-        if (index >= route.length) {
-          walkTimerRef.current = null
-          changeState('idle')
-          petApi.savePosition(instanceId)
-          scheduleRoam()
-          return
-        }
-        const startX = window.screenX
-        const startY = window.screenY
-        const target = route[index]
-        const deltaX = target.x - startX
-        const deltaY = target.y - startY
-        const distance = Math.hypot(deltaX, deltaY)
-        const speed = 82 + Math.random() * 38
-        const duration = Math.min(4200, Math.max(850, distance / speed * 1000))
-        const steps = Math.max(1, Math.round(duration / MOVE_TICK))
-        let step = 0
-        changeState(deltaX >= 0 ? 'walkRight' : 'walkLeft')
-        walkTimerRef.current = setInterval(() => {
-          if (motionTokenRef.current !== token || draggingRef.current) {
-            clearInterval(walkTimerRef.current)
-            walkTimerRef.current = null
-            return
-          }
-          step += 1
-          const progress = Math.min(1, step / steps)
-          const eased = 0.5 - Math.cos(Math.PI * progress) / 2
-          petApi.move(startX + Math.round(deltaX * eased), startY + Math.round(deltaY * eased), instanceId)
-          if (step >= steps) {
-            clearInterval(walkTimerRef.current)
-            walkTimerRef.current = null
-            if (index + 1 < route.length) {
-              changeState('idle')
-              routePauseRef.current = setTimeout(() => walkSegment(index + 1), 180 + Math.random() * 420)
-            } else {
-              walkSegment(index + 1)
-            }
-          }
-        }, MOVE_TICK)
-      }
-      walkSegment(0)
-    }, delay)
-  }, [changeState, chatOpen, config?.settings?.roamActivity, config?.settings?.roamRange, config?.settings?.roaming, config?.settings?.study?.mode])
-
-  scheduleRoamRef.current = scheduleRoam
-  scheduleAmbientRef.current = scheduleAmbient
-
-  useEffect(() => {
-    scheduleRoam()
-    scheduleAmbient()
-    return () => {
-      motionTokenRef.current += 1
-      clearTimeout(roamTimerRef.current)
-      clearInterval(walkTimerRef.current)
-      clearTimeout(routePauseRef.current)
-      clearTimeout(ambientTimerRef.current)
-      clearTimeout(actionTimerRef.current)
-      cancelAnimationFrame(dragFrameRef.current)
-      dragFrameRef.current = null
-      dragMovePendingRef.current = false
-    }
-  }, [scheduleAmbient, scheduleRoam])
+  const hitIntent = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = bounds.width ? (event.clientX - bounds.left) / bounds.width : 0.5
+    const y = bounds.height ? (event.clientY - bounds.top) / bounds.height : 0.5
+    const hitbox = (config?.model?.interactions?.hitboxes || []).find((box) => x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height)
+    return hitbox?.intent || 'touch.head'
+  }
 
   const handlePointerDown = (event) => {
     if (event.button !== 0 || event.isPrimary === false) return
     event.preventDefault()
     petApi.setMousePassthrough(false, instanceId)
-    stopMotion()
-    clearTimeout(ambientTimerRef.current)
-    clearTimeout(actionTimerRef.current)
-    draggingRef.current = true
-    setDragging(true)
     petApi.dragStart(instanceId)
-    dragRef.current = {
-      pointerId: event.pointerId,
-      captureTarget: event.currentTarget,
-      pointerX: event.screenX,
-      pointerY: event.screenY,
-      moved: false
-    }
+    petApi.runtimeEvent({ type: 'POINTER_DOWN' }, instanceId)
+    dragRef.current = { pointerId: event.pointerId, captureTarget: event.currentTarget, pointerX: event.screenX, pointerY: event.screenY, moved: false, intent: hitIntent(event) }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    changeState(config?.model?.dragAnimation ? 'dragging' : 'idle')
   }
 
   useEffect(() => {
     const handleMove = (event) => {
       const drag = dragRef.current
       if (!drag || drag.pointerId !== event.pointerId) return
-      const deltaX = event.screenX - drag.pointerX
-      const deltaY = event.screenY - drag.pointerY
-      if (!drag.moved && Math.hypot(deltaX, deltaY) <= 4) return
-      drag.moved = true
+      const distance = Math.hypot(event.screenX - drag.pointerX, event.screenY - drag.pointerY)
+      if (!drag.moved && distance <= DRAG_THRESHOLD) return
+      if (!drag.moved) {
+        drag.moved = true
+        petApi.runtimeEvent({ type: 'DRAG_THRESHOLD' }, instanceId)
+      }
       dragMovePendingRef.current = true
       if (dragFrameRef.current != null) return
       dragFrameRef.current = requestAnimationFrame(() => {
@@ -275,77 +92,62 @@ function Pet() {
         petApi.dragMove(instanceId)
       })
     }
-    const finishDrag = async (event) => {
+
+    const finishPointer = (event) => {
       const drag = dragRef.current
       if (!drag || drag.pointerId !== event.pointerId) return
       const cancelled = event.type === 'pointercancel'
-      const moved = drag.moved
       if (dragFrameRef.current != null) cancelAnimationFrame(dragFrameRef.current)
       dragFrameRef.current = null
       if (dragMovePendingRef.current) petApi.dragMove(instanceId)
       dragMovePendingRef.current = false
       petApi.dragEnd(instanceId)
-      try {
-        if (drag.captureTarget?.hasPointerCapture?.(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId)
-      } catch (_) {}
+      try { if (drag.captureTarget?.hasPointerCapture?.(drag.pointerId)) drag.captureTarget.releasePointerCapture(drag.pointerId) } catch (_) {}
       dragRef.current = null
-      draggingRef.current = false
-      setDragging(false)
-      changeState('idle')
-      if (!moved && !cancelled) {
-        const studyResult = await petApi.studyClick(instanceId).catch(() => ({ handled: false }))
-        if (studyResult?.handled) {
-          scheduleRoam()
-          scheduleAmbient()
-          petApi.setMousePassthrough(true, instanceId)
-          return
-        }
-        const nextOpen = !chatOpenRef.current
-        applyChatVisibility(nextOpen)
-        petApi.setChatOpen(nextOpen, instanceId).catch(() => applyChatVisibility(!nextOpen))
-        if (nextOpen) {
-          const greetings = [
-            t('petCenter.petBubbleReady'),
-            t('petCenter.petBubbleCheer'),
-            t('petCenter.petBubbleNext')
-          ]
-          const greeting = greetings[Math.floor(Math.random() * greetings.length)]
-          petApi.performAction({ state: 'wave', duration: 1800 }, instanceId)
-          petApi.showBubble(greeting, undefined, instanceId).catch(() => {})
-        }
+      if (drag.moved || cancelled) {
+        petApi.runtimeEvent({ type: 'POINTER_UP' }, instanceId)
+      } else if (!clickTimerRef.current) {
+        clickTimerRef.current = setTimeout(async () => {
+          clickTimerRef.current = null
+          petApi.runtimeEvent({ type: 'CLICK', intent: drag.intent }, instanceId)
+          const studyResult = await petApi.studyClick(instanceId).catch(() => ({ handled: false }))
+          if (!studyResult?.handled) {
+            const nextOpen = !chatOpenRef.current
+            applyChatVisibility(nextOpen)
+            petApi.setChatOpen(nextOpen, instanceId).catch(() => applyChatVisibility(!nextOpen))
+            if (nextOpen) {
+              const greetings = [t('petCenter.petBubbleReady'), t('petCenter.petBubbleCheer'), t('petCenter.petBubbleNext')]
+              const greeting = greetings[Math.floor(Math.random() * greetings.length)]
+              petApi.present({ intent: 'greet', source: 'user', priority: 90, bubble: greeting }, instanceId).catch(() => {})
+            }
+          }
+          if (!chatOpenRef.current) petApi.setMousePassthrough(true, instanceId)
+        }, DOUBLE_CLICK_DELAY)
       }
-      scheduleRoam()
-      scheduleAmbient()
-      const element = cancelled ? null : document.elementFromPoint(event.clientX, event.clientY)
-      if (!chatOpenRef.current && !element?.closest?.('.pet-interaction-zone')) petApi.setMousePassthrough(true, instanceId)
     }
     window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', finishDrag)
-    window.addEventListener('pointercancel', finishDrag)
+    window.addEventListener('pointerup', finishPointer)
+    window.addEventListener('pointercancel', finishPointer)
     return () => {
       window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', finishDrag)
-      window.removeEventListener('pointercancel', finishDrag)
+      window.removeEventListener('pointerup', finishPointer)
+      window.removeEventListener('pointercancel', finishPointer)
     }
-  }, [applyChatVisibility, changeState, scheduleAmbient, scheduleRoam, t])
+  }, [applyChatVisibility, instanceId, t])
+
+  const handleDoubleClick = () => {
+    clearTimeout(clickTimerRef.current)
+    clickTimerRef.current = null
+    petApi.runtimeEvent({ type: 'DOUBLE_CLICK' }, instanceId)
+    petApi.openMain().catch(() => {})
+  }
 
   const spriteSize = config?.settings?.dimensions?.spriteWidth || 116
-
+  const dragging = runtime?.state === 'interaction.dragging'
   return (
-    <div
-      className={`pet-root pet-root--${petState}${dragging ? ' pet-root--dragging' : ''}`}
-    >
-      <div
-        className="pet-interaction-zone"
-        onMouseEnter={() => petApi.setMousePassthrough(false, instanceId)}
-        onMouseLeave={() => {
-          if (!draggingRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true, instanceId)
-        }}
-        onPointerDown={handlePointerDown}
-        onDoubleClick={() => petApi.openMain().catch(() => {})}
-        onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}
-      >
-        <PetSprite model={config?.model} state={petState} size={spriteSize} />
+    <div className={`pet-root${dragging ? ' pet-root--dragging' : ''}`}>
+      <div className="pet-interaction-zone" onMouseEnter={() => petApi.setMousePassthrough(false, instanceId)} onMouseLeave={() => { if (!dragRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true, instanceId) }} onPointerDown={handlePointerDown} onDoubleClick={handleDoubleClick} onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}>
+        <PetSprite model={config?.model} presentation={runtime?.presentation} size={spriteSize} onComplete={(token) => petApi.animationCompleted(token, instanceId)} />
       </div>
       <div className="pet-shadow" />
     </div>

@@ -233,6 +233,19 @@ const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_pet_study_reviews_time
     ON pet_study_reviews(pet_model_id, reviewed_at DESC);
 
+  CREATE TABLE IF NOT EXISTS pet_runtime_state (
+    pet_id TEXT PRIMARY KEY,
+    energy REAL NOT NULL DEFAULT 0.8,
+    boredom REAL NOT NULL DEFAULT 0.2,
+    affection REAL NOT NULL DEFAULT 0,
+    mood_valence REAL NOT NULL DEFAULT 0,
+    mood_arousal REAL NOT NULL DEFAULT 0.2,
+    last_interaction_at INTEGER,
+    last_sleep_at INTEGER,
+    last_wake_at INTEGER,
+    updated_at INTEGER NOT NULL
+  );
+
 `
 
 // 轻量迁移：为已存在的旧表补充新增列

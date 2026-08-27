@@ -399,7 +399,17 @@
             "animations/drag/drag_007.png",
             "animations/drag/drag_008.png",
             "animations/drag/drag_009.png",
-            "animations/drag/drag_010.png"
+            "animations/drag/drag_010.png",
+            "animations/drag/drag_011.png",
+            "animations/drag/drag_012.png",
+            "animations/drag/drag_013.png",
+            "animations/drag/drag_014.png",
+            "animations/drag/drag_015.png",
+            "animations/drag/drag_016.png",
+            "animations/drag/drag_017.png",
+            "animations/drag/drag_018.png",
+            "animations/drag/drag_019.png",
+            "animations/drag/drag_020.png"
           ]
         },
         "timing": {
@@ -408,6 +418,31 @@
         },
         "semantics": [
           "interaction.drag"
+        ],
+        "interruptible": false,
+        "placement": {
+          "anchor": "bottom-center",
+          "offsetX": 0,
+          "offsetY": 0,
+          "scale": 1
+        }
+      },
+      "lifted": {
+        "source": {
+          "type": "sequence",
+          "frames": [
+            "animations/lifted/lifted_001.png",
+            "animations/lifted/lifted_002.png",
+            "animations/lifted/lifted_003.png",
+            "animations/lifted/lifted_004.png"
+          ]
+        },
+        "timing": {
+          "fps": 6,
+          "playback": "once"
+        },
+        "semantics": [
+          "interaction.lift"
         ],
         "interruptible": false,
         "placement": {
@@ -454,6 +489,9 @@
       ],
       "interaction.drag": [
         "drag"
+      ],
+      "interaction.lift": [
+        "lifted"
       ],
       "greet": [
         "happy"

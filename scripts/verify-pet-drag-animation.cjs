@@ -28,20 +28,22 @@ app.whenReady().then(() => {
     touch_head: 22,
     sit_down: 20,
     sleep: 20,
-    drag: 10,
+    drag: 20,
+    lifted: 4,
   }
   for (const [action, frameCount] of Object.entries(expectedFrameCounts)) {
     assert.strictEqual(lanxi.render.animations[action].source.frames.length, frameCount, `${action} 帧数应与纠正版素材一致`)
   }
   assert.strictEqual(lanxiDrag.source.type, 'sequence')
-  assert.strictEqual(lanxiDrag.source.frames.length, 10)
+  assert.strictEqual(lanxiDrag.source.frames.length, 20)
   assert.strictEqual(lanxiDrag.timing.playback, 'loop')
   assert.ok(lanxiDrag.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
   assert.ok(lanxiDrag.source.frames.every((value) => !value.startsWith('data:')))
   assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['drag'])
+  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.lift'], ['lifted'])
   assert.deepStrictEqual(klee.semantics.bindings['interaction.drag'], ['jump'])
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 10)
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 10)
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 20)
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 20)
 
   const profileService = require('../electron/services/petProfileService.cjs')
   assert.strictEqual(profileService.ensure('blue-whale-maid').scale, 1)

@@ -17,6 +17,8 @@
 !blue-whale-maid/animations/happy/*.png
 !blue-whale-maid/animations/idle/
 !blue-whale-maid/animations/idle/*.png
+!blue-whale-maid/animations/lifted/
+!blue-whale-maid/animations/lifted/*.png
 !blue-whale-maid/animations/sit_down/
 !blue-whale-maid/animations/sit_down/*.png
 !blue-whale-maid/animations/sleep/

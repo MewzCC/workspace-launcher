@@ -8,6 +8,8 @@ const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-pet-drag-'))
 process.env.PORTABLE_EXECUTABLE_DIR = path.resolve(__dirname, '..')
 
 app.whenReady().then(() => {
+  // 同时隔离 appData，避免存储迁移把真实数据库复制进测试目录并污染用户配置。
+  app.setPath('appData', path.join(testRoot, 'appData'))
   app.setPath('userData', path.join(testRoot, 'userData'))
   const modelService = require('../electron/services/petModelService.cjs')
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
@@ -26,6 +28,7 @@ app.whenReady().then(() => {
   assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 4)
 
   const profileService = require('../electron/services/petProfileService.cjs')
+  assert.strictEqual(profileService.ensure('blue-whale-maid').scale, 1)
   const maximumScale = profileService.update('blue-whale-maid', { scale: 9, opacity: 0.2 })
   assert.strictEqual(maximumScale.scale, 5)
   assert.strictEqual(maximumScale.opacity, 0.55)

@@ -55,21 +55,13 @@ function Pet() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [applyChatVisibility, instanceId])
 
-  const hitIntent = (event) => {
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const x = bounds.width ? (event.clientX - bounds.left) / bounds.width : 0.5
-    const y = bounds.height ? (event.clientY - bounds.top) / bounds.height : 0.5
-    const hitbox = (config?.model?.interactions?.hitboxes || []).find((box) => x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height)
-    return hitbox?.intent || 'touch.head'
-  }
-
   const handlePointerDown = (event) => {
     if (event.button !== 0 || event.isPrimary === false) return
     event.preventDefault()
     petApi.setMousePassthrough(false, instanceId)
     petApi.dragStart(instanceId)
     petApi.runtimeEvent({ type: 'POINTER_DOWN' }, instanceId)
-    dragRef.current = { pointerId: event.pointerId, captureTarget: event.currentTarget, pointerX: event.screenX, pointerY: event.screenY, moved: false, intent: hitIntent(event) }
+    dragRef.current = { pointerId: event.pointerId, captureTarget: event.currentTarget, pointerX: event.screenX, pointerY: event.screenY, moved: false, intent: event.currentTarget.dataset.intent || 'touch.head' }
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
@@ -106,6 +98,7 @@ function Pet() {
       dragRef.current = null
       if (drag.moved || cancelled) {
         petApi.runtimeEvent({ type: 'POINTER_UP' }, instanceId)
+        if (!chatOpenRef.current) petApi.setMousePassthrough(true, instanceId)
       } else if (!clickTimerRef.current) {
         clickTimerRef.current = setTimeout(async () => {
           clickTimerRef.current = null
@@ -144,10 +137,26 @@ function Pet() {
 
   const spriteSize = config?.settings?.dimensions?.spriteWidth || 116
   const dragging = runtime?.state === 'interaction.dragging'
+  const hitboxes = config?.model?.interactions?.hitboxes?.length
+    ? config.model.interactions.hitboxes
+    : [{ id: 'body', x: 0.12, y: 0.04, width: 0.76, height: 0.94, intent: 'touch.head' }]
   return (
     <div className={`pet-root${dragging ? ' pet-root--dragging' : ''}`}>
-      <div className="pet-interaction-zone" onMouseEnter={() => petApi.setMousePassthrough(false, instanceId)} onMouseLeave={() => { if (!dragRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true, instanceId) }} onPointerDown={handlePointerDown} onDoubleClick={handleDoubleClick} onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}>
+      <div className="pet-interaction-zone">
         <PetSprite model={config?.model} presentation={runtime?.presentation} size={spriteSize} onComplete={(token) => petApi.animationCompleted(token, instanceId)} />
+        {hitboxes.map((box, index) => (
+          <div
+            key={box.id || `${box.intent}-${index}`}
+            className="pet-hitbox"
+            data-intent={box.intent || 'touch.head'}
+            style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%`, zIndex: hitboxes.length - index + 2 }}
+            onMouseEnter={() => petApi.setMousePassthrough(false, instanceId)}
+            onMouseLeave={() => { if (!dragRef.current && !chatOpenRef.current) petApi.setMousePassthrough(true, instanceId) }}
+            onPointerDown={handlePointerDown}
+            onDoubleClick={handleDoubleClick}
+            onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}
+          />
+        ))}
       </div>
       <div className="pet-shadow" />
     </div>

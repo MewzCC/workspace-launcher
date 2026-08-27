@@ -149,6 +149,7 @@ if (!gotSingleInstanceLock) {
     petService.init({
       showWindow: showMainWindow,
       classifyPresentation: aiService.classifyPetPresentation,
+      petEnabledChanged: () => trayService.refreshTrayMenu(),
       openPetCenter: () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('app:navigate', 'pet-center')

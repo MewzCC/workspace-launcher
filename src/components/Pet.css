@@ -35,12 +35,17 @@ body.pet-window-body::after { display: none; }
   align-items: flex-end;
   justify-content: center;
   flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.pet-hitbox {
+  position: absolute;
   pointer-events: auto;
   touch-action: none;
   cursor: grab;
 }
 
-.pet-interaction-zone:active { cursor: grabbing; }
+.pet-hitbox:active { cursor: grabbing; }
 
 .pet-interaction-zone > .pet-sprite {
   transition: filter 180ms ease, transform 180ms ease;

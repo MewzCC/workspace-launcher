@@ -466,6 +466,7 @@ function setInstanceEnabled(id, enabled) {
   interactionService?.reschedule?.()
   petStudyService.reschedule(key)
   petStudyService.syncShortcut()
+  callbacks?.petEnabledChanged?.(next.size > 0)
   return listInstances()
 }
 function setGlobalEnabled(enabled) {
@@ -480,6 +481,7 @@ function setGlobalEnabled(enabled) {
   syncInstances()
   interactionService?.reschedule?.()
   petStudyService.syncShortcut()
+  callbacks?.petEnabledChanged?.(value)
   return listInstances()
 }
 function popupMenu(id) {

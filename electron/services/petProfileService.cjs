@@ -4,7 +4,7 @@ const { t } = require('../i18n.cjs')
 const CHAT_MODES = ['concise', 'focus', 'creative', 'casual']
 const LEGACY_DEFAULT_PERSONALITY = '你是一只安静、友善的工作陪伴型桌宠。回答简短自然，优先鼓励用户拆分任务、专注工作和适时休息。'
 const DEFAULT_BEHAVIOR = {
-  scale: 0.9,
+  scale: 1,
   opacity: 1,
   roaming: true,
   roamRange: 0.7,

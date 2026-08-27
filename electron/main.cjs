@@ -144,6 +144,17 @@ if (!gotSingleInstanceLock) {
     setupAppMenu()
     systemPreferences.syncLoginItem()
 
+    // 必须先注册桌宠 IPC，再加载主窗口；否则首屏请求可能早于处理器安装。
+    petService.init({
+      showWindow: showMainWindow,
+      classifyPresentation: aiService.classifyPetPresentation,
+      openPetCenter: () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('app:navigate', 'pet-center')
+        }
+      }
+    })
+
     const startHidden = process.argv.includes('--hidden') && db.settingsDao.get('startMinimized')
     createWindow({ startHidden })
     trayService.createTray({
@@ -161,15 +172,6 @@ if (!gotSingleInstanceLock) {
     shortcutService.init({ showWindow: showMainWindow })
     shortcutService.syncShortcuts()
     updateService.start()
-    petService.init({
-      showWindow: showMainWindow,
-      classifyPresentation: aiService.classifyPetPresentation,
-      openPetCenter: () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('app:navigate', 'pet-center')
-        }
-      }
-    })
 
     app.on('activate', showMainWindow)
   })

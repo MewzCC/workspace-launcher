@@ -30,7 +30,7 @@ Launch groups of applications, manage processes and automations, and stay accomp
 
 LaunchPad organizes the apps, scripts, and tools you open every day into workspaces. Configure launch order and delays once, then enter your work, study, creative, or gaming setup with a single click.
 
-Starting with v1.5.0, LaunchPad includes a dedicated Pet Workbench. Import Codex v1/v2 animated pets, tune their desktop behavior, and connect the AI provider of your choice to create a calm, low-distraction work companion.
+Starting with v1.5.0, LaunchPad includes a dedicated Pet Workbench. Import Codex v1/v2 atlas pets or V3 frame-sequence pets, tune their desktop behavior, and connect the AI provider of your choice to create a calm, low-distraction work companion.
 
 Workspace data and app settings are stored locally in SQLite. No LaunchPad account is required.
 
@@ -51,7 +51,10 @@ Workspace data and app settings are stored locally in SQLite. No LaunchPad accou
 ### Work-companion desktop pet
 
 - A dedicated Pet Workbench for chat, model wardrobe, and behavior settings.
-- Codex v1 and v2 spritesheet compatibility, including automatic legacy detection.
+- Codex v1/v2 spritesheets, SVG, and V3 frame sequences with automatic legacy adaptation.
+- A built-in Lanxi V3 pet with idle, blink, walk, happy, angry, head-touch, sit, sleep, and drag animations.
+- A behavior state machine coordinates click, double-click, drag, roaming, and animation-completion events.
+- Local, hybrid, and AI emotion modes, with deterministic local fallback if classification fails.
 - Multiple animation states such as idle, walking, working, celebrating, and resting.
 - Adjustable scale, opacity, roaming range, activity level, and always-on-top mode.
 - A tightly sized pet window that follows the model instead of blocking a large transparent area.
@@ -86,16 +89,20 @@ Select a complete folder containing `pet.json`, or select `pet.json` directly. L
 | --- | --- | --- | --- |
 | Codex v1 | 8 × 9 | 1536 × 1872 | `spriteVersionNumber: 1`; legacy manifests may omit it |
 | Codex v2 | 8 × 11 | 1536 × 2288 | `spriteVersionNumber: 2` |
+| Codex v3 | Action frame sequences | Logical canvas declared by the manifest | `manifestVersion: 3`; animations use `sequence` or `atlas` |
 
-Minimum model structure:
+V1/V2 models contain `pet.json` and `spritesheet.png`. V3 models organize frames by action, for example:
 
 ```text
 my-pet/
 ├── pet.json
-└── spritesheet.png
+└── animations/
+    ├── idle/
+    ├── walk_right/
+    └── happy/
 ```
 
-Transparent PNG and WebP atlases are supported. The importer validates the manifest, image path, and atlas dimensions, then displays any error in the current interface language.
+Transparent PNG and WebP assets are supported. The importer validates the manifest, asset paths, canvas, and animation capabilities, and assets are served only through the controlled `pet-asset://` protocol. Invalid models remain visible with diagnostics but cannot be enabled.
 
 ## Interface preview
 

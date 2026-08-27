@@ -118,7 +118,7 @@ function reschedule(id) {
   const tick = () => {
     showNext(key)
     const latest = getSettings(key)
-    if (latest.mode !== 'companion') timers.set(key, setTimeout(tick, latest.intervalSeconds * 1000))
+    if (latest.mode !== 'companion' && callbacks.isPetActive?.(key)) timers.set(key, setTimeout(tick, latest.intervalSeconds * 1000))
   }
   timers.set(key, setTimeout(tick, 800))
 }

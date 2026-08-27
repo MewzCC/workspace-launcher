@@ -480,6 +480,7 @@ function setGlobalEnabled(enabled) {
   }
   syncInstances()
   interactionService?.reschedule?.()
+  for (const id of activeIds()) petStudyService.reschedule(id)
   petStudyService.syncShortcut()
   callbacks?.petEnabledChanged?.(value)
   return listInstances()
@@ -488,7 +489,7 @@ function popupMenu(id) {
   const item = instance(id)
   const study = petStudyService.getSettings(item.id)
   const review = (rating) => { try { petStudyService.review(item.id, undefined, rating) } catch (error) { item.bubble(error.message, 3500) } }
-  Menu.buildFromTemplate([
+  const menu = Menu.buildFromTemplate([
     { label: '桌宠模式', type: 'radio', checked: study.mode === 'companion', click: () => petStudyService.updateSettings(item.id, { mode: 'companion' }) },
     { label: '单词学习模式', type: 'radio', checked: study.mode === 'study', click: () => petStudyService.updateSettings(item.id, { mode: 'study' }) },
     { label: '摸鱼学习模式', type: 'radio', checked: study.mode === 'stealth-study', click: () => petStudyService.updateSettings(item.id, { mode: 'stealth-study' }) },
@@ -512,7 +513,15 @@ function popupMenu(id) {
     { type: 'separator' },
     { label: t('pet.openLaunchpad'), click: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.() } },
     { label: t('pet.hide'), click: () => setInstanceEnabled(item.id, false) }
-  ]).popup({ window: item.petWindow || undefined })
+  ])
+  const releaseTransparentWindow = () => {
+    const win = item.petWindow
+    if (!item.chatOpen && !item.dragOffset && win && !win.isDestroyed()) win.setIgnoreMouseEvents(true, { forward: true })
+  }
+  menu.popup({ window: item.petWindow || undefined, callback: releaseTransparentWindow })
+  // 原生菜单拥有独立的鼠标捕获，弹出后立即释放透明宿主窗口，
+  // 用户点击桌面任意位置即可关闭菜单，不会被桌宠透明区域截获。
+  releaseTransparentWindow()
 }
 
 const idSchema = v.optional(v.str({ max: 200 }))
@@ -602,7 +611,7 @@ function init(nextCallbacks) {
   petStudyService.init({
     getActivePetIds: activeIds,
     getSelectedPetId: selectedId,
-    isPetActive: (id) => activeIds().includes(String(id)),
+    isPetActive: (id) => Boolean(settingsDao.get('petEnabled')) && activeIds().includes(String(id)),
     showBubble: (id, text, duration) => instance(id, false)?.action({ intent: 'study.review', source: 'study', priority: 75, bubble: text, bubbleDuration: duration }),
     openQuickAdd: (id) => instance(id)?.openQuickAdd(),
     toggleQuickAdd: (id) => instance(id)?.toggleQuickAdd(),

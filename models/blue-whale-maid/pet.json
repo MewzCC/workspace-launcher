@@ -21,11 +21,23 @@
             "animations/idle/idle_005.png",
             "animations/idle/idle_006.png",
             "animations/idle/idle_007.png",
-            "animations/idle/idle_008.png"
+            "animations/idle/idle_008.png",
+            "animations/idle/idle_009.png",
+            "animations/idle/idle_010.png",
+            "animations/idle/idle_011.png",
+            "animations/idle/idle_012.png",
+            "animations/idle/idle_013.png",
+            "animations/idle/idle_014.png",
+            "animations/idle/idle_015.png",
+            "animations/idle/idle_016.png",
+            "animations/idle/idle_017.png",
+            "animations/idle/idle_018.png",
+            "animations/idle/idle_019.png",
+            "animations/idle/idle_020.png"
           ]
         },
         "timing": {
-          "fps": 4,
+          "fps": 8,
           "playback": "loop"
         },
         "semantics": [
@@ -47,11 +59,27 @@
             "animations/blink/blink_001.png",
             "animations/blink/blink_002.png",
             "animations/blink/blink_003.png",
-            "animations/blink/blink_004.png"
+            "animations/blink/blink_004.png",
+            "animations/blink/blink_005.png",
+            "animations/blink/blink_006.png",
+            "animations/blink/blink_007.png",
+            "animations/blink/blink_008.png",
+            "animations/blink/blink_009.png",
+            "animations/blink/blink_010.png",
+            "animations/blink/blink_011.png",
+            "animations/blink/blink_012.png",
+            "animations/blink/blink_013.png",
+            "animations/blink/blink_014.png",
+            "animations/blink/blink_015.png",
+            "animations/blink/blink_016.png",
+            "animations/blink/blink_017.png",
+            "animations/blink/blink_018.png",
+            "animations/blink/blink_019.png",
+            "animations/blink/blink_020.png"
           ]
         },
         "timing": {
-          "fps": 7,
+          "fps": 12,
           "playback": "once"
         },
         "semantics": [
@@ -76,11 +104,27 @@
             "animations/walk_right/walk_right_005.png",
             "animations/walk_right/walk_right_006.png",
             "animations/walk_right/walk_right_007.png",
-            "animations/walk_right/walk_right_008.png"
+            "animations/walk_right/walk_right_008.png",
+            "animations/walk_right/walk_right_009.png",
+            "animations/walk_right/walk_right_010.png",
+            "animations/walk_right/walk_right_011.png",
+            "animations/walk_right/walk_right_012.png",
+            "animations/walk_right/walk_right_013.png",
+            "animations/walk_right/walk_right_014.png",
+            "animations/walk_right/walk_right_015.png",
+            "animations/walk_right/walk_right_016.png",
+            "animations/walk_right/walk_right_017.png",
+            "animations/walk_right/walk_right_018.png",
+            "animations/walk_right/walk_right_019.png",
+            "animations/walk_right/walk_right_020.png",
+            "animations/walk_right/walk_right_021.png",
+            "animations/walk_right/walk_right_022.png",
+            "animations/walk_right/walk_right_023.png",
+            "animations/walk_right/walk_right_024.png"
           ]
         },
         "timing": {
-          "fps": 6,
+          "fps": 12,
           "playback": "loop"
         },
         "semantics": [
@@ -105,11 +149,27 @@
             "animations/walk_left/walk_left_005.png",
             "animations/walk_left/walk_left_006.png",
             "animations/walk_left/walk_left_007.png",
-            "animations/walk_left/walk_left_008.png"
+            "animations/walk_left/walk_left_008.png",
+            "animations/walk_left/walk_left_009.png",
+            "animations/walk_left/walk_left_010.png",
+            "animations/walk_left/walk_left_011.png",
+            "animations/walk_left/walk_left_012.png",
+            "animations/walk_left/walk_left_013.png",
+            "animations/walk_left/walk_left_014.png",
+            "animations/walk_left/walk_left_015.png",
+            "animations/walk_left/walk_left_016.png",
+            "animations/walk_left/walk_left_017.png",
+            "animations/walk_left/walk_left_018.png",
+            "animations/walk_left/walk_left_019.png",
+            "animations/walk_left/walk_left_020.png",
+            "animations/walk_left/walk_left_021.png",
+            "animations/walk_left/walk_left_022.png",
+            "animations/walk_left/walk_left_023.png",
+            "animations/walk_left/walk_left_024.png"
           ]
         },
         "timing": {
-          "fps": 6,
+          "fps": 12,
           "playback": "loop"
         },
         "semantics": [
@@ -164,11 +224,25 @@
             "animations/angry/angry_005.png",
             "animations/angry/angry_006.png",
             "animations/angry/angry_007.png",
-            "animations/angry/angry_008.png"
+            "animations/angry/angry_008.png",
+            "animations/angry/angry_009.png",
+            "animations/angry/angry_010.png",
+            "animations/angry/angry_011.png",
+            "animations/angry/angry_012.png",
+            "animations/angry/angry_013.png",
+            "animations/angry/angry_014.png",
+            "animations/angry/angry_015.png",
+            "animations/angry/angry_016.png",
+            "animations/angry/angry_017.png",
+            "animations/angry/angry_018.png",
+            "animations/angry/angry_019.png",
+            "animations/angry/angry_020.png",
+            "animations/angry/angry_021.png",
+            "animations/angry/angry_022.png"
           ]
         },
         "timing": {
-          "fps": 5,
+          "fps": 12,
           "playback": "once"
         },
         "semantics": [
@@ -195,11 +269,25 @@
             "animations/touch_head/touch_head_005.png",
             "animations/touch_head/touch_head_006.png",
             "animations/touch_head/touch_head_007.png",
-            "animations/touch_head/touch_head_008.png"
+            "animations/touch_head/touch_head_008.png",
+            "animations/touch_head/touch_head_009.png",
+            "animations/touch_head/touch_head_010.png",
+            "animations/touch_head/touch_head_011.png",
+            "animations/touch_head/touch_head_012.png",
+            "animations/touch_head/touch_head_013.png",
+            "animations/touch_head/touch_head_014.png",
+            "animations/touch_head/touch_head_015.png",
+            "animations/touch_head/touch_head_016.png",
+            "animations/touch_head/touch_head_017.png",
+            "animations/touch_head/touch_head_018.png",
+            "animations/touch_head/touch_head_019.png",
+            "animations/touch_head/touch_head_020.png",
+            "animations/touch_head/touch_head_021.png",
+            "animations/touch_head/touch_head_022.png"
           ]
         },
         "timing": {
-          "fps": 5,
+          "fps": 12,
           "playback": "once"
         },
         "semantics": [
@@ -224,11 +312,25 @@
             "animations/sit_down/sit_down_003.png",
             "animations/sit_down/sit_down_004.png",
             "animations/sit_down/sit_down_005.png",
-            "animations/sit_down/sit_down_006.png"
+            "animations/sit_down/sit_down_006.png",
+            "animations/sit_down/sit_down_007.png",
+            "animations/sit_down/sit_down_008.png",
+            "animations/sit_down/sit_down_009.png",
+            "animations/sit_down/sit_down_010.png",
+            "animations/sit_down/sit_down_011.png",
+            "animations/sit_down/sit_down_012.png",
+            "animations/sit_down/sit_down_013.png",
+            "animations/sit_down/sit_down_014.png",
+            "animations/sit_down/sit_down_015.png",
+            "animations/sit_down/sit_down_016.png",
+            "animations/sit_down/sit_down_017.png",
+            "animations/sit_down/sit_down_018.png",
+            "animations/sit_down/sit_down_019.png",
+            "animations/sit_down/sit_down_020.png"
           ]
         },
         "timing": {
-          "fps": 4,
+          "fps": 10,
           "playback": "once"
         },
         "semantics": [
@@ -253,11 +355,23 @@
             "animations/sleep/sleep_005.png",
             "animations/sleep/sleep_006.png",
             "animations/sleep/sleep_007.png",
-            "animations/sleep/sleep_008.png"
+            "animations/sleep/sleep_008.png",
+            "animations/sleep/sleep_009.png",
+            "animations/sleep/sleep_010.png",
+            "animations/sleep/sleep_011.png",
+            "animations/sleep/sleep_012.png",
+            "animations/sleep/sleep_013.png",
+            "animations/sleep/sleep_014.png",
+            "animations/sleep/sleep_015.png",
+            "animations/sleep/sleep_016.png",
+            "animations/sleep/sleep_017.png",
+            "animations/sleep/sleep_018.png",
+            "animations/sleep/sleep_019.png",
+            "animations/sleep/sleep_020.png"
           ]
         },
         "timing": {
-          "fps": 3,
+          "fps": 8,
           "playback": "loop"
         },
         "semantics": [
@@ -279,11 +393,17 @@
             "animations/drag/drag_001.png",
             "animations/drag/drag_002.png",
             "animations/drag/drag_003.png",
-            "animations/drag/drag_004.png"
+            "animations/drag/drag_004.png",
+            "animations/drag/drag_005.png",
+            "animations/drag/drag_006.png",
+            "animations/drag/drag_007.png",
+            "animations/drag/drag_008.png",
+            "animations/drag/drag_009.png",
+            "animations/drag/drag_010.png"
           ]
         },
         "timing": {
-          "fps": 6,
+          "fps": 8,
           "playback": "loop"
         },
         "semantics": [

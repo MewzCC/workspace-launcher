@@ -17,15 +17,31 @@ app.whenReady().then(() => {
 
   const lanxiDrag = lanxi.render.animations.drag
   assert.strictEqual(lanxi.sourceFormat, 'pet-v3-sequence')
+  // 纠正版按源图实际可识别帧数切分，防止再次退回会截断角色的固定网格结果。
+  const expectedFrameCounts = {
+    idle: 20,
+    blink: 20,
+    walk_left: 24,
+    walk_right: 24,
+    happy: 8,
+    angry: 22,
+    touch_head: 22,
+    sit_down: 20,
+    sleep: 20,
+    drag: 10,
+  }
+  for (const [action, frameCount] of Object.entries(expectedFrameCounts)) {
+    assert.strictEqual(lanxi.render.animations[action].source.frames.length, frameCount, `${action} 帧数应与纠正版素材一致`)
+  }
   assert.strictEqual(lanxiDrag.source.type, 'sequence')
-  assert.strictEqual(lanxiDrag.source.frames.length, 4)
+  assert.strictEqual(lanxiDrag.source.frames.length, 10)
   assert.strictEqual(lanxiDrag.timing.playback, 'loop')
   assert.ok(lanxiDrag.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
   assert.ok(lanxiDrag.source.frames.every((value) => !value.startsWith('data:')))
   assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['drag'])
   assert.deepStrictEqual(klee.semantics.bindings['interaction.drag'], ['jump'])
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 4)
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 4)
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 10)
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 10)
 
   const profileService = require('../electron/services/petProfileService.cjs')
   assert.strictEqual(profileService.ensure('blue-whale-maid').scale, 1)

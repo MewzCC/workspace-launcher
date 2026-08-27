@@ -8,6 +8,7 @@ const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const crashLogger = require('./services/crashLogger.cjs')
 const petService = require('./services/petService.cjs')
+const aiService = require('./services/aiService.cjs')
 const { applyNativeTheme } = require('./ipc/routers/systemRouter.cjs')
 const { t } = require('./i18n.cjs')
 

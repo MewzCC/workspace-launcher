@@ -15,7 +15,7 @@ app.whenReady().then(() => {
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
   const klee = modelService.getRuntimeModel('klee-spark-knight')
 
-  const lanxiDrag = lanxi.render.animations.drag
+  const lanxiLifted = lanxi.render.animations.lifted
   assert.strictEqual(lanxi.sourceFormat, 'pet-v3-sequence')
   // 纠正版按源图实际可识别帧数切分，防止再次退回会截断角色的固定网格结果。
   const expectedFrameCounts = {
@@ -28,22 +28,24 @@ app.whenReady().then(() => {
     touch_head: 22,
     sit_down: 20,
     sleep: 20,
-    drag: 20,
-    lifted: 4,
+    lifted: 20,
   }
   for (const [action, frameCount] of Object.entries(expectedFrameCounts)) {
     assert.strictEqual(lanxi.render.animations[action].source.frames.length, frameCount, `${action} 帧数应与纠正版素材一致`)
   }
-  assert.strictEqual(lanxiDrag.source.type, 'sequence')
-  assert.strictEqual(lanxiDrag.source.frames.length, 20)
-  assert.strictEqual(lanxiDrag.timing.playback, 'loop')
-  assert.ok(lanxiDrag.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
-  assert.ok(lanxiDrag.source.frames.every((value) => !value.startsWith('data:')))
-  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['drag'])
+  assert.strictEqual(lanxi.render.animations.drag, undefined)
+  assert.strictEqual(lanxiLifted.source.type, 'sequence')
+  assert.strictEqual(lanxiLifted.source.frames.length, 20)
+  // 提起动作保留完整帧数，通过降低播放速率避免快速扫帧造成跳动感。
+  assert.strictEqual(lanxiLifted.timing.fps, 6)
+  assert.strictEqual(lanxiLifted.timing.playback, 'loop')
+  assert.ok(lanxiLifted.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
+  assert.ok(lanxiLifted.source.frames.every((value) => !value.startsWith('data:')))
+  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['lifted'])
   assert.deepStrictEqual(lanxi.semantics.bindings['interaction.lift'], ['lifted'])
   assert.deepStrictEqual(klee.semantics.bindings['interaction.drag'], ['jump'])
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 20)
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.drag.source.frames.length, 20)
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.lifted.source.frames.length, 20)
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.lifted.source.frames.length, 20)
 
   const profileService = require('../electron/services/petProfileService.cjs')
   assert.strictEqual(profileService.ensure('blue-whale-maid').scale, 1)

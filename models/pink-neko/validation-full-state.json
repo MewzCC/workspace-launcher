@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "standard": "workspace-launcher-pet/full-state-22@1",
+  "petDirectory": "D:\\Project\\workSpace\\workspace-launcher\\models\\pink-neko",
+  "manifest": "D:\\Project\\workSpace\\workspace-launcher\\models\\pink-neko\\pet.json",
+  "spritesheet": "D:\\Project\\workSpace\\workspace-launcher\\models\\pink-neko\\spritesheet-extended.webp",
+  "id": "pink-neko",
+  "animations": 22,
+  "atlas": {
+    "format": "WEBP",
+    "size": [
+      1536,
+      4576
+    ],
+    "cells": 176,
+    "emptyCells": [],
+    "edgeCells": [],
+    "opaqueChromaPixels": 0,
+    "hiddenRgbPixels": 2625385,
+    "warnings": [
+      "decoded WebP contains RGB under transparent pixels; verify the pre-encode RGBA source was cleared"
+    ]
+  }
+}

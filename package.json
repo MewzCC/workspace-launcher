@@ -27,6 +27,7 @@
     "test:pet-manifest-v3": "node scripts/verify-pet-manifest-v3.cjs",
     "test:pet-runtime": "node scripts/verify-pet-runtime.cjs",
     "test:pet-emotion": "node scripts/verify-pet-emotion.cjs",
+    "verify:pet-package": "electron scripts/verify-pet-package.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",

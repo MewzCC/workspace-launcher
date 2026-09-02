@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Archive, Bot, Box, Brain, BookOpen, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Eraser, FolderOpen, Import,
-  KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
+  KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles, Square,
   RefreshCw, Terminal, Trash2, WandSparkles
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
@@ -815,6 +815,70 @@ function PetCenter() {
 
       {activeTab === 'models' && (
         <section id="pet-panel-models" role="tabpanel" aria-labelledby="pet-tab-models" className={`pet-models-layout ${panelMotionClass}`}>
+          <div className="pet-interaction-console pet-settings-card">
+            <div className="pet-interaction-console__head">
+              <div className="pet-section-title"><div><span>MULTI COMPANION</span><h2>{t('petCenter.multiPetTitle')}</h2></div><MessageCircle size={20} /></div>
+              <div className={`pet-multi-status ${activePetCount >= 2 ? 'ready' : ''}`}>
+                <div><span>{activePetCount >= 2 ? t('petCenter.multiPetReady') : t('petCenter.multiPetNeedsAnother')}</span><small>{t('petCenter.multiPetActiveCount', { count: activePetCount })}</small></div>
+                <b>{activePetCount}<em>/2</em></b>
+              </div>
+            </div>
+            <p className="pet-interaction-console__desc">{t('petCenter.multiPetDesc')}</p>
+            <div className="pet-interaction-switches">
+              <SettingToggle title={t('petCenter.autoInteraction')} desc={t('petCenter.autoInteractionDesc')} checked={Boolean(interactionStatus?.settings?.autoEnabled)} onChange={(value) => saveInteractionSettings({ autoEnabled: value })} />
+              <SettingToggle title={t('petCenter.interactionMemory')} desc={t('petCenter.interactionMemoryDesc')} checked={interactionStatus?.settings?.interactionMemoryEnabled !== false} onChange={(value) => saveInteractionSettings({ interactionMemoryEnabled: value })} />
+              <SettingToggle title={t('petCenter.shareOwnerMoments')} desc={t('petCenter.shareOwnerMomentsDesc')} checked={interactionStatus?.settings?.shareOwnerContext !== false} onChange={(value) => saveInteractionSettings({ shareOwnerContext: value })} />
+              <RangeSetting title={t('petCenter.interactionTurns')} value={interactionStatus?.settings?.maxTurns || 4} min="2" max="10" step="1" suffix={`${interactionStatus?.settings?.maxTurns || 4}`} onChange={(value) => saveInteractionSettings({ maxTurns: value })} />
+            </div>
+            <form className="pet-interaction-compose" onSubmit={(event) => { event.preventDefault(); if (!interactionStatus?.running) startInteraction() }}>
+              <label className="pet-interaction-compose__field pet-interaction-compose__select">
+                <span>{t('petCenter.firstPet')}</span>
+                <select className="pet-themed-select" value={interactionPair[0]} onChange={(event) => setInteractionPair([event.target.value, interactionPair[1]])} aria-label={t('petCenter.chooseFirstPet')}>
+                  <option value="">{t('petCenter.chooseFirstPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
+                </select>
+              </label>
+              <div className="pet-interaction-compose__vs" aria-hidden="true">×</div>
+              <label className="pet-interaction-compose__field pet-interaction-compose__select">
+                <span>{t('petCenter.secondPet')}</span>
+                <select className="pet-themed-select" value={interactionPair[1]} onChange={(event) => setInteractionPair([interactionPair[0], event.target.value])} aria-label={t('petCenter.chooseSecondPet')}>
+                  <option value="">{t('petCenter.chooseSecondPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
+                </select>
+              </label>
+              <label className="pet-interaction-compose__field pet-interaction-compose__topic">
+                <span>{t('petCenter.interactionTopicLabel')}</span>
+                <input value={interactionTopic} onChange={(event) => setInteractionTopic(event.target.value)} placeholder={t('petCenter.interactionTopic')} maxLength="500" />
+              </label>
+              <div className="pet-interaction-compose__actions">
+                {interactionStatus?.running
+                  ? <button type="button" className="pet-interaction-btn danger" onClick={() => petApi.stopInteraction()}><Square size={14} /> {t('petCenter.stopInteraction')}</button>
+                  : <GlowButton type="submit" disabled={!interactionPair[0] || !interactionPair[1] || interactionPair[0] === interactionPair[1]}><Sparkles size={15} /> {t('petCenter.startInteraction')}</GlowButton>}
+              </div>
+            </form>
+            {!!interactions.length && (
+              <div className="pet-interaction-history" aria-label={t('petCenter.recentInteractions')}>
+                <div className="pet-interaction-history__head"><strong>{t('petCenter.recentInteractions')}</strong><small>{t('petCenter.recentInteractionsHint', { count: Math.min(3, interactions.length) })}</small></div>
+                {interactions.slice(0, 3).map((item) => (
+                  <article key={item.id} className={`is-${item.status}`}>
+                    <header>
+                      <strong title={item.title || t('petCenter.petInteraction')}>{item.title || t('petCenter.petInteraction')}</strong>
+                      <span className={`pet-interaction-chip is-${item.status}`}>{item.status}</span>
+                      <span className="pet-interaction-chip is-mode">{item.trigger_type === 'auto' ? 'AUTO' : 'MANUAL'}</span>
+                    </header>
+                    <p>{item.summary || item.messages?.map((message) => message.content).join(' / ')}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+            {(socialMemories.relationship.length > 0 || socialMemories.diary.length > 0) && (
+              <div className="pet-social-memory">
+                <div className="pet-social-memory__head"><div><Brain size={17} /><strong>{t('petCenter.sharedMemoryTitle')}</strong></div>{socialMemories.relationship.length > 0 && <button type="button" className="pet-danger-btn" onClick={clearInteractionMemories}><Trash2 size={13} /> {t('petCenter.clearRelationshipMemory')}</button>}</div>
+                <div className="pet-social-memory__columns">
+                  <section><span>{t('petCenter.relationshipMemories')}</span>{socialMemories.relationship.slice(0, 6).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.relationship.length && <small>{t('petCenter.noRelationshipMemories')}</small>}</section>
+                  <section><span>{t('petCenter.todayOwnerMoments')}</span>{socialMemories.diary.slice(0, 8).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.diary.length && <small>{t('petCenter.noOwnerMoments')}</small>}</section>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="pet-import-card">
             <div className="pet-import-icon"><Import size={24} /></div>
             <span>CODEX PET IMPORTER</span>
@@ -832,43 +896,6 @@ function PetCenter() {
             </div>
           </div>
           <div className="pet-model-library">
-            <div className="pet-interaction-console">
-              <div className="pet-section-title"><div><span>MULTI COMPANION</span><h2>{t('petCenter.multiPetTitle')}</h2></div><MessageCircle size={20} /></div>
-              <p>{t('petCenter.multiPetDesc')}</p>
-              <div className={`pet-multi-status ${activePetCount >= 2 ? 'ready' : ''}`}>
-                <div><span>{activePetCount >= 2 ? t('petCenter.multiPetReady') : t('petCenter.multiPetNeedsAnother')}</span><small>{t('petCenter.multiPetActiveCount', { count: activePetCount })}</small></div>
-                <b>{activePetCount}<em>/2</em></b>
-              </div>
-              <div className="pet-interaction-switches">
-                <SettingToggle title={t('petCenter.autoInteraction')} desc={t('petCenter.autoInteractionDesc')} checked={Boolean(interactionStatus?.settings?.autoEnabled)} onChange={(value) => saveInteractionSettings({ autoEnabled: value })} />
-                <SettingToggle title={t('petCenter.interactionMemory')} desc={t('petCenter.interactionMemoryDesc')} checked={interactionStatus?.settings?.interactionMemoryEnabled !== false} onChange={(value) => saveInteractionSettings({ interactionMemoryEnabled: value })} />
-                <SettingToggle title={t('petCenter.shareOwnerMoments')} desc={t('petCenter.shareOwnerMomentsDesc')} checked={interactionStatus?.settings?.shareOwnerContext !== false} onChange={(value) => saveInteractionSettings({ shareOwnerContext: value })} />
-                <RangeSetting title={t('petCenter.interactionTurns')} value={interactionStatus?.settings?.maxTurns || 4} min="2" max="10" step="1" suffix={`${interactionStatus?.settings?.maxTurns || 4}`} onChange={(value) => saveInteractionSettings({ maxTurns: value })} />
-              </div>
-              <div className="pet-interaction-compose">
-                <select className="pet-themed-select" value={interactionPair[0]} onChange={(event) => setInteractionPair([event.target.value, interactionPair[1]])}>
-                  <option value="">{t('petCenter.chooseFirstPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
-                </select>
-                <span>×</span>
-                <select className="pet-themed-select" value={interactionPair[1]} onChange={(event) => setInteractionPair([interactionPair[0], event.target.value])}>
-                  <option value="">{t('petCenter.chooseSecondPet')}</option>{models.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
-                </select>
-                <input value={interactionTopic} onChange={(event) => setInteractionTopic(event.target.value)} placeholder={t('petCenter.interactionTopic')} maxLength="500" />
-                {interactionStatus?.running
-                  ? <button type="button" className="danger" onClick={() => petApi.stopInteraction()}>{t('petCenter.stopInteraction')}</button>
-                  : <GlowButton onClick={startInteraction} disabled={!interactionPair[0] || !interactionPair[1] || interactionPair[0] === interactionPair[1]}><Sparkles size={15} /> {t('petCenter.startInteraction')}</GlowButton>}
-              </div>
-              {!!interactions.length && <div className="pet-interaction-history">{interactions.slice(0, 3).map((item) => <article key={item.id}><strong>{item.title || t('petCenter.petInteraction')}</strong><span>{item.trigger_type === 'auto' ? 'AUTO' : 'MANUAL'} · {item.status}</span><p>{item.summary || item.messages?.map((message) => message.content).join(' / ')}</p></article>)}</div>}
-              {(socialMemories.relationship.length > 0 || socialMemories.diary.length > 0) && (
-                <div className="pet-social-memory">
-                  <div className="pet-social-memory__head"><div><Brain size={17} /><strong>{t('petCenter.sharedMemoryTitle')}</strong></div>{socialMemories.relationship.length > 0 && <button type="button" className="danger" onClick={clearInteractionMemories}>{t('petCenter.clearRelationshipMemory')}</button>}</div>
-                  <div className="pet-social-memory__columns">
-                    <section><span>{t('petCenter.relationshipMemories')}</span>{socialMemories.relationship.slice(0, 6).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.relationship.length && <small>{t('petCenter.noRelationshipMemories')}</small>}</section>
-                    <section><span>{t('petCenter.todayOwnerMoments')}</span>{socialMemories.diary.slice(0, 8).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.diary.length && <small>{t('petCenter.noOwnerMoments')}</small>}</section>
-                  </div>
-                </div>
-              )}
-            </div>
             <div className="pet-section-title pet-model-library-title">
               <div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div>
               <div className="pet-model-library-tools">
@@ -885,7 +912,7 @@ function PetCenter() {
               getRowKey={(model) => model.id}
               getRowClassName={(model) => {
                 const selected = config.model.id === model.id
-                return `${selected ? 'active' : ''}${model.invalid ? ' invalid' : ''}`
+                return `${selected ? ' active' : ''}${model.invalid ? ' invalid' : ''}`
               }}
               renderCell={renderModelCell}
               storageKey="pet-model-table-columns"

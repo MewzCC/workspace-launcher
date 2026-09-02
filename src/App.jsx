@@ -81,7 +81,7 @@ function App() {
       if (!mounted || !update) return
       if (
         update.state === 'available' &&
-        notifyEnabled && !update.manual &&
+        notifyEnabled &&
         update.version &&
         dismissedVersionRef.current !== update.version
       ) {

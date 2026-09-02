@@ -134,11 +134,6 @@ contextBridge.exposeInMainWorld('api', {
     setMousePassthrough: (passthrough, instanceId) => ipcRenderer.send('pet:setMousePassthrough', instanceId, passthrough),
     savePosition: (instanceId) => ipcRenderer.send('pet:savePosition', instanceId),
     performAction: (action, instanceId) => ipcRenderer.send('pet:performAction', instanceId, action),
-    getRuntimeSnapshot: (instanceId) => ipcRenderer.invoke('pet:runtime:getSnapshot', instanceId),
-    runtimeEvent: (event, instanceId) => ipcRenderer.send('pet:runtime:event', instanceId, event),
-    animationCompleted: (playbackToken, instanceId) => ipcRenderer.send('pet:animationCompleted', instanceId, playbackToken),
-    present: (presentation, instanceId) => ipcRenderer.invoke('pet:present', instanceId, presentation),
-    resolvePresentation: (context, instanceId) => ipcRenderer.invoke('pet:resolvePresentation', instanceId, context),
     openMain: () => ipcRenderer.invoke('pet:openMain'),
     showMenu: (instanceId) => ipcRenderer.invoke('pet:showMenu', instanceId),
     setChatOpen: (open, instanceId) => ipcRenderer.invoke('pet:setChatOpen', instanceId, open),
@@ -196,11 +191,6 @@ contextBridge.exposeInMainWorld('api', {
       const handler = (_event, action) => callback(action)
       ipcRenderer.on('pet:action', handler)
       return () => ipcRenderer.removeListener('pet:action', handler)
-    },
-    onRuntimeChanged: (callback) => {
-      const handler = (_event, snapshot) => callback(snapshot)
-      ipcRenderer.on('pet:runtimeChanged', handler)
-      return () => ipcRenderer.removeListener('pet:runtimeChanged', handler)
     },
     onChatVisibility: (callback) => {
       const handler = (_event, open) => callback(Boolean(open))

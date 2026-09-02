@@ -36,6 +36,7 @@ const ResizableTable = forwardRef(function ResizableTable({
   storageKey,
   caption,
   empty,
+  getRowClassName,
   className = ''
 }, ref) {
   const tableRef = useRef(null)
@@ -160,7 +161,7 @@ const ResizableTable = forwardRef(function ResizableTable({
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={getRowKey(row, rowIndex)}>
+            <tr key={getRowKey(row, rowIndex)} className={getRowClassName ? getRowClassName(row, rowIndex) : ''}>
               {normalizedColumns.map((column) => (
                 <td key={column.key} className={column.className || ''}>
                   {renderCell(row, column, rowIndex)}

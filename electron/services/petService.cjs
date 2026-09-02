@@ -11,11 +11,10 @@ const { t } = require('../i18n.cjs')
 const interactionModule = require('./petInteractionService.cjs')
 const petStudyService = require('./petStudyService.cjs')
 const { calculateBubbleBounds } = require('./petOverlayPlacement.cjs')
-const petRuntimeService = require('./petRuntime/petRuntimeService.cjs')
-const { resolveLocal, resolveHybrid, resolveAi } = require('./petPresentationService.cjs')
 
 const SPRITE_WIDTH = 116
 const CHAT = { width: 244, height: 48 }
+const PET_ACTIONS = ['idle', 'wave', 'jump', 'failed', 'waiting', 'working', 'review']
 const instances = new Map()
 let callbacks
 let interactionService = interactionModule
@@ -30,21 +29,9 @@ function profile(id) {
   return petProfileService.ensure(id, { displayName: item.displayName })
 }
 function dimensions(id) {
-  const runtimeModel = model(id)
   const width = Math.round(SPRITE_WIDTH * profile(id).scale)
-  const canvas = runtimeModel.render?.canvas || { width: 192, height: 208 }
-  const ratio = Math.min(2, Math.max(0.7, Number(canvas.height || 208) / Number(canvas.width || 192)))
-  const height = Math.round(width * ratio)
+  const height = Math.round(width * (208 / 192))
   return { width: width + 10, height: height + 12, spriteWidth: width, spriteHeight: height }
-}
-
-const LEGACY_ACTION_INTENTS = {
-  idle: 'idle', wave: 'greet', jump: 'react.excited', failed: 'error', waiting: 'rest.sit',
-  working: 'focus.working', review: 'study.review', dragging: 'interaction.drag', walkRight: 'move.walk.right', walkLeft: 'move.walk.left'
-}
-
-function semanticAction(action = {}) {
-  return { ...action, intent: action.intent || LEGACY_ACTION_INTENTS[action.state] || 'idle', type: 'PRESENT' }
 }
 function cleanupLegacyDuplicateInstances() {
   const duplicatePattern = /--instance-\d+$/
@@ -65,7 +52,7 @@ function cleanupLegacyDuplicateInstances() {
 }
 function activeIds() {
   cleanupLegacyDuplicateInstances()
-  const available = new Set(petModelService.list().filter((item) => item.status !== 'invalid').map((item) => item.id))
+  const available = new Set(petModelService.list().map((item) => item.id))
   if (!settingsDao.get('petInstancesInitialized')) {
     const selected = String(settingsDao.get('petModelId') || petModelService.BUILTIN_ID)
     const initial = settingsDao.get('petEnabled') && available.has(selected) ? [selected] : []
@@ -87,18 +74,14 @@ function load(win, name, id) {
 function home(id, index = 0) {
   const { workArea } = screen.getPrimaryDisplay()
   const size = dimensions(id)
-  const x = workArea.x + workArea.width - size.width - 28 - index * (size.width + 16)
-  const y = workArea.y + workArea.height - size.height - 8
-  return { x: Math.max(workArea.x, x), y: Math.max(workArea.y, y) }
+  return { x: workArea.x + workArea.width - size.width - 28 - index * (size.width + 16), y: workArea.y + workArea.height - size.height - 8 }
 }
 function clamp(id, x, y) {
   const size = dimensions(id)
   const { workArea } = screen.getDisplayNearestPoint({ x: Number(x), y: Number(y) })
-  const maxX = Math.max(workArea.x, workArea.x + workArea.width - size.width)
-  const maxY = Math.max(workArea.y, workArea.y + workArea.height - size.height)
   return {
-    x: Math.min(maxX, Math.max(workArea.x, Math.round(x))),
-    y: Math.min(maxY, Math.max(workArea.y, Math.round(y)))
+    x: Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, Math.round(x))),
+    y: Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, Math.round(y)))
   }
 }
 
@@ -127,16 +110,10 @@ class PetInstance {
     this.moveImmediate = null
     this.dragOffset = null
     this.enforcing = false
-    this.runtimeMotionTimer = null
-    this.runtimeMotionToken = 0
-    this.presentationRequestToken = 0
-    this.runtimeSnapshot = petRuntimeService.ensure(this.id, model(this.id), profile(this.id), (snapshot) => this.applyRuntimeSnapshot(snapshot))
   }
   config() {
     const p = profile(this.id)
-    const runtimeModel = model(this.id)
-    this.runtimeSnapshot = petRuntimeService.ensure(this.id, runtimeModel, p, (snapshot) => this.applyRuntimeSnapshot(snapshot))
-    return { instanceId: this.id, model: runtimeModel, runtime: this.runtimeSnapshot, settings: { enabled: activeIds().includes(this.id), ...p, study: petStudyService.getSettings(this.id), dimensions: dimensions(this.id), chatOpen: this.chatOpen } }
+    return { instanceId: this.id, model: model(this.id), settings: { enabled: activeIds().includes(this.id), ...p, study: petStudyService.getSettings(this.id), dimensions: dimensions(this.id), chatOpen: this.chatOpen } }
   }
   position() { return profile(this.id).position || home(this.id, Math.max(0, activeIds().indexOf(this.id))) }
   setBounds(x, y) {
@@ -176,7 +153,6 @@ class PetInstance {
     const cursor = screen.getCursorScreenPoint()
     const pet = this.petBounds || this.petWindow.getBounds()
     this.dragOffset = { x: cursor.x - pet.x, y: cursor.y - pet.y }
-    this.stopRuntimeMotion()
   }
   moveDrag() {
     if (!this.dragOffset) return
@@ -222,19 +198,12 @@ class PetInstance {
     return win
   }
   show() { const win = this.createPet(); win.showInactive(); return win }
-  applyOpacity(opacity = profile(this.id).opacity) {
-    for (const win of [this.petWindow, this.chatWindow, this.bubbleWindow, this.quickAddWindow]) {
-      if (win && !win.isDestroyed()) win.setOpacity(opacity)
-    }
-  }
   destroy() {
     clearTimeout(this.bubbleTimer)
     if (this.moveImmediate) clearImmediate(this.moveImmediate)
     this.moveImmediate = null
     this.pendingMove = null
     this.dragOffset = null
-    this.stopRuntimeMotion()
-    petRuntimeService.remove(this.id)
     for (const win of [this.chatWindow, this.bubbleWindow, this.quickAddWindow, this.petWindow]) if (win && !win.isDestroyed()) win.destroy()
     this.chatWindow = this.bubbleWindow = this.quickAddWindow = this.petWindow = null
     this.bubblePlacement = null
@@ -250,7 +219,6 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.chatWindow = win
-    win.setOpacity(profile(this.id).opacity)
     win.on('closed', () => { if (this.chatWindow === win) this.chatWindow = null })
     win.once('ready-to-show', () => { if (this.chatOpen) { this.positionOverlays(); win.show(); win.focus() } })
     load(win, 'pet-chat', this.id)
@@ -275,7 +243,6 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.bubbleWindow = win
-    win.setOpacity(profile(this.id).opacity)
     win.setIgnoreMouseEvents(true)
     win.webContents.on('did-finish-load', () => {
       if (this.bubblePayload) win.webContents.send('pet:bubbleContent', this.bubblePayload)
@@ -298,7 +265,6 @@ class PetInstance {
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
     this.quickAddWindow = win
-    win.setOpacity(profile(this.id).opacity)
     win.on('closed', () => { if (this.quickAddWindow === win) this.quickAddWindow = null })
     win.once('ready-to-show', () => { this.positionOverlays(); win.show(); win.focus() })
     load(win, 'pet-study-add', this.id)
@@ -382,58 +348,17 @@ class PetInstance {
     return { success: true, duration }
   }
   action(action = {}) {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
     if (action.bubble) this.bubble(action.bubble, action.bubbleDuration)
-    const request = semanticAction(action)
-    this.runtimeSnapshot = petRuntimeService.dispatch(this.id, request)
-    return this.runtimeSnapshot
-  }
-  runtimeEvent(event = {}) {
-    if (event.type === 'POINTER_DOWN' || event.type === 'DRAG_THRESHOLD') this.stopRuntimeMotion()
-    this.runtimeSnapshot = petRuntimeService.dispatch(this.id, event)
-    return this.runtimeSnapshot
-  }
-  applyRuntimeSnapshot(snapshot) {
-    this.runtimeSnapshot = snapshot
-    if (this.petWindow && !this.petWindow.isDestroyed()) this.petWindow.webContents.send('pet:runtimeChanged', snapshot)
-    if (snapshot.state === 'active.locomotion.walk' && snapshot.presentation.source === 'autonomous') this.startRuntimeMotion(snapshot)
-    else if (snapshot.state !== 'active.locomotion.walk') this.stopRuntimeMotion()
-  }
-  stopRuntimeMotion() {
-    this.runtimeMotionToken += 1
-    clearInterval(this.runtimeMotionTimer)
-    this.runtimeMotionTimer = null
-  }
-  startRuntimeMotion(snapshot) {
-    if (this.runtimeMotionTimer || !this.petWindow || this.petWindow.isDestroyed()) return
-    const start = this.petBounds || this.petWindow.getBounds()
-    const { workArea } = screen.getDisplayNearestPoint(start)
-    const size = dimensions(this.id)
-    const direction = snapshot.presentation.intent.endsWith('.left') ? -1 : 1
-    const roamRange = Math.min(1, Math.max(0.2, Number(profile(this.id).roamRange) || 0.7))
-    const distance = 60 + Math.random() * Math.max(30, workArea.width * 0.18 * roamRange)
-    const targetX = Math.min(workArea.x + workArea.width - size.width, Math.max(workArea.x, Math.round(start.x + direction * distance)))
-    const targetY = Math.min(workArea.y + workArea.height - size.height, Math.max(workArea.y, Math.round(start.y + (Math.random() - 0.5) * 45)))
-    const duration = Math.max(800, Math.min(3600, Math.hypot(targetX - start.x, targetY - start.y) / 95 * 1000))
-    const startedAt = Date.now()
-    const token = ++this.runtimeMotionToken
-    this.runtimeMotionTimer = setInterval(() => {
-      if (token !== this.runtimeMotionToken) return
-      const progress = Math.min(1, (Date.now() - startedAt) / duration)
-      const eased = 0.5 - Math.cos(Math.PI * progress) / 2
-      this.setBounds(start.x + (targetX - start.x) * eased, start.y + (targetY - start.y) * eased)
-      if (progress >= 1) {
-        this.stopRuntimeMotion()
-        this.savePosition()
-        this.runtimeEvent({ type: 'MOTION_COMPLETED' })
-      }
-    }, 32)
+    const { bubble, bubbleDuration, ...visual } = action
+    this.petWindow.webContents.send('pet:action', visual)
   }
   refresh() {
     const win = this.show()
     const p = profile(this.id)
     const b = win.getBounds()
     this.setBounds(b.x, b.y)
-    this.applyOpacity(p.opacity)
+    win.setOpacity(p.opacity)
     win.setAlwaysOnTop(p.alwaysOnTop, 'screen-saver')
     win.webContents.send('pet:configChanged', this.config())
   }
@@ -445,7 +370,6 @@ function instance(id, create = true) {
   return instances.get(key)
 }
 function syncInstances() {
-  petRuntimeService.start()
   if (!settingsDao.get('petEnabled')) return destroyPetWindow()
   const desired = new Set(activeIds())
   for (const [id, item] of instances) if (!desired.has(id)) { item.destroy(); instances.delete(id) }
@@ -466,30 +390,13 @@ function setInstanceEnabled(id, enabled) {
   interactionService?.reschedule?.()
   petStudyService.reschedule(key)
   petStudyService.syncShortcut()
-  callbacks?.petEnabledChanged?.(next.size > 0)
-  return listInstances()
-}
-function setGlobalEnabled(enabled) {
-  const value = Boolean(enabled)
-  settingsDao.set('petEnabled', value)
-  if (value && activeIds().length === 0) {
-    const available = petModelService.list()
-    const preferred = selectedId()
-    const fallback = available.find((item) => item.id === preferred)?.id || available[0]?.id
-    if (fallback) settingsDao.set('petInstanceIds', [fallback])
-  }
-  syncInstances()
-  interactionService?.reschedule?.()
-  for (const id of activeIds()) petStudyService.reschedule(id)
-  petStudyService.syncShortcut()
-  callbacks?.petEnabledChanged?.(value)
   return listInstances()
 }
 function popupMenu(id) {
   const item = instance(id)
   const study = petStudyService.getSettings(item.id)
   const review = (rating) => { try { petStudyService.review(item.id, undefined, rating) } catch (error) { item.bubble(error.message, 3500) } }
-  const menu = Menu.buildFromTemplate([
+  Menu.buildFromTemplate([
     { label: '桌宠模式', type: 'radio', checked: study.mode === 'companion', click: () => petStudyService.updateSettings(item.id, { mode: 'companion' }) },
     { label: '单词学习模式', type: 'radio', checked: study.mode === 'study', click: () => petStudyService.updateSettings(item.id, { mode: 'study' }) },
     { label: '摸鱼学习模式', type: 'radio', checked: study.mode === 'stealth-study', click: () => petStudyService.updateSettings(item.id, { mode: 'stealth-study' }) },
@@ -508,30 +415,19 @@ function popupMenu(id) {
     },
     { type: 'separator' },
     { label: t('pet.chat'), click: () => item.setChat(true) },
-    { label: t('pet.encourage'), click: () => item.action({ intent: 'greet', source: 'menu', priority: 50, bubble: t('pet.encourageBubble'), bubbleDuration: 3600 }) },
+    { label: t('pet.encourage'), click: () => item.action({ state: 'wave', bubble: t('pet.encourageBubble'), duration: 3600 }) },
     { label: t('pet.goHome'), click: () => { const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }) } },
     { type: 'separator' },
     { label: t('pet.openLaunchpad'), click: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.() } },
     { label: t('pet.hide'), click: () => setInstanceEnabled(item.id, false) }
-  ])
-  const releaseTransparentWindow = () => {
-    const win = item.petWindow
-    if (!item.chatOpen && !item.dragOffset && win && !win.isDestroyed()) win.setIgnoreMouseEvents(true, { forward: true })
-  }
-  menu.popup({ window: item.petWindow || undefined, callback: releaseTransparentWindow })
-  // 原生菜单拥有独立的鼠标捕获，弹出后立即释放透明宿主窗口，
-  // 用户点击桌面任意位置即可关闭菜单，不会被桌宠透明区域截获。
-  releaseTransparentWindow()
+  ]).popup({ window: item.petWindow || undefined })
 }
 
 const idSchema = v.optional(v.str({ max: 200 }))
 const positionSchema = v.obj({ x: v.num(), y: v.num() })
-const intentSchema = v.str({ min: 1, max: 80, pattern: /^[a-z][a-z0-9_.-]*$/ })
-const actionSchema = v.obj({ state: v.optional(v.oneOf(Object.keys(LEGACY_ACTION_INTENTS))), intent: v.optional(intentSchema), emotion: v.optional(v.str({ max: 24, pattern: /^[a-z]+$/ })), intensity: v.optional(v.num({ min: 0, max: 1 })), priority: v.optional(v.num({ min: 0, max: 100 })), source: v.optional(v.oneOf(['menu', 'ai', 'study', 'social', 'user', 'system', 'autonomous'])), bubble: v.optional(v.str({ max: 1200 })), duration: v.optional(v.num()), bubbleDuration: v.optional(v.num()) })
-const runtimeEventSchema = v.obj({ type: v.oneOf(['POINTER_DOWN', 'DRAG_THRESHOLD', 'POINTER_UP', 'CLICK', 'DOUBLE_CLICK', 'ANIMATION_COMPLETED', 'MOTION_COMPLETED', 'CHAT_OPENED', 'CHAT_CLOSED']), intent: v.optional(intentSchema), playbackToken: v.optional(v.num({ integer: true, min: 0 })) })
-const presentationContextSchema = v.obj({ event: v.oneOf(['started', 'completed', 'failure', 'social', 'study']), userText: v.optional(v.str({ max: 2000 })), assistantText: v.optional(v.str({ max: 4000 })), toolFailed: v.optional(v.bool()), bubble: v.optional(v.str({ max: 1200 })) })
+const actionSchema = v.obj({ state: v.optional(v.oneOf(PET_ACTIONS)), bubble: v.optional(v.str({ max: 1200 })), duration: v.optional(v.num()) })
 const bubbleSizeSchema = v.obj({ width: v.optional(v.num()), height: v.optional(v.num()) })
-const settingsSchema = v.obj({ scale: v.optional(v.num({ min: 0.65, max: 5 })), opacity: v.optional(v.num({ min: 0.55, max: 1 })), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()), emotionMode: v.optional(v.oneOf(['local', 'hybrid', 'ai'])) })
+const settingsSchema = v.obj({ scale: v.optional(v.num()), opacity: v.optional(v.num()), roaming: v.optional(v.bool()), roamRange: v.optional(v.num()), roamActivity: v.optional(v.num()), alwaysOnTop: v.optional(v.bool()) })
 const studyEntrySchema = v.obj({ language: v.optional(v.str({ max: 24 })), term: v.str({ min: 1, max: 120 }), meaning: v.optional(v.str({ max: 500 })), pronunciation: v.optional(v.str({ max: 120 })), example: v.optional(v.str({ max: 500 })), exampleTranslation: v.optional(v.str({ max: 500 })) })
 const studySettingsSchema = v.obj({ mode: v.optional(v.oneOf(petStudyService.MODES)), language: v.optional(v.str({ max: 24 })), intervalSeconds: v.optional(v.num({ integer: true, min: 5, max: 600 })), quickAddShortcut: v.optional(v.str({ max: 80 })), modeSwitchShortcut: v.optional(v.str({ max: 80 })), autoSeedEnglish: v.optional(v.bool()) })
 const studySearchSchema = v.obj({ language: v.str({ min: 1, max: 24 }), query: v.optional(v.str({ max: 200 })), limit: v.optional(v.num({ integer: true, min: 1, max: 100 })), offset: v.optional(v.num({ integer: true, min: 0, max: 100000 })) })
@@ -543,23 +439,6 @@ const petRoutes = [
   { channel: 'pet:setMousePassthrough', kind: 'on', schema: [idSchema, v.bool()], handler: (_e, id, value) => instance(id)?.petWindow?.setIgnoreMouseEvents(Boolean(value), value ? { forward: true } : undefined) },
   { channel: 'pet:savePosition', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.savePosition() },
   { channel: 'pet:performAction', kind: 'on', schema: [v.or(idSchema, actionSchema), v.optional(actionSchema)], handler: (_e, first, second) => instance(typeof first === 'object' ? undefined : first)?.action(typeof first === 'object' ? first : second) },
-  { channel: 'pet:runtime:getSnapshot', schema: [idSchema], handler: (_e, id) => instance(id).runtimeSnapshot },
-  { channel: 'pet:runtime:event', kind: 'on', schema: [idSchema, runtimeEventSchema], handler: (_e, id, event) => instance(id)?.runtimeEvent(event) },
-  { channel: 'pet:animationCompleted', kind: 'on', schema: [idSchema, v.num({ integer: true, min: 0 })], handler: (_e, id, playbackToken) => instance(id)?.runtimeEvent({ type: 'ANIMATION_COMPLETED', playbackToken }) },
-  { channel: 'pet:present', schema: [idSchema, actionSchema], handler: (_e, id, action) => instance(id).action(action) },
-  { channel: 'pet:resolvePresentation', schema: [idSchema, presentationContextSchema], handler: async (_e, id, context) => {
-    const item = instance(id)
-    const requestToken = ++item.presentationRequestToken
-    const mode = profile(item.id).emotionMode
-    const resolved = mode === 'local'
-      ? resolveLocal(context)
-      : mode === 'ai'
-        ? await resolveAi(context, callbacks?.classifyPresentation)
-        : await resolveHybrid(context, callbacks?.classifyPresentation)
-    // 较早的分类结果不允许覆盖后续交互；拖拽等高优先级状态仍由状态机裁决。
-    if (requestToken !== item.presentationRequestToken) return item.runtimeSnapshot
-    return item.action({ ...resolved, priority: 80, bubble: context.bubble })
-  } },
   { channel: 'pet:setChatOpen', schema: [idSchema, v.bool()], handler: (_e, id, open) => instance(id).setChat(open) },
   { channel: 'pet:showBubble', schema: [idSchema, v.optional(v.or(v.str({ max: 1200 }), v.num())), v.optional(v.num())], handler: (_e, first, second, third) => { const legacy = typeof second === 'number'; return instance(legacy ? undefined : first).bubble(legacy ? first : second, legacy ? second : third) } },
   { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); item?.resizeBubble(old ? first : second) } },
@@ -567,7 +446,7 @@ const petRoutes = [
   { channel: 'pet:showMenu', schema: [idSchema], handler: (_e, id) => { popupMenu(id); return { success: true } }, },
   { channel: 'pet:home', schema: [idSchema], handler: (_e, id) => { const item = instance(id); const pos = home(item.id, activeIds().indexOf(item.id)); item.setBounds(pos.x, pos.y); petProfileService.update(item.id, { position: pos }); return { success: true } } },
   { channel: 'pet:getConfig', schema: [idSchema], handler: (_e, id) => instance(id).config() },
-  { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: Math.max(workArea.x, workArea.x + workArea.width - size.width), minY: workArea.y, maxY: Math.max(workArea.y, workArea.y + workArea.height - size.height) } } },
+  { channel: 'pet:getMovementArea', schema: [idSchema], handler: (_e, id) => { const key = selectedId(id); const size = dimensions(key); const pos = instance(key).position(); const { workArea } = screen.getDisplayNearestPoint(pos); return { minX: workArea.x, maxX: workArea.x + workArea.width - size.width, minY: workArea.y, maxY: workArea.y + workArea.height - size.height } } },
   { channel: 'pet:listModels', schema: [], handler: () => petModelService.list() },
   { channel: 'pet:refreshModels', schema: [], handler: () => { petModelService.refresh(); syncInstances(); return listInstances() } },
   { channel: 'pet:listInstances', schema: [], handler: () => listInstances() },
@@ -602,17 +481,17 @@ const petRoutes = [
 
 function init(nextCallbacks) {
   callbacks = nextCallbacks
-  defineRoutes(petRoutes); installHandlers(); petRuntimeService.start(); syncInstances()
+  defineRoutes(petRoutes); installHandlers(); syncInstances()
   interactionService.init({
     getActivePetIds: activeIds,
     canAutoInteract: () => !isAnyChatOpen(),
-    showSpeech: (id, text) => { const item = instance(id, false); item?.show(); const presentation = resolveLocal({ event: 'social', assistantText: text }); item?.action({ ...presentation, source: 'social', priority: 70, bubble: text, bubbleDuration: 2400 }) }
+    showSpeech: (id, text) => { const item = instance(id, false); item?.show(); item?.action({ state: 'wave', bubble: text, duration: 2400 }) }
   })
   petStudyService.init({
     getActivePetIds: activeIds,
     getSelectedPetId: selectedId,
-    isPetActive: (id) => Boolean(settingsDao.get('petEnabled')) && activeIds().includes(String(id)),
-    showBubble: (id, text, duration) => instance(id, false)?.action({ intent: 'study.review', source: 'study', priority: 75, bubble: text, bubbleDuration: duration }),
+    isPetActive: (id) => activeIds().includes(String(id)),
+    showBubble: (id, text, duration) => instance(id, false)?.bubble(text, duration),
     openQuickAdd: (id) => instance(id)?.openQuickAdd(),
     toggleQuickAdd: (id) => instance(id)?.toggleQuickAdd(),
     configChanged: (id) => { const item = instance(id, false); if (item?.petWindow && !item.petWindow.isDestroyed()) item.petWindow.webContents.send('pet:configChanged', item.config()) }
@@ -625,11 +504,10 @@ function destroyPetWindow(id) {
   if (id) { const item = instance(id, false); item?.destroy(); instances.delete(String(id)); return }
   for (const item of instances.values()) item.destroy()
   instances.clear()
-  petRuntimeService.stop()
 }
 function sendPetAction(action, id) { instance(id).action(action) }
 function showPetBubble(text, duration, id) { return instance(id).bubble(text, duration) }
 function getRuntimeConfig(id) { return instance(id).config() }
 function isAnyChatOpen() { return [...instances.values()].some((item) => item.chatOpen) }
 
-module.exports = { init, refresh, showPetWindow, hidePetWindow, destroyPetWindow, getRuntimeConfig, sendPetAction, showPetBubble, listInstances, setInstanceEnabled, setGlobalEnabled, isAnyChatOpen, petRoutes }
+module.exports = { init, refresh, showPetWindow, hidePetWindow, destroyPetWindow, getRuntimeConfig, sendPetAction, showPetBubble, listInstances, setInstanceEnabled, isAnyChatOpen, petRoutes }

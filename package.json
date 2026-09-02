@@ -1,6 +1,6 @@
 {
   "name": "workspace-launcher",
-  "version": "1.0.6",
+  "version": "1.0.5",
   "description": "LaunchPad：面向 Windows 的开源工作空间管理与软件一键启动工具",
   "author": "MewzCC",
   "license": "MIT",
@@ -24,10 +24,6 @@
     "test:ai-memory": "electron scripts/verify-ai-memory.cjs",
     "test:ipc": "node scripts/verify-ipc.cjs",
     "test:pet-drag": "electron scripts/verify-pet-drag-animation.cjs",
-    "test:pet-manifest-v3": "node scripts/verify-pet-manifest-v3.cjs",
-    "test:pet-runtime": "node scripts/verify-pet-runtime.cjs",
-    "test:pet-emotion": "node scripts/verify-pet-emotion.cjs",
-    "verify:pet-package": "electron scripts/verify-pet-package.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",

@@ -8,53 +8,17 @@ const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-pet-drag-'))
 process.env.PORTABLE_EXECUTABLE_DIR = path.resolve(__dirname, '..')
 
 app.whenReady().then(() => {
-  // 同时隔离 appData，避免存储迁移把真实数据库复制进测试目录并污染用户配置。
-  app.setPath('appData', path.join(testRoot, 'appData'))
   app.setPath('userData', path.join(testRoot, 'userData'))
   const modelService = require('../electron/services/petModelService.cjs')
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
   const klee = modelService.getRuntimeModel('klee-spark-knight')
 
-  const lanxiLifted = lanxi.render.animations.lifted
-  assert.strictEqual(lanxi.sourceFormat, 'pet-v3-sequence')
-  // 纠正版按源图实际可识别帧数切分，防止再次退回会截断角色的固定网格结果。
-  const expectedFrameCounts = {
-    idle: 20,
-    blink: 20,
-    walk_left: 24,
-    walk_right: 24,
-    happy: 8,
-    angry: 22,
-    touch_head: 22,
-    sit_down: 20,
-    sleep: 20,
-    lifted: 20,
-  }
-  for (const [action, frameCount] of Object.entries(expectedFrameCounts)) {
-    assert.strictEqual(lanxi.render.animations[action].source.frames.length, frameCount, `${action} 帧数应与纠正版素材一致`)
-  }
-  assert.strictEqual(lanxi.render.animations.drag, undefined)
-  assert.strictEqual(lanxiLifted.source.type, 'sequence')
-  assert.strictEqual(lanxiLifted.source.frames.length, 20)
-  // 提起动作保留完整帧数，通过降低播放速率避免快速扫帧造成跳动感。
-  assert.strictEqual(lanxiLifted.timing.fps, 6)
-  assert.strictEqual(lanxiLifted.timing.playback, 'loop')
-  assert.ok(lanxiLifted.source.frames.every((value) => value.startsWith('pet-asset://blue-whale-maid/')))
-  assert.ok(lanxiLifted.source.frames.every((value) => !value.startsWith('data:')))
-  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.drag'], ['lifted'])
-  assert.deepStrictEqual(lanxi.semantics.bindings['interaction.lift'], ['lifted'])
-  assert.deepStrictEqual(klee.semantics.bindings['interaction.drag'], ['jump'])
-  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').render.animations.lifted.source.frames.length, 20)
-  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').render.animations.lifted.source.frames.length, 20)
-
-  const profileService = require('../electron/services/petProfileService.cjs')
-  assert.strictEqual(profileService.ensure('blue-whale-maid').scale, 1)
-  const maximumScale = profileService.update('blue-whale-maid', { scale: 9, opacity: 0.2 })
-  assert.strictEqual(maximumScale.scale, 5)
-  assert.strictEqual(maximumScale.opacity, 0.55)
-  const customScale = profileService.update('blue-whale-maid', { scale: 3.75, opacity: 0.8 })
-  assert.strictEqual(customScale.scale, 3.75)
-  assert.strictEqual(customScale.opacity, 0.8)
+  assert.strictEqual(lanxi.dragAnimation.atlasState, 'jump')
+  assert.deepStrictEqual(lanxi.dragAnimation.durations, [150, 130, 170, 130, 190])
+  assert.strictEqual(Boolean(lanxi.dragAnimation.frameDataUrls), false)
+  assert.strictEqual(Boolean(klee.dragAnimation), false)
+  assert.strictEqual(modelService.list().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
+  assert.strictEqual(modelService.refresh().find((item) => item.id === 'blue-whale-maid').dragAnimation.atlasState, 'jump')
 
   const { calculateBubbleBounds } = require('../electron/services/petOverlayPlacement.cjs')
   const area = { x: 0, y: 0, width: 1707, height: 1067 }

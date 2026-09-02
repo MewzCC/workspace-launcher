@@ -4,13 +4,12 @@ const { t } = require('../i18n.cjs')
 const CHAT_MODES = ['concise', 'focus', 'creative', 'casual']
 const LEGACY_DEFAULT_PERSONALITY = '你是一只安静、友善的工作陪伴型桌宠。回答简短自然，优先鼓励用户拆分任务、专注工作和适时休息。'
 const DEFAULT_BEHAVIOR = {
-  scale: 1,
+  scale: 0.9,
   opacity: 1,
   roaming: true,
   roamRange: 0.7,
   roamActivity: 1,
   alwaysOnTop: true,
-  emotionMode: 'hybrid',
   position: null
 }
 
@@ -43,13 +42,12 @@ function normalize(profile = {}, defaults = {}) {
     memoryMode: ['off', 'manual', 'auto'].includes(profile.memoryMode)
       ? profile.memoryMode
       : (['off', 'manual', 'auto'].includes(settingsDao.get('aiMemoryMode')) ? settingsDao.get('aiMemoryMode') : 'manual'),
-    scale: clamp(profile.scale, 0.65, 5, DEFAULT_BEHAVIOR.scale),
+    scale: clamp(profile.scale, 0.65, 1.35, DEFAULT_BEHAVIOR.scale),
     opacity: clamp(profile.opacity, 0.55, 1, DEFAULT_BEHAVIOR.opacity),
     roaming: typeof profile.roaming === 'boolean' ? profile.roaming : DEFAULT_BEHAVIOR.roaming,
     roamRange: clamp(profile.roamRange, 0.2, 1, DEFAULT_BEHAVIOR.roamRange),
     roamActivity: clamp(profile.roamActivity, 0.5, 2, DEFAULT_BEHAVIOR.roamActivity),
     alwaysOnTop: typeof profile.alwaysOnTop === 'boolean' ? profile.alwaysOnTop : DEFAULT_BEHAVIOR.alwaysOnTop,
-    emotionMode: ['local', 'hybrid', 'ai'].includes(profile.emotionMode) ? profile.emotionMode : DEFAULT_BEHAVIOR.emotionMode,
     position: validPosition(profile.position)
   }
 }

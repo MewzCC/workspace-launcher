@@ -1051,28 +1051,9 @@ async function generateStudyEntry({ language = 'en', term = '' } = {}) {
   return entry
 }
 
-// 表情分类只读取本次交互的最小文本，不接触会话摘要、长期记忆或工具权限。
-async function classifyPetPresentation(input = {}, localResult = {}) {
-  const instructions = 'Classify how a desktop companion should visually react to this exchange. Do not answer the user. Return JSON only with emotion, intensity, intent, confidence, and holdMs. emotion must be one of: neutral, happy, excited, concerned, sad, angry, annoyed, shy, sleepy, focused, surprised. intent must be one of: idle, greet, focus.working, react.happy, react.excited, react.concerned, react.sad, react.angry, react.annoyed, react.shy, react.surprised, error. intensity and confidence must be 0..1; holdMs must be 500..6000. Choose a gentle, proportionate reaction and do not infer sensitive traits.'
-  const prompt = [
-    `Event: ${String(input.event || 'completed').slice(0, 40)}`,
-    input.userText ? `User: ${String(input.userText).slice(0, 2000)}` : '',
-    input.assistantText ? `Companion reply: ${String(input.assistantText).slice(0, 4000)}` : '',
-    input.toolFailed ? 'Tool outcome: failed' : '',
-    `Local fallback: ${JSON.stringify(localResult)}`
-  ].filter(Boolean).join('\n')
-  const result = await requestModel(instructions, [{ role: 'user', content: prompt }], 8000, { tools: false })
-  const raw = String(result.text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  const match = raw.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('AI 桌宠情绪分类结果不是有效 JSON')
-  const parsed = JSON.parse(match[0])
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AI 桌宠情绪分类结果无效')
-  return parsed
-}
-
 module.exports = {
   getConfig, saveConfig, chat,
   getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
   setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory,
-  generateStudyItems, generateStudyEntry, classifyPetPresentation
+  generateStudyItems, generateStudyEntry
 }

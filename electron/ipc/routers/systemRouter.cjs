@@ -58,9 +58,9 @@ const systemRoutes = [
     channel: 'system:setPetEnabled',
     schema: [bool()],
     handler: (_e, enabled) => {
-      require('../../services/petService.cjs').setGlobalEnabled(enabled)
-      trayService.refreshTrayMenu()
-      return systemPreferences.getPreferences()
+      const result = systemPreferences.setPetEnabled(enabled)
+      require('../../services/petService.cjs').refresh()
+      return result
     }
   },
   {

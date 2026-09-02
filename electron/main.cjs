@@ -1,5 +1,4 @@
 const { app, BrowserWindow } = require('electron')
-const petAssetProtocol = require('./services/petAssetProtocol.cjs')
 const path = require('path')
 const { setupAppMenu } = require('./menu.cjs')
 const trayService = require('./services/trayService.cjs')
@@ -8,18 +7,13 @@ const updateService = require('./services/updateService.cjs')
 const systemPreferences = require('./services/systemPreferences.cjs')
 const crashLogger = require('./services/crashLogger.cjs')
 const petService = require('./services/petService.cjs')
-const aiService = require('./services/aiService.cjs')
 const { applyNativeTheme } = require('./ipc/routers/systemRouter.cjs')
 const { t } = require('./i18n.cjs')
 
 let mainWindow = null
 let isQuitting = false
 let trayHintShown = false
-let unsubscribeTrayUpdate = null
-let mainWindowHiddenToTray = true
 
-// 自定义资源协议必须在 ready 前声明权限，避免序列帧退化为巨型 base64 IPC。
-petAssetProtocol.registerPrivileges()
 crashLogger.initialize()
 
 function getAppIconPath() {
@@ -33,34 +27,17 @@ function showMainWindow() {
     createWindow({ startHidden: false })
     return
   }
-  mainWindowHiddenToTray = false
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
   mainWindow.focus()
 }
 
-function hideMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  mainWindowHiddenToTray = true
-  mainWindow.hide()
-}
-
 function toggleMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-    hideMainWindow()
+    mainWindow.hide()
   } else {
     showMainWindow()
   }
-}
-
-function openMainView(view) {
-  showMainWindow()
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  const send = () => {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:navigate', view)
-  }
-  if (mainWindow.webContents.isLoading()) mainWindow.webContents.once('did-finish-load', send)
-  else send()
 }
 
 function quitApp() {
@@ -84,21 +61,16 @@ function createWindow({ startHidden = false } = {}) {
     }
   })
   mainWindow = win
-  mainWindowHiddenToTray = Boolean(startHidden)
   crashLogger.attachWindow(win)
 
   win.once('ready-to-show', () => {
-    if (!startHidden) {
-      mainWindowHiddenToTray = false
-      win.show()
-    }
+    if (!startHidden) win.show()
   })
 
   win.on('close', (event) => {
     const closeToTray = require('./db/index.cjs').settingsDao.get('closeToTray')
     if (!isQuitting && closeToTray && trayService.hasTray()) {
       event.preventDefault()
-      mainWindowHiddenToTray = true
       win.hide()
       if (!trayHintShown) {
         trayHintShown = true
@@ -108,15 +80,8 @@ function createWindow({ startHidden = false } = {}) {
   })
 
   win.on('closed', () => {
-    if (mainWindow === win) {
-      mainWindow = null
-      mainWindowHiddenToTray = true
-    }
+    if (mainWindow === win) mainWindow = null
   })
-  win.on('show', () => trayService.refreshTrayMenu())
-  win.on('hide', () => trayService.refreshTrayMenu())
-  win.on('minimize', () => setImmediate(() => trayService.refreshTrayMenu()))
-  win.on('restore', () => setImmediate(() => trayService.refreshTrayMenu()))
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -136,7 +101,6 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     // 运行时版本唯一来源：package.json -> app.getVersion() -> preload/渲染层。
     process.env.LAUNCHPAD_VERSION = app.getVersion()
-    petAssetProtocol.install()
     const db = require('./db/index.cjs')
     db.getDb()
     require('./ipc/handlers.cjs').registerIpcHandlers()
@@ -145,35 +109,24 @@ if (!gotSingleInstanceLock) {
     setupAppMenu()
     systemPreferences.syncLoginItem()
 
-    // 必须先注册桌宠 IPC，再加载主窗口；否则首屏请求可能早于处理器安装。
+    const startHidden = process.argv.includes('--hidden') && db.settingsDao.get('startMinimized')
+    createWindow({ startHidden })
+    trayService.createTray({
+      showWindow: showMainWindow,
+      toggleWindow: toggleMainWindow,
+      quitApp
+    })
+    shortcutService.init({ showWindow: showMainWindow })
+    shortcutService.syncShortcuts()
+    updateService.start()
     petService.init({
       showWindow: showMainWindow,
-      classifyPresentation: aiService.classifyPetPresentation,
-      petEnabledChanged: () => trayService.refreshTrayMenu(),
       openPetCenter: () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('app:navigate', 'pet-center')
         }
       }
     })
-
-    const startHidden = process.argv.includes('--hidden') && db.settingsDao.get('startMinimized')
-    createWindow({ startHidden })
-    trayService.createTray({
-      showWindow: showMainWindow,
-      hideWindow: hideMainWindow,
-      toggleWindow: toggleMainWindow,
-      quitApp,
-      isWindowShown: () => Boolean(mainWindow && !mainWindow.isDestroyed() && !mainWindowHiddenToTray),
-      openView: openMainView,
-      checkForUpdates: () => updateService.checkForUpdates({ manual: true }),
-      getUpdateStatus: () => updateService.getStatus(),
-      setPetEnabled: (enabled) => petService.setGlobalEnabled(enabled)
-    })
-    unsubscribeTrayUpdate = updateService.subscribeStatus(() => trayService.refreshTrayMenu())
-    shortcutService.init({ showWindow: showMainWindow })
-    shortcutService.syncShortcuts()
-    updateService.start()
 
     app.on('activate', showMainWindow)
   })
@@ -184,8 +137,6 @@ app.on('before-quit', () => {
 })
 
 app.on('will-quit', () => {
-  unsubscribeTrayUpdate?.()
-  unsubscribeTrayUpdate = null
   trayService.destroyTray()
   shortcutService.unregisterAll()
   updateService.stop()

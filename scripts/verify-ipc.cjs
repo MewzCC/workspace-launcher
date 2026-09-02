@@ -390,12 +390,7 @@ for (const [name, args] of Object.entries(attackPayloads)) {
 }
 console.log(`合法负载通过 ${acceptedCount}，攻击负载用例 ${Object.keys(attackPayloads).length}`)
 
-console.log('== 5. 启动时序 ==')
-const mainSource = fs.readFileSync(path.join(ROOT, 'electron', 'main.cjs'), 'utf8')
-check('桌宠 IPC 在主窗口加载前完成注册', mainSource.indexOf('petService.init({') > 0 && mainSource.indexOf('petService.init({') < mainSource.indexOf('createWindow({ startHidden })'))
-check('桌宠 AI 分类器在主进程中已显式导入', /const\s+aiService\s*=\s*require\(['"]\.\/services\/aiService\.cjs['"]\)/.test(mainSource))
-
-console.log('== 6. 防御语义（净化结果断言）与业务层白名单（真实调用 handler）==')
+console.log('== 5. 防御语义（净化结果断言）与业务层白名单（真实调用 handler）==')
 ;(async () => {
   // 校验层的「净化语义」用例：未知键被剥离 / 数字字符串被收敛为整数
   const defenseCases = [

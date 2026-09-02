@@ -1,11 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  Archive, Bot, Box, Brain, BookOpen, Check, CircleHelp, Eraser, FolderOpen, Import,
+  Archive, Bot, Box, Brain, BookOpen, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Eraser, FolderOpen, Import,
   KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles,
   RefreshCw, Terminal, Trash2, WandSparkles
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
+import ResizableTable from '../components/ui/ResizableTable'
 import PetSprite from '../components/PetSprite'
 import TutorialDrawer from '../components/TutorialDrawer'
 import PetStudyPanel from '../components/PetStudyPanel'
@@ -42,6 +43,8 @@ function PetCenter() {
   const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false })
   const [config, setConfig] = useState(null)
   const [models, setModels] = useState([])
+  const [modelPage, setModelPage] = useState(1)
+  const MODEL_PAGE_SIZE = 5
   const [refreshingModels, setRefreshingModels] = useState(false)
   const [interactionStatus, setInteractionStatus] = useState(null)
   const [interactions, setInteractions] = useState([])
@@ -259,7 +262,15 @@ function PetCenter() {
   }
 
   const removeModel = async (id) => {
-    if (!window.confirm(t('petCenter.removeConfirm'))) return
+    const model = models.find((item) => item.id === id)
+    const confirmed = await confirm({
+      title: t('common.delete'),
+      message: `${model?.displayName ? `「${model.displayName}」` : ''}${t('petCenter.removeConfirm')}`,
+      confirmText: t('common.delete'),
+      tone: 'danger',
+      icon: 'danger'
+    })
+    if (!confirmed) return
     try { await petApi.removeModel(id); await load() } catch (error) { setNotice(error.message) }
   }
 
@@ -551,7 +562,85 @@ function PetCenter() {
   }
 
   const activePetCount = models.filter((item) => item.active).length
+  const modelTotalPages = Math.max(1, Math.ceil(models.length / MODEL_PAGE_SIZE))
+  const currentModelPage = Math.min(modelPage, modelTotalPages)
+  const pagedModels = models.slice((currentModelPage - 1) * MODEL_PAGE_SIZE, currentModelPage * MODEL_PAGE_SIZE)
+
+  const modelPageItems = (() => {
+    if (modelTotalPages <= 7) return Array.from({ length: modelTotalPages }, (_, i) => i + 1)
+    const items = [1]
+    const start = Math.max(2, currentModelPage - 1)
+    const end = Math.min(modelTotalPages - 1, currentModelPage + 1)
+    if (start > 2) items.push('start-ellipsis')
+    for (let page = start; page <= end; page += 1) items.push(page)
+    if (end < modelTotalPages - 1) items.push('end-ellipsis')
+    items.push(modelTotalPages)
+    return items
+  })()
+
+  useEffect(() => {
+    if (modelPage > modelTotalPages) setModelPage(modelTotalPages)
+  }, [modelTotalPages, modelPage])
+
   if (!config || !aiConfig) return <div className="pet-center-loading"><Sparkles /> {t('petCenter.loading')}</div>
+
+  const modelColumns = [
+    { key: 'pet', label: t('petCenter.modelColumnPet'), width: 1.9, minWidth: 150, resizable: true, className: 'pet-model-col-pet' },
+    { key: 'description', label: t('petCenter.modelColumnDesc'), width: 1.5, minWidth: 90, resizable: true, className: 'pet-model-col-desc' },
+    { key: 'format', label: t('petCenter.modelColumnSpec'), width: 0.8, minWidth: 84, resizable: true, className: 'pet-model-col-format' },
+    { key: 'actions', label: t('petCenter.modelColumnActions'), fixedWidth: 190, resizable: false, className: 'pet-model-actions-cell' }
+  ]
+
+  const renderModelCell = (model, column) => {
+    const selected = config.model.id === model.id
+    const format = model.builtin ? 'BUILT-IN' : model.invalid ? 'INVALID' : String(model.sourceFormat || 'legacy').toUpperCase()
+    const diagnostic = model.diagnostics?.[0]
+    const diagnosticText = diagnostic ? `${diagnostic.code}: ${diagnostic.message}` : ''
+    switch (column.key) {
+      case 'pet':
+        return (
+          <div className="pet-model-cell-pet">
+            <div className="pet-model-cell-thumb"><PetSprite model={model} state="idle" size={48} /></div>
+            <div className="pet-model-cell-info">
+              <div className="pet-model-cell-name">
+                <strong title={model.displayName}>{model.displayName}</strong>
+                {model.active && <span className="pet-model-cell-active-dot" aria-label={t('petCenter.inUse')} />}
+              </div>
+              {model.invalid && diagnosticText && (
+                <span className="pet-model-cell-error" title={diagnosticText}>{diagnosticText}</span>
+              )}
+            </div>
+          </div>
+        )
+      case 'description':
+        return (
+          <p className={`pet-model-cell-desc${model.invalid ? ' is-invalid' : ''}`} title={diagnosticText || (model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))}>
+            {diagnosticText || (model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))}
+          </p>
+        )
+      case 'format':
+        return (
+          <div className="pet-model-cell-meta">
+            <span className={`pet-model-format${model.invalid ? ' is-invalid' : ''}${model.builtin ? ' is-builtin' : ''}`}>{format}</span>
+            {model.capabilities?.animations?.length > 0 && <span className="pet-model-anim-count">{model.capabilities.animations.length} ANIMATIONS</span>}
+          </div>
+        )
+      case 'actions':
+        return (
+          <div className="pet-model-cell-actions">
+            <button disabled={model.invalid} className={selected ? 'selected' : ''} onClick={() => selectModel(model.id)}>
+              {selected ? <><Check size={13} /> {t('petCenter.selectedPet')}</> : t('petCenter.setAsPet')}
+            </button>
+            <button disabled={model.invalid} className={model.active ? 'selected' : ''} onClick={() => toggleModelInstance(model.id, !model.active)}>
+              {model.active ? t('petCenter.closePet') : t('petCenter.openPet')}
+            </button>
+            {model.imported && <button className="danger" onClick={() => removeModel(model.id)} aria-label={t('common.delete')}><Trash2 size={14} /></button>}
+          </div>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div className="pet-center-page">
@@ -735,10 +824,12 @@ function PetCenter() {
               <GlowButton onClick={openModelsFolder}><FolderOpen size={16} /> {t('petCenter.chooseFolder')}</GlowButton>
               <GlowButton variant="ghost" onClick={importModel}>{t('petCenter.chooseManifest')}</GlowButton>
             </div>
-            <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV1')}</div>
-            <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV2')}</div>
-            <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractLegacy')}</div>
-            <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractImage')}</div>
+            <div className="pet-import-contracts">
+              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV1')}</div>
+              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV2')}</div>
+              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractLegacy')}</div>
+              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractImage')}</div>
+            </div>
           </div>
           <div className="pet-model-library">
             <div className="pet-interaction-console">
@@ -788,24 +879,55 @@ function PetCenter() {
                 </button>
               </div>
             </div>
-            <div className="pet-model-list">
-              {models.map((model) => {
+            <ResizableTable
+              columns={modelColumns}
+              rows={pagedModels}
+              getRowKey={(model) => model.id}
+              getRowClassName={(model) => {
                 const selected = config.model.id === model.id
-                return (
-                  <article key={model.id} className={`pet-model-card ${selected ? 'active' : ''}`}>
-                    <div className="pet-model-thumb">
-                      <PetSprite model={model} state="idle" size={82} />
-                    </div>
-                    <div className="pet-model-info"><strong>{model.displayName}</strong><p>{model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 })}</p><span>{model.imported ? (model.renderer === 'svg' ? 'SVG · AI GENERATED' : `V${model.spriteVersionNumber || 1} · IMPORTED`) : 'BUILT-IN'}</span></div>
-                    <div className="pet-model-actions">
-                      <button className={selected ? 'selected' : ''} onClick={() => selectModel(model.id)}>{selected ? <><Check size={14} /> {t('petCenter.selectedPet')}</> : t('petCenter.setAsPet')}</button>
-                      <button className={model.active ? 'selected' : ''} onClick={() => toggleModelInstance(model.id, !model.active)}>{model.active ? t('petCenter.closePet') : t('petCenter.openPet')}</button>
-                      {model.imported && <button className="danger" onClick={() => removeModel(model.id)} aria-label={t('common.delete')}><Trash2 size={15} /></button>}
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
+                return `${selected ? 'active' : ''}${model.invalid ? ' invalid' : ''}`
+              }}
+              renderCell={renderModelCell}
+              storageKey="pet-model-table-columns"
+              className={`pet-model-table${refreshingModels ? ' is-loading' : ''}`}
+              empty={<div className="pet-model-empty">{t('petCenter.noModels')}</div>}
+            />
+            {models.length > MODEL_PAGE_SIZE && (
+              <nav className="pet-model-pagination" aria-label={t('petCenter.modelPagination')}>
+                <span className="pet-model-pagination-info" aria-live="polite">
+                  {(currentModelPage - 1) * MODEL_PAGE_SIZE + 1}–{Math.min(currentModelPage * MODEL_PAGE_SIZE, models.length)} / {models.length}
+                </span>
+                <div className="pet-model-pagination-controls">
+                  <button type="button" onClick={() => setModelPage(1)} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPageFirst')}>
+                    <ChevronsLeft size={15} />
+                  </button>
+                  <button type="button" onClick={() => setModelPage((p) => Math.max(1, p - 1))} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPagePrev')}>
+                    <ChevronLeft size={15} />
+                  </button>
+                  {modelPageItems.map((item, index) => (
+                    item === 'start-ellipsis' || item === 'end-ellipsis'
+                      ? <span key={`${item}-${index}`} className="pet-model-pagination-ellipsis" aria-hidden="true">…</span>
+                      : (
+                        <button
+                          key={item}
+                          type="button"
+                          className={item === currentModelPage ? 'active' : ''}
+                          aria-current={item === currentModelPage ? 'page' : undefined}
+                          onClick={() => setModelPage(item)}
+                        >
+                          {item}
+                        </button>
+                      )
+                  ))}
+                  <button type="button" onClick={() => setModelPage((p) => Math.min(modelTotalPages, p + 1))} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageNext')}>
+                    <ChevronRight size={15} />
+                  </button>
+                  <button type="button" onClick={() => setModelPage(modelTotalPages)} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageLast')}>
+                    <ChevronsRight size={15} />
+                  </button>
+                </div>
+              </nav>
+            )}
           </div>
         </section>
       )}

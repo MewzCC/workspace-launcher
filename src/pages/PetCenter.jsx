@@ -577,12 +577,12 @@ function PetCenter() {
     const diagnosticText = diagnostic ? `${diagnostic.code}: ${diagnostic.message}` : ''
     const description = model.description || (model.renderer === 'sequence'
       ? t('petImport.sequenceDescription', { count: Object.keys(model.animations || {}).length })
-      : t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))
+      : model.renderer === 'live2d' ? t('petImport.live2dDescription') : t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))
     switch (column.key) {
       case 'pet':
         return (
           <div className="pet-model-cell-pet">
-            <div className="pet-model-cell-thumb"><PetSprite model={model} state="idle" size={48} /></div>
+            <div className="pet-model-cell-thumb"><PetSprite model={model} state="idle" size={48} thumbnailOnly /></div>
             <div className="pet-model-cell-info">
               <div className="pet-model-cell-name">
                 <strong title={model.displayName}>{model.displayName}</strong>
@@ -680,7 +680,7 @@ function PetCenter() {
           <div className="pet-chat-card">
             <div className="pet-chat-head">
               <div className="pet-chat-profile">
-                <div className="pet-chat-avatar"><PetSprite model={config.model} state="idle" size={34} /></div>
+                <div className="pet-chat-avatar"><PetSprite model={config.model} state="idle" size={34} thumbnailOnly /></div>
                 <div className="pet-chat-identity">
                   <strong title={aiConfig.petName || t('petCenter.companion')}>{aiConfig.petName || t('petCenter.companion')}</strong>
                   <select className="pet-chat-mode-select pet-themed-select" value={chatMode} onChange={(event) => changeChatMode(event.target.value)} aria-label={t('petCenter.chatMode')}>

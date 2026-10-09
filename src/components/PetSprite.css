@@ -72,3 +72,6 @@
 @media (prefers-reduced-motion: reduce) {
   .pet-sprite, .pet-sprite *, .pet-sprite svg { animation: none !important; }
 }
+.pet-live2d-thumbnail { display: grid; place-items: center; }
+.pet-live2d-thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+.pet-live2d-thumbnail span { font-size: 9px; opacity: .65; }

@@ -13,6 +13,7 @@ app.setPath('appData', path.join(root, 'appData'))
 app.setPath('userData', path.join(root, 'userData'))
 const repo = process.env.LAUNCHPAD_TEST_REPO || path.resolve(__dirname, '..')
 const ui = process.argv.includes('--ui')
+require('../electron/services/petLive2d.cjs') // Register the resource scheme before ready.
 let imports, petService, db
 
 function png(file, width = 192, height = 208, color = 0x70) {
@@ -31,7 +32,7 @@ async function waitFor(win, script) {
     if (await win.webContents.executeJavaScript(script)) return
     await new Promise((resolve) => setTimeout(resolve, 60))
   }
-  throw new Error(`UI condition timed out: ${script}`)
+  throw new Error(`UI condition timed out: ${script}\n${await win.webContents.executeJavaScript(`JSON.stringify({url:location.href,status:document.querySelector('.pet-live2d-host')?.outerHTML,error:document.querySelector('.pet-import-error')?.textContent})`)}`)
 }
 
 async function verifyUI(source) {
@@ -42,7 +43,7 @@ async function verifyUI(source) {
   petService.init({})
   const errors = []
   const win = new BrowserWindow({ show: false, width: 1440, height: 1100, webPreferences: { preload: path.join(repo, 'out/preload/index.cjs'), contextIsolation: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } })
-  win.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message) })
+  win.webContents.on('console-message', (_event, level, message) => { if (level >= 3) { errors.push(message); console.error('Renderer:', message) } })
   await win.loadFile(path.join(repo, 'out/renderer/index.html'))
   win.webContents.send('app:navigate', 'pet-center')
   // The channel is read from preload, not assumed by a real UI user.
@@ -69,7 +70,7 @@ async function verifyUI(source) {
     assert.strictEqual(await win.webContents.executeJavaScript(`document.querySelectorAll('.pet-import-clips button').length`), 4)
     await waitFor(win, `Array.from(document.querySelectorAll('.pet-import-stage img')).every(img => img.complete && img.naturalWidth > 0)`)
     const before = await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage img').src`)
-    await new Promise((resolve) => setTimeout(resolve, 170))
+    await waitFor(win, `document.querySelector('.pet-import-stage img').src !== ${JSON.stringify(before)}`)
     const after = await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage img').src`)
     assert.notStrictEqual(before, after, 'Idle animation advances')
     await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-clips button')).find(b => b.textContent === '拖拽').click()`)
@@ -112,8 +113,49 @@ async function verifyUI(source) {
       assert(archive.getEntry('create-launchpad-pet/SKILL.md'))
       assert(archive.getEntry('create-launchpad-pet/scripts/package_custom_pet.py'))
     } finally { dialog.showSaveDialog = originalSave }
+    await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b => b.textContent.includes('取消预览')).click()`)
+    const liveFixture = path.join(repo, 'output/live2d-fixture/Haru')
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [liveFixture] })
+    await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-dropzone button')).find(b => b.textContent.includes('选择文件夹')).click()`)
+    await waitFor(win, `Boolean(document.querySelector('.pet-import-stage .pet-live2d-host'))`)
+    await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage').scrollIntoView({block:'center'})`)
+    await waitFor(win, `document.querySelector('.pet-import-stage .pet-live2d-host')?.dataset.status === 'ready' && !Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).disabled`)
+    const motionLabel = 'TapBody / 1'
+    await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-clips button')).find(b=>b.textContent===${JSON.stringify(motionLabel)}).click()`)
+    const expectedMotion = require('../electron/services/petLive2d.cjs').validate({renderer:'live2d',modelPath:'Haru.model3.json',id:'fixture'},liveFixture).actions.find(a=>a.group==='TapBody'&&a.index===0).id
+    await waitFor(win, `document.querySelector('.pet-import-stage .pet-live2d-host').dataset.action === ${JSON.stringify(expectedMotion)}`)
+    const motionId = await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage .pet-live2d-host').dataset.action`)
+    await win.webContents.executeJavaScript(`document.querySelector('.pet-import-mappings select[aria-label="招手"]').value=${JSON.stringify(motionId)};document.querySelector('.pet-import-mappings select[aria-label="招手"]').dispatchEvent(new Event('change',{bubbles:true}))`)
+    await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-clips button')).find(b=>b.textContent==='F01').click()`)
+    await waitFor(win, `document.querySelector('.pet-import-stage .pet-live2d-host').dataset.action.startsWith('expression-')`)
+    fs.writeFileSync(path.join(out, 'live2d-import-preview.png'), (await win.webContents.capturePage()).toPNG())
+    // Manual engine selection rejects a mismatched package and can recover.
+    await win.webContents.executeJavaScript(`(()=>{const select=document.querySelector('.pet-import-engine select');select.value='sprite';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    await waitFor(win, `document.querySelector('.pet-import-error')?.textContent.includes('Live2D') && !document.querySelector('.pet-import-preview')`)
+    await win.webContents.executeJavaScript(`(()=>{const select=document.querySelector('.pet-import-engine select');select.value='live2d';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    await waitFor(win, `document.querySelector('.pet-import-stage .pet-live2d-host')?.dataset.status === 'ready'`)
+    await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage').scrollIntoView({block:'center'})`)
+    await waitFor(win, `!Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).disabled`)
+    const chosen = require('../electron/services/petLive2d.cjs').validate({renderer:'live2d',modelPath:'Haru.model3.json',id:'fixture'},liveFixture).actions.find(a=>a.group==='TapBody'&&a.index===0).id
+    await win.webContents.executeJavaScript(`for(const label of ['招手','拖拽']){const s=document.querySelector('.pet-import-mappings select[aria-label="'+label+'"]');s.value=${JSON.stringify(chosen)};s.dispatchEvent(new Event('change',{bubbles:true}))}`)
+    await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).click()`)
+    await waitFor(win, `document.querySelector('.pet-import-preview') === null`)
+    const liveId = db.settingsDao.get('petModelId')
+    const liveConfig = petService.getRuntimeConfig(liveId)
+    assert.strictEqual(liveConfig.model.live2d.mappings.wave, chosen)
+    assert.strictEqual(liveConfig.model.live2d.mappings.dragging, chosen)
+    assert(liveConfig.model.thumbnailDataUrl)
+    let liveWindow
+    for (let i=0;i<100&&!liveWindow;i++) { liveWindow=BrowserWindow.getAllWindows().find(w=>w!==win&&w.webContents.getURL().includes(encodeURIComponent(liveId))); if(!liveWindow) await new Promise(r=>setTimeout(r,50)) }
+    assert(liveWindow, 'Live2D gets an independent desktop instance')
+    await waitFor(liveWindow, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
+    petService.sendPetAction({state:'wave',duration:4000},liveId)
+    await waitFor(liveWindow, `document.querySelector('.pet-live2d-host')?.dataset.action === ${JSON.stringify(chosen)}`)
+    await win.webContents.executeJavaScript(`(()=>{const s=document.querySelector('.pet-import-engine select');s.value='auto';s.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    assert.strictEqual(await win.webContents.executeJavaScript(`document.querySelectorAll('.pet-model-cell-thumb canvas').length`), 0, 'Library thumbnails do not allocate WebGL contexts')
+    assert.deepStrictEqual(errors, [], 'No frontend errors during Live2D integration')
     win.destroy()
-    console.log('UI native drag/drop, decoded animation, desktop activation and skill export passed')
+    console.log('UI native drag/drop, legacy compatibility, Live2D preview, manual engine recovery, action mapping, desktop activation and skill export passed')
   } finally { dialog.showOpenDialog = original }
 }
 

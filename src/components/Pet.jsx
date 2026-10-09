@@ -21,6 +21,7 @@ function Pet() {
   const t = useT()
   const [config, setConfig] = useState(null)
   const [petState, setPetState] = useState('idle')
+  const [playbackToken, setPlaybackToken] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const dragRef = useRef(null)
@@ -50,6 +51,7 @@ function Pet() {
   const changeState = useCallback((next) => {
     stateRef.current = next
     setPetState(next)
+    setPlaybackToken(value => value + 1)
   }, [])
 
   const stopMotion = useCallback(() => {
@@ -255,7 +257,7 @@ function Pet() {
       moved: false
     }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    changeState(config?.model?.dragAnimation ? 'dragging' : 'idle')
+    changeState(config?.model?.dragAnimation || config?.model?.render?.animations?.dragging || config?.model?.render?.engine === 'live2d' ? 'dragging' : 'idle')
   }
 
   useEffect(() => {
@@ -345,7 +347,7 @@ function Pet() {
         onDoubleClick={() => petApi.openMain().catch(() => {})}
         onContextMenu={(event) => { event.preventDefault(); petApi.showMenu(instanceId).catch(() => {}) }}
       >
-        <PetSprite model={config?.model} state={petState} size={spriteSize} />
+        <PetSprite model={config?.model} state={petState} size={spriteSize} playbackToken={playbackToken} />
       </div>
       <div className="pet-shadow" />
     </div>

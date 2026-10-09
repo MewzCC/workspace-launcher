@@ -1,6 +1,16 @@
 // 简体中文语言包
 export default {
   petImport: {
+    engine: '渲染引擎',
+    engine_auto: '自动识别（推荐）',
+    engine_sprite: '原有桌宠（SVG / 图集 / 逐帧）',
+    engine_live2d: 'Live2D（Cubism 3 / 4 / 5）',
+    chooseModel: '发现多个 Live2D 模型，请选择一个',
+    format_live2d: 'Live2D 模型',
+    live2dDescription: 'Live2D 桌宠 · 支持动作与表情',
+    mappings: '桌宠行为与模型动作',
+    mappingsHint: '选择已有动作对应的桌宠行为。未配置的行为保持待机，不会自动生成新动作。',
+    noMapping: '保持待机 / 不指定动作',
     live2dLoading: '正在加载 Live2D…',
     live2dFailed: 'Live2D 加载失败：',
     decodeFailed: '素材图片无法解码，请重新导出有效的 PNG/WebP 文件。',
@@ -13,7 +23,7 @@ export default {
     "materials": "桌宠素材",
     "localOnly": "请拖入电脑上的本地文件或文件夹",
     "dropTitle": "把素材拖到这里",
-    "supported": "支持 ZIP、pet.json、PNG/WebP 图片、动作帧文件夹；多张图片按文件名顺序播放。",
+    "supported": "支持 Live2D model3.json 完整模型包、ZIP、pet.json、PNG/WebP 和动作帧目录；多张图片按文件名顺序播放。",
     "chooseFiles": "选择素材",
     "chooseFolder": "选择文件夹",
     "processing": "正在处理素材…",

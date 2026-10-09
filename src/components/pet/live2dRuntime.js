@@ -1,4 +1,5 @@
 let runtimePromise
+const textureOwners = new Map()
 
 function loadCore() {
   if (window.Live2DCubismCore) return Promise.resolve()
@@ -23,29 +24,37 @@ export function loadLive2DRuntime() {
     const [PIXI, engine] = await Promise.all([import('pixi.js'), import('untitled-pixi-live2d-engine/cubism')])
     PIXI.extensions.add(engine.Live2DPlugin)
     engine.configureCubismSDK({ memorySizeMB: 32 })
-    return { ...engine, Application: PIXI.Application }
+    return { ...engine, Application: PIXI.Application, Assets: PIXI.Assets }
   }).catch((error) => { runtimePromise = null; throw error })
   return runtimePromise
 }
 
 // Keep GPU ownership local to one renderer. Even a failed load is destroyed.
 export async function createLive2DView({ host, url, width, height, idleGroup, onStatus }) {
-  const { Application, Live2DModel } = await loadLive2DRuntime()
+  const { Application, Live2DModel, Assets } = await loadLive2DRuntime()
   const app = new Application()
   let model, initialized = false, destroyed = false
   let cancelLoad
+  let disposal
+  let textureURLs = []
   const destroy = () => {
-    if (destroyed) return
+    if (destroyed) return disposal
     destroyed = true
     cancelLoad?.()
-    if (model?.internalModel) model.destroy({ texture: true, baseTexture: true })
+    if (model?.internalModel) model.destroy({ texture: false, baseTexture: false })
     else if (model) {
       // The library's destroy assumes successful initialization.
       model.emit('destroy')
       model.automator?.destroy()
-      model.textures?.forEach((texture) => texture.destroy(true))
     }
     if (initialized) app.destroy(true, { children: false })
+    disposal = Promise.all(textureURLs.map(async url => {
+      const count = (textureOwners.get(url) || 1) - 1
+      if (count) { textureOwners.set(url, count); return }
+      textureOwners.delete(url)
+      await Assets.unload(url)
+    })).catch(() => {})
+    return disposal
   }
   try {
     await app.init({ width, height, preference: 'webgl', backgroundAlpha: 0, antialias: true,
@@ -57,9 +66,13 @@ export async function createLive2DView({ host, url, width, height, idleGroup, on
       const timer = setTimeout(() => reject(new Error('Live2D 模型加载超时')), 20000)
       const finish = (error) => { clearTimeout(timer); cancelLoad = null; error ? reject(error) : resolve() }
       cancelLoad = () => finish(new Error('Live2D 加载已取消'))
-      model = Live2DModel.fromSync(url, { ticker: app.ticker, autoInteract: false, autoFocus: false,
+      model = Live2DModel.fromSync(url, { ticker: app.ticker, autoHitTest: false, autoFocus: false,
         motionPreload: 'ALL', idleMotionGroup: idleGroup || '__no_idle__',
         onLoad: () => finish(), onError: finish })
+      model.once('settingsLoaded', settings => {
+        textureURLs = settings.textures.map(name => settings.resolveURL(name))
+        for (const url of textureURLs) textureOwners.set(url, (textureOwners.get(url) || 0) + 1)
+      })
     })
     app.stage.addChild(model)
     const resize = (w, h) => {
@@ -71,21 +84,36 @@ export async function createLive2DView({ host, url, width, height, idleGroup, on
     }
     resize(width, height)
     let actionVersion = 0
-    const play = async (action) => {
+    let pendingPlay = Promise.resolve()
+    const play = (action) => {
       const version = ++actionVersion
-      if (!action || destroyed) return
+      pendingPlay = pendingPlay.catch(() => {}).then(async () => {
+      if (!action || destroyed || version !== actionVersion) return
+      let applied
       if (action.type === 'expression') {
-        await model.expression(action.name)
+        const manager = model.internalModel.motionManager.expressionManager
+        const index = manager?.getExpressionIndex(action.name)
+        if (index >= 0 && manager.expressions[index] === manager.currentExpression) { manager.restoreExpression(); applied = true }
+        else applied = await model.expression(action.name)
       } else {
-        await model.motion(action.group, action.index, 3, { sound: '', loop: action.loop === true })
+        // FORCE still rejects an already active motion in this library.
+        // Explicit replay must clear the reservation before restarting it.
+        model.internalModel.motionManager.stopAllMotions()
+        applied = await model.motion(action.group, action.index, 3, { sound: '', loop: action.loop === true })
       }
+      if (applied === false && action.type === 'motion' && model.internalModel.motionManager.state.isActive(action.group, action.index)) applied = true
+      if (applied === false && !destroyed && version === actionVersion) throw new Error(`Live2D 动作无法播放：${action.label || action.id}`)
       if (!destroyed && version === actionVersion) onStatus?.(action.id)
+      return !destroyed && version === actionVersion && applied
+      })
+      return pendingPlay
     }
     const focus = (x, y) => { if (!destroyed) model.focus(x, y) }
     const thumbnail = () => { app.render(); return app.canvas.toDataURL('image/png') }
     const pause = (paused) => { if (!destroyed) paused ? app.stop() : app.start() }
-    return { app, model, resize, play, focus, thumbnail, pause, destroy }
-  } catch (error) { destroy(); throw error }
+    const setIdleGroup = (group) => { if (!destroyed) model.internalModel.motionManager.groups.idle = group || '__no_idle__' }
+    return { app, model, resize, play, focus, thumbnail, pause, destroy, setIdleGroup }
+  } catch (error) { await destroy(); throw error }
 }
 
 

@@ -8,6 +8,8 @@ const ASSET_RE = /\.(json|moc3|png|webp|jpe?g|wav|mp3)$/i
 const mounts = new Map()
 let installed = false
 if (!app.isReady()) protocol.registerSchemesAsPrivileged([{ scheme: 'pet-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }])
+// Install before the first BrowserWindow creates its network loader factories.
+app.whenReady().then(installProtocol)
 
 function installProtocol() {
   if (installed) return
@@ -52,6 +54,7 @@ function mappings(value, actions) {
 function validate(raw, root) {
   if (raw.renderer !== 'live2d' || !/\.model3\.json$/i.test(raw.modelPath || '')) throw new Error('Live2D 需要完整的 .model3.json 模型包')
   const settings = json(root, raw.modelPath)
+  if (settings.url !== undefined) throw new Error('Live2D 模型配置不能覆盖资源 URL，请移除 url 字段')
   if (settings.Version !== 3 || !settings.FileReferences?.Moc || !Array.isArray(settings.FileReferences.Textures) || !settings.FileReferences.Textures.length) throw new Error('Live2D 模型缺少 Moc 或 Textures')
   const base = path.posix.dirname(raw.modelPath)
   const files = new Set([raw.modelPath])

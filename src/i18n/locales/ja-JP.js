@@ -1,6 +1,16 @@
 // 日本語言語パック
 export default {
   petImport: {
+    engine: '描画エンジン',
+    engine_auto: '自動認識（推奨）',
+    engine_sprite: '既存のペット（SVG / アトラス / フレーム）',
+    engine_live2d: 'Live2D（Cubism 3 / 4 / 5）',
+    chooseModel: '複数の Live2D モデルから選択',
+    format_live2d: 'Live2D モデル',
+    live2dDescription: 'Live2D ペット · モーションと表情',
+    mappings: 'ペットの行動とモデルの動作',
+    mappingsHint: '既存の動作を割り当てます。未設定の行動は待機を維持し、新しい動作は生成しません。',
+    noMapping: '待機を維持 / 動作なし',
     live2dLoading: 'Live2D を読み込み中…',
     live2dFailed: 'Live2D の読み込みに失敗：',
     decodeFailed: '画像を読み込めません。有効な PNG/WebP に書き出して再試行してください。',
@@ -13,7 +23,7 @@ export default {
     "materials": "ペット素材",
     "localOnly": "パソコン内のファイルやフォルダーをドロップしてください",
     "dropTitle": "ここに素材をドロップ",
-    "supported": "ZIP、pet.json、PNG/WebP、アニメーションフォルダーに対応。複数画像はファイル名順に再生します。",
+    "supported": "Live2D model3.json の完全なモデルパッケージ、ZIP、pet.json、PNG/WebP、フレームフォルダーに対応。複数画像はファイル名順に再生します。",
     "chooseFiles": "素材を選択",
     "chooseFolder": "フォルダーを選択",
     "processing": "素材を処理中…",

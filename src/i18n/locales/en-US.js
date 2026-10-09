@@ -1,6 +1,16 @@
 // English language pack
 export default {
   petImport: {
+    engine: 'Rendering engine',
+    engine_auto: 'Auto detect (recommended)',
+    engine_sprite: 'Existing pets (SVG / atlas / frames)',
+    engine_live2d: 'Live2D (Cubism 3 / 4 / 5)',
+    chooseModel: 'Multiple Live2D models found. Choose one',
+    format_live2d: 'Live2D model',
+    live2dDescription: 'Live2D pet · motions and expressions',
+    mappings: 'Pet behavior and model actions',
+    mappingsHint: 'Assign existing model actions to pet behaviors. Unassigned behaviors keep the idle pose; new motions are not generated.',
+    noMapping: 'Keep idle / no action',
     live2dLoading: 'Loading Live2D…',
     live2dFailed: 'Live2D failed to load:',
     decodeFailed: 'An image could not be decoded. Export valid PNG/WebP files and try again.',
@@ -13,7 +23,7 @@ export default {
     "materials": "Pet assets",
     "localOnly": "Drop local files or folders from your computer",
     "dropTitle": "Drop your assets here",
-    "supported": "ZIP, pet.json, PNG/WebP images and animation folders. Multiple images play in filename order.",
+    "supported": "Complete Live2D model3.json packages, ZIP, pet.json, PNG/WebP and frame folders. Multiple images play in filename order.",
     "chooseFiles": "Choose assets",
     "chooseFolder": "Choose folder",
     "processing": "Processing assets…",

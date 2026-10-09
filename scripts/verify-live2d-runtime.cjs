@@ -25,7 +25,7 @@ async function main() {
         for(let i=3;i<pixels.length;i+=4){if(pixels[i])visible++;else transparent++;}
         const thumbnail=view.thumbnail();
         const textures=view.model.textures;
-        view.destroy();
+        await view.destroy();
         return {visible,transparent,thumbnail,canvases:host.querySelectorAll('canvas').length,texturesDestroyed:textures.every(t=>t.destroyed)};
       };
     `, resolveDir: path.resolve(__dirname, '..') }, outfile: path.join(directory, 'probe.js'), bundle: true, format: 'esm', platform: 'browser' })
@@ -56,6 +56,7 @@ async function main() {
         assert.strictEqual(installed.live2d.mappings.wave,chosen.id);assert(installed.thumbnailDataUrl.startsWith('data:image/png'));
         assert.strictEqual(await win.webContents.executeJavaScript('fetch('+JSON.stringify(url)+').then(r=>r.status)'),404);
         const second=await win.webContents.executeJavaScript('window.verify('+JSON.stringify(installed.live2d.entryUrl)+')');assert(second.visible>1000);assert(second.texturesDestroyed);
+        const reopened=await win.webContents.executeJavaScript('window.verify('+JSON.stringify(installed.live2d.entryUrl)+')');assert(reopened.visible>1000);assert(reopened.texturesDestroyed);
         const wrong=new URL(installed.live2d.entryUrl);wrong.pathname='/pet.json';assert.strictEqual(await win.webContents.executeJavaScript('fetch('+JSON.stringify(wrong.href)+').then(r=>r.status)'),404);
         const zip=new (require(${JSON.stringify(require.resolve('adm-zip'))}))();zip.addLocalFolder(fixture,'Haru');const zipPath=path.join(__dirname,'model.zip');zip.writeZip(zipPath);
         const zipped=imports.prepare([zipPath],1,{engine:'live2d'});assert.strictEqual(zipped.model.render.engine,'live2d');imports.cleanup(zipped.token,1);

@@ -218,9 +218,9 @@ function prepare(paths, owner, options = {}) {
     } else throw new Error('支持 ZIP、pet.json、PNG/WebP 和动作帧目录；其他格式暂不支持')
 
     if (!raw) {
-      const candidates = engine === 'sprite' ? [] : findManifests(root, 0, { count: 0 }, /\.model3\.json$/i)
+      const candidates = findManifests(root, 0, { count: 0 }, /\.model3\.json$/i)
       const manifests = findManifests(root).filter(file => engine !== 'live2d' || JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')).renderer === 'live2d')
-      if (candidates.length && !manifests.length) {
+      if (engine !== 'sprite' && candidates.length && !manifests.length) {
         const relative = candidates.map(file => path.relative(root, file).replace(/\\/g, '/'))
         if (candidates.length > 1 && !options.entry) {
           fs.rmSync(directory, { recursive: true, force: true })
@@ -241,7 +241,11 @@ function prepare(paths, owner, options = {}) {
       } else {
         // A conventional frames/ wrapper is also accepted.
         if (fs.existsSync(path.join(root, 'frames')) && fs.statSync(path.join(root, 'frames')).isDirectory()) root = path.join(root, 'frames')
-        const inferred = infer(root, name)
+        let inferred
+        try { inferred = infer(root, name) } catch (error) {
+          if (engine === 'sprite' && candidates.length) throw new Error('该素材是 Live2D 模型，请选择 Live2D 或自动识别')
+          throw error
+        }
         raw = inferred.manifest
         format = inferred.format
         root = inferred.directory || root

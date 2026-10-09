@@ -15,7 +15,7 @@ const STATES = {
 }
 
 // All previews and desktop windows share this adapter and the same renderer.
-export function PetSprite({ model, state = 'idle', size = 160, className = '', playbackToken = 0, onComplete }) {
+export function PetSprite({ model, state = 'idle', size = 160, className = '', playbackToken = 0, onComplete, onReady, onError, thumbnailOnly = false }) {
   const normalized = useMemo(() => {
     if (!model || model.builtin || model.render) return model
     if (model.renderer === 'svg') return { ...model, render: { engine: 'svg', svgParams: model.svgParams } }
@@ -32,7 +32,7 @@ export function PetSprite({ model, state = 'idle', size = 160, className = '', p
     }
     return { ...model, render: { engine: 'atlas', canvas: { width: 192, height: 208 }, animations } }
   }, [model])
-  return <PetRenderer key={model?.id || 'builtin'} model={normalized} animationId={state} size={size} playbackToken={playbackToken} onComplete={onComplete} className={`pet-sprite--${state} ${state === 'dragging' && model?.dragAnimation?.atlasState ? 'pet-sprite--drag-atlas' : ''} ${className}`} />
+  return <PetRenderer key={model?.id || 'builtin'} model={normalized} animationId={state} size={size} playbackToken={playbackToken} onComplete={onComplete} onReady={onReady} onError={onError} thumbnailOnly={thumbnailOnly} className={`pet-sprite--${state} ${state === 'dragging' && model?.dragAnimation?.atlasState ? 'pet-sprite--drag-atlas' : ''} ${className}`} />
 }
 
 export default PetSprite

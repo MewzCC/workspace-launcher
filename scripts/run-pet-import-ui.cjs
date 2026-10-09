@@ -2,6 +2,8 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 const { spawnSync } = require('child_process')
+async function main() {
+await require('./fetch-live2d-fixture.cjs').main()
 const root = path.resolve(__dirname, '..')
 const outfile = path.join(root, 'out/main/verify-pet-import.cjs')
 require('esbuild').buildSync({ entryPoints: [path.join(__dirname, 'verify-pet-import.cjs')], outfile, bundle: true, platform: 'node', packages: 'external', format: 'cjs' })
@@ -13,3 +15,5 @@ if (path.dirname(path.resolve(testRoot)).toLowerCase() !== path.resolve(os.tmpdi
 fs.rmSync(testRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 if (result.error) throw result.error
 process.exit(result.status ?? 1)
+}
+main().catch(error => { console.error(error); process.exitCode = 1 })

@@ -13,7 +13,10 @@ export default function Live2DRenderer({ model, animationId = 'idle', playbackTo
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
   const [activeAction, setActiveAction] = useState('')
-  const selectAction = (id) => model.live2d.actions.find((action) => action.id === (model.live2d.mappings?.[id] || id))
+  const selectAction = (id) => {
+    const action = model.live2d.actions.find(action => action.id === (model.live2d.mappings?.[id] || id)) || model.live2d.actions.find(action => action.id === model.live2d.mappings?.idle)
+    return action && (id === 'idle' ? { ...action, loop: true } : action)
+  }
   const actionRef = useRef(selectAction)
   actionRef.current = selectAction
 
@@ -57,7 +60,11 @@ export default function Live2DRenderer({ model, animationId = 'idle', playbackTo
 
   useEffect(() => { view.current?.resize(size, height) }, [size, height])
   useEffect(() => {
-    view.current?.play(selectAction(animationId)).catch((reason) => callbacks.current.onError?.(reason))
+    const idle = model.live2d.actions.find(action => action.id === model.live2d.mappings?.idle && action.type === 'motion')
+    view.current?.setIdleGroup(idle?.group)
+    view.current?.play(selectAction(animationId)).then(applied => {
+      if (applied && view.current) { setStatus('ready'); setError(''); callbacks.current.onReady?.({ thumbnail: view.current.thumbnail() }) }
+    }).catch((reason) => callbacks.current.onError?.(reason))
   }, [animationId, playbackToken, model.live2d.mappings])
 
   return <div ref={host} className="pet-live2d-host" data-status={status} data-action={activeAction}>

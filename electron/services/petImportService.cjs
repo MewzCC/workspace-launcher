@@ -1,0 +1,263 @@
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+const crypto = require('crypto')
+const AdmZip = require('adm-zip')
+const { ACTION_ALIASES, IMAGE_RE, MAX_BYTES, assetPath, validateSequence } = require('./petSequence.cjs')
+const { readImageSize } = require('./imageSize.cjs')
+
+const previews = new Map()
+let sessionRoot
+function sessionDirectory() {
+  if (!sessionRoot) sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-pet-import-'))
+  return sessionRoot
+}
+const TTL = 30 * 60 * 1000
+const naturalSort = (a, b) => a.localeCompare(b, 'en', { numeric: true })
+const idFor = (name) => String(name).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'custom-pet'
+
+function cleanup(token, owner) {
+  const item = previews.get(token)
+  if (!item || (owner !== undefined && item.owner !== owner)) return
+  previews.delete(token)
+  fs.rmSync(item.directory, { recursive: true, force: true })
+}
+
+function dispose() {
+  previews.clear()
+  if (sessionRoot) fs.rmSync(sessionRoot, { recursive: true, force: true })
+  sessionRoot = null
+}
+
+function unpack(file, directory) {
+  if (fs.statSync(file).size > MAX_BYTES) throw new Error('压缩包不能超过 128 MB')
+  const entries = new AdmZip(file).getEntries()
+  if (entries.length > 1500) throw new Error('压缩包文件过多（最多 1500 个条目）')
+  let total = 0
+  for (const entry of entries) {
+    const name = entry.entryName.replace(/\\/g, '/')
+    if (name.startsWith('/') || name.includes(':') || name.split('/').includes('..') || ((entry.attr >>> 16) & 0xf000) === 0xa000) throw new Error('压缩包包含不安全的路径或链接')
+    total += entry.header.size
+    if (total > MAX_BYTES || entry.header.size > 16 * 1024 * 1024) throw new Error('压缩包解压后过大：总计最多 128 MB，单文件最多 16 MB')
+    if (entry.isDirectory) continue
+    // Only extract assets used by the importer, never executable contents.
+    if (!IMAGE_RE.test(name) && path.posix.basename(name).toLowerCase() !== 'pet.json') continue
+    const target = path.resolve(directory, name)
+    if (!target.startsWith(`${path.resolve(directory)}${path.sep}`)) throw new Error('无效的压缩包路径')
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    const data = entry.getData()
+    if (data.length !== entry.header.size) throw new Error('压缩包文件大小不一致')
+    fs.writeFileSync(target, data, { flag: 'wx' })
+  }
+}
+
+function findManifests(root, depth = 0, budget = { count: 0 }) {
+  const results = []
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (++budget.count > 1500) throw new Error('目录文件过多，请选择单个桌宠的文件夹')
+    if (entry.isSymbolicLink()) continue
+    const file = path.join(root, entry.name)
+    if (entry.isFile() && entry.name.toLowerCase() === 'pet.json') results.push(file)
+    else if (entry.isDirectory() && depth < 4 && !entry.name.startsWith('.')) results.push(...findManifests(file, depth + 1, budget))
+  }
+  return results
+}
+
+function imageFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).filter((e) => e.isFile() && IMAGE_RE.test(e.name)).map((e) => e.name).sort(naturalSort)
+}
+
+function infer(directory, name) {
+  const animations = {}
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const action = ACTION_ALIASES[entry.name.toLowerCase()]
+    if (!action) continue
+    const frames = imageFiles(path.join(directory, entry.name)).map((file) => `${entry.name}/${file}`)
+    if (!frames.length) continue
+    if (animations[action]) throw new Error(`多个目录映射到 ${action}，请保留一个动作目录`)
+    animations[action] = { frames, fps: action === 'sleep' ? 6 : 8, loop: true }
+  }
+  if (Object.keys(animations).length) {
+    if (!animations.idle) throw new Error('识别到动作目录，但缺少 idle 待机目录')
+    return { manifest: { schemaVersion: 1, renderer: 'sequence', id: idFor(name), displayName: name, animations }, format: 'frames' }
+  }
+  const frames = imageFiles(directory)
+  if (!frames.length) {
+    const children = fs.readdirSync(directory, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== '__MACOSX')
+    if (children.length === 1) {
+      const child = path.join(directory, children[0].name)
+      const result = infer(child, name)
+      return { ...result, directory: result.directory || child }
+    }
+    throw new Error('没有找到素材。请拖入 pet.json、PNG/WebP、动作帧文件夹或 ZIP')
+  }
+  if (frames.length === 1) {
+    const size = readImageSize(assetPath(directory, frames[0]))
+    if (size.width === 1536 && [1872, 2288].includes(size.height)) return {
+      manifest: { id: idFor(name), displayName: name, spriteVersionNumber: size.height === 1872 ? 1 : 2, spritesheetPath: frames[0] }, format: 'codex-atlas'
+    }
+  }
+  return {
+    manifest: { schemaVersion: 1, renderer: 'sequence', id: idFor(name), displayName: name, animations: { idle: { frames, fps: 8, loop: true } } },
+    format: frames.length === 1 ? 'image' : 'frames'
+  }
+}
+
+function snapshot(raw, root, destination) {
+  const models = require('./petModelService.cjs')
+  let manifest
+  let copiedBytes = 0
+  const copy = (relative, target) => {
+    const source = assetPath(root, relative)
+    copiedBytes += fs.statSync(source).size
+    if (copiedBytes > MAX_BYTES) throw new Error('模型总大小不能超过 128 MB')
+    // Electron nativeImage decodes PNG/JPEG but rejects valid WebP. WebP
+    // structure is checked by readImageSize; Chromium verifies every asset
+    // before the UI exposes the preview/use action.
+    if (/\.png$/i.test(source) && require('electron').nativeImage.createFromPath(source).isEmpty()) throw new Error(`图片无法解码：${relative}`)
+    fs.mkdirSync(path.dirname(path.join(destination, target)), { recursive: true })
+    fs.copyFileSync(source, path.join(destination, target))
+  }
+  if (raw.renderer === 'sequence') {
+    manifest = validateSequence(raw, root)
+    for (const [action, clip] of Object.entries(manifest.animations)) {
+      clip.frames = clip.frames.map((relative, index) => {
+        const target = `animations/${action}/${String(index).padStart(3, '0')}${path.extname(relative).toLowerCase()}`
+        copy(relative, target)
+        return target
+      })
+    }
+  } else if (raw.renderer === 'svg') {
+    manifest = { id: raw.id, displayName: String(raw.displayName || raw.id), description: String(raw.description || ''), renderer: 'svg', svgParams: models.validateSvgParams(raw.svgParams) }
+  } else {
+    manifest = models.validateManifest(raw)
+    const sprite = assetPath(root, manifest.spritesheetPath)
+    models.validateAtlas(sprite, manifest.spriteVersionNumber)
+    const target = `spritesheet${path.extname(sprite).toLowerCase()}`
+    copy(manifest.spritesheetPath, target)
+    manifest.spritesheetPath = target
+    if (manifest.dragAnimation?.frames) {
+      manifest.dragAnimation.frames = manifest.dragAnimation.frames.map((relative, index) => {
+        const size = readImageSize(assetPath(root, relative))
+        if (size.width !== 192 || size.height !== 208) throw new Error(`拖拽帧须为 192×208：${relative}`)
+        const target = `animations/dragging/${index}${path.extname(relative).toLowerCase()}`
+        copy(relative, target)
+        return target
+      })
+    }
+  }
+  manifest.id = idFor(manifest.id || manifest.displayName)
+  fs.writeFileSync(path.join(destination, 'pet.json'), JSON.stringify(manifest, null, 2))
+  return manifest
+}
+
+function prepare(paths, owner) {
+  for (const [token, item] of previews) if (Date.now() - item.created > TTL || item.owner === owner) cleanup(token)
+  const token = crypto.randomUUID()
+  const directory = path.join(sessionDirectory(), token)
+  const staged = path.join(directory, 'model')
+  fs.mkdirSync(staged, { recursive: true })
+  try {
+    if (!paths.length || paths.length > 120) throw new Error('请拖入一个模型包/目录，或最多 120 张待机动画帧')
+    let source = path.resolve(paths[0])
+    let name = path.basename(source, path.extname(source))
+    if (!fs.existsSync(source) || fs.lstatSync(source).isSymbolicLink()) throw new Error('素材路径不存在或是链接')
+    let raw, format, root
+    if (paths.length > 1) {
+      root = path.join(directory, 'input')
+      fs.mkdirSync(root)
+      let inputBytes = 0
+      paths.forEach((file) => {
+        if (!IMAGE_RE.test(file) || !fs.statSync(file).isFile() || fs.lstatSync(file).isSymbolicLink() || fs.statSync(file).size > 16 * 1024 * 1024) throw new Error('多文件导入只支持 PNG/WebP 动画帧')
+        inputBytes += fs.statSync(file).size
+        if (inputBytes > MAX_BYTES) throw new Error('模型总大小不能超过 128 MB')
+      })
+      // Preserve filename ordering independent of drag selection ordering.
+      const sortedPaths = [...paths].sort(naturalSort)
+      sortedPaths.forEach((file, i) => fs.copyFileSync(file, path.join(root, `${String(i).padStart(3, '0')}${path.extname(file)}`)))
+      name = '自定义桌宠'
+    } else if (fs.statSync(source).isDirectory()) {
+      root = source
+      name = path.basename(source)
+    } else if (/\.zip$/i.test(source)) {
+      root = path.join(directory, 'unpacked')
+      fs.mkdirSync(root)
+      unpack(source, root)
+    } else if (path.basename(source).toLowerCase() === 'pet.json') {
+      root = path.dirname(source)
+      if (fs.statSync(source).size > 1024 * 1024) throw new Error('pet.json 不能超过 1 MB')
+      raw = JSON.parse(fs.readFileSync(source, 'utf8').replace(/^\uFEFF/, ''))
+      format = 'manifest'
+    } else if (IMAGE_RE.test(source)) {
+      root = path.join(directory, 'input')
+      fs.mkdirSync(root)
+      if (fs.statSync(source).size > 16 * 1024 * 1024) throw new Error('图片不能超过 16 MB')
+      fs.copyFileSync(source, path.join(root, path.basename(source)))
+    } else throw new Error('支持 ZIP、pet.json、PNG/WebP 和动作帧目录；其他格式暂不支持')
+
+    if (!raw) {
+      const manifests = findManifests(root)
+      if (manifests.length > 1) throw new Error('发现多个 pet.json，请选择一个桌宠的子目录')
+      if (manifests.length === 1) {
+        if (fs.statSync(manifests[0]).size > 1024 * 1024) throw new Error('pet.json 不能超过 1 MB')
+        root = path.dirname(manifests[0])
+        raw = JSON.parse(fs.readFileSync(manifests[0], 'utf8').replace(/^\uFEFF/, ''))
+        format = 'manifest'
+      } else {
+        // A conventional frames/ wrapper is also accepted.
+        if (fs.existsSync(path.join(root, 'frames')) && fs.statSync(path.join(root, 'frames')).isDirectory()) root = path.join(root, 'frames')
+        const inferred = infer(root, name)
+        raw = inferred.manifest
+        format = inferred.format
+        root = inferred.directory || root
+      }
+    }
+    const manifest = snapshot(raw, root, staged)
+    const model = require('./petModelService.cjs').previewDirectory(staged)
+    const actions = manifest.renderer === 'sequence' ? Object.keys(manifest.animations) : manifest.renderer === 'svg' ? ['idle', 'wave'] : ['idle', 'walkRight', 'walkLeft', 'wave', 'jump', 'failed', 'waiting', 'working', 'review', ...(manifest.dragAnimation ? ['dragging'] : [])]
+    const warnings = []
+    if (manifest.renderer === 'sequence') {
+      if (manifest.animations.idle.frames.length === 1) warnings.push('static')
+      if (!manifest.animations.walkLeft || !manifest.animations.walkRight) warnings.push('missingWalk')
+      if (!manifest.animations.dragging) warnings.push('missingDrag')
+    }
+    previews.set(token, { directory, staged, manifest, owner, created: Date.now() })
+    return { token, model, format, actions, warnings }
+  } catch (error) {
+    fs.rmSync(directory, { recursive: true, force: true })
+    throw error
+  }
+}
+
+function commit(token, options, owner) {
+  const item = previews.get(token)
+  if (!item || item.owner !== owner || Date.now() - item.created > TTL) throw new Error('预览已过期，请重新拖入素材')
+  const models = require('./petModelService.cjs')
+  const root = models.openFolder()
+  const base = idFor(item.manifest.id)
+  let id = base, suffix = 2
+  while (fs.existsSync(path.join(root, id)) || id === models.BUILTIN_ID) id = `${base}-${suffix++}`
+  const manifest = { ...item.manifest, id, displayName: String(options.displayName || item.manifest.displayName || id).trim().slice(0, 80) }
+  if (manifest.renderer === 'sequence') {
+    for (const clip of Object.values(manifest.animations)) clip.fps = options.fps || clip.fps
+  }
+  // Rename only a fully validated snapshot; failed copies stay outside the library.
+  const temporary = path.join(root, `.import-${token}`)
+  const destination = path.join(root, id)
+  try {
+    fs.cpSync(item.staged, temporary, { recursive: true, force: false, errorOnExist: true })
+    fs.writeFileSync(path.join(temporary, 'pet.json'), JSON.stringify(manifest, null, 2))
+    models.previewDirectory(temporary)
+    fs.renameSync(temporary, destination)
+  } catch (error) {
+    fs.rmSync(temporary, { recursive: true, force: true })
+    throw error
+  }
+  cleanup(token, owner)
+  models.refresh()
+  models.select(id)
+  return { id, displayName: manifest.displayName, static: manifest.renderer === 'sequence' && manifest.animations.idle.frames.length === 1 }
+}
+
+module.exports = { prepare, commit, cleanup, dispose }

@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  Archive, Bot, Box, Brain, BookOpen, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Eraser, FolderOpen, Import,
+  Archive, Bot, Box, Brain, BookOpen, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Eraser,
   KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles, Square,
   RefreshCw, Terminal, Trash2, WandSparkles
 } from 'lucide-react'
@@ -8,10 +8,11 @@ import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
 import ResizableTable from '../components/ui/ResizableTable'
 import PetSprite from '../components/PetSprite'
+import PetImporter from '../components/PetImporter'
 import TutorialDrawer from '../components/TutorialDrawer'
 import PetStudyPanel from '../components/PetStudyPanel'
 import { useConfirmDialog } from '../components/ConfirmDialog'
-import { aiApi, dialogApi, petApi } from '../lib/ipc'
+import { aiApi, petApi } from '../lib/ipc'
 import { renderMarkdown } from '../lib/markdown'
 import { useT } from '../hooks/useT'
 import { useStore } from '../store/useStore'
@@ -212,28 +213,6 @@ function PetCenter() {
     observer.observe(tabList)
     return () => observer.disconnect()
   }, [activeTab, language, config, aiConfig])
-
-  const importModel = async () => {
-    setNotice('')
-    try {
-      const selectedPath = await dialogApi.openFile([{ name: 'Codex Pet Manifest', extensions: ['json'] }])
-      if (!selectedPath) return
-      await petApi.importModel(selectedPath)
-      await load()
-      setNotice(t('petCenter.importSuccess'))
-    } catch (error) {
-      setNotice(error.message)
-    }
-  }
-
-  const openModelsFolder = async () => {
-    setNotice('')
-    try {
-      await petApi.openModelsStorage()
-    } catch (error) {
-      setNotice(error.message)
-    }
-  }
 
   const refreshModels = async () => {
     if (refreshingModels) return
@@ -596,6 +575,9 @@ function PetCenter() {
     const format = model.builtin ? 'BUILT-IN' : model.invalid ? 'INVALID' : String(model.sourceFormat || 'legacy').toUpperCase()
     const diagnostic = model.diagnostics?.[0]
     const diagnosticText = diagnostic ? `${diagnostic.code}: ${diagnostic.message}` : ''
+    const description = model.description || (model.renderer === 'sequence'
+      ? t('petImport.sequenceDescription', { count: Object.keys(model.animations || {}).length })
+      : t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))
     switch (column.key) {
       case 'pet':
         return (
@@ -614,8 +596,8 @@ function PetCenter() {
         )
       case 'description':
         return (
-          <p className={`pet-model-cell-desc${model.invalid ? ' is-invalid' : ''}`} title={diagnosticText || (model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))}>
-            {diagnosticText || (model.description || t('petCenter.customPetDescription', { version: model.spriteVersionNumber || 1 }))}
+          <p className={`pet-model-cell-desc${model.invalid ? ' is-invalid' : ''}`} title={diagnosticText || description}>
+            {diagnosticText || description}
           </p>
         )
       case 'format':
@@ -815,6 +797,68 @@ function PetCenter() {
 
       {activeTab === 'models' && (
         <section id="pet-panel-models" role="tabpanel" aria-labelledby="pet-tab-models" className={`pet-models-layout ${panelMotionClass}`}>
+          <PetImporter onImported={async () => { await load(); setNotice(t('petCenter.importSuccess')) }} />
+          <div className="pet-model-library">
+            <div className="pet-section-title pet-model-library-title">
+              <div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div>
+              <div className="pet-model-library-tools">
+                <b aria-label={t('petCenter.modelCount', { count: models.length })}>{models.length}</b>
+                <button type="button" className="pet-model-refresh" onClick={refreshModels} disabled={refreshingModels} aria-busy={refreshingModels}>
+                  <RefreshCw size={14} className={refreshingModels ? 'is-spinning' : ''} />
+                  {refreshingModels ? t('petCenter.refreshingModels') : t('petCenter.refreshModels')}
+                </button>
+              </div>
+            </div>
+            <ResizableTable
+              columns={modelColumns}
+              rows={pagedModels}
+              getRowKey={(model) => model.id}
+              getRowClassName={(model) => {
+                const selected = config.model.id === model.id
+                return `${selected ? ' active' : ''}${model.invalid ? ' invalid' : ''}`
+              }}
+              renderCell={renderModelCell}
+              storageKey="pet-model-table-columns"
+              className={`pet-model-table${refreshingModels ? ' is-loading' : ''}`}
+              empty={<div className="pet-model-empty">{t('petCenter.noModels')}</div>}
+            />
+            {models.length > MODEL_PAGE_SIZE && (
+              <nav className="pet-model-pagination" aria-label={t('petCenter.modelPagination')}>
+                <span className="pet-model-pagination-info" aria-live="polite">
+                  {(currentModelPage - 1) * MODEL_PAGE_SIZE + 1}–{Math.min(currentModelPage * MODEL_PAGE_SIZE, models.length)} / {models.length}
+                </span>
+                <div className="pet-model-pagination-controls">
+                  <button type="button" onClick={() => setModelPage(1)} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPageFirst')}>
+                    <ChevronsLeft size={15} />
+                  </button>
+                  <button type="button" onClick={() => setModelPage((p) => Math.max(1, p - 1))} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPagePrev')}>
+                    <ChevronLeft size={15} />
+                  </button>
+                  {modelPageItems.map((item, index) => (
+                    item === 'start-ellipsis' || item === 'end-ellipsis'
+                      ? <span key={`${item}-${index}`} className="pet-model-pagination-ellipsis" aria-hidden="true">…</span>
+                      : (
+                        <button
+                          key={item}
+                          type="button"
+                          className={item === currentModelPage ? 'active' : ''}
+                          aria-current={item === currentModelPage ? 'page' : undefined}
+                          onClick={() => setModelPage(item)}
+                        >
+                          {item}
+                        </button>
+                      )
+                  ))}
+                  <button type="button" onClick={() => setModelPage((p) => Math.min(modelTotalPages, p + 1))} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageNext')}>
+                    <ChevronRight size={15} />
+                  </button>
+                  <button type="button" onClick={() => setModelPage(modelTotalPages)} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageLast')}>
+                    <ChevronsRight size={15} />
+                  </button>
+                </div>
+              </nav>
+            )}
+          </div>
           <div className="pet-interaction-console pet-settings-card">
             <div className="pet-interaction-console__head">
               <div className="pet-section-title"><div><span>MULTI COMPANION</span><h2>{t('petCenter.multiPetTitle')}</h2></div><MessageCircle size={20} /></div>
@@ -877,83 +921,6 @@ function PetCenter() {
                   <section><span>{t('petCenter.todayOwnerMoments')}</span>{socialMemories.diary.slice(0, 8).map((item) => <p key={item.id}>{item.content}</p>)}{!socialMemories.diary.length && <small>{t('petCenter.noOwnerMoments')}</small>}</section>
                 </div>
               </div>
-            )}
-          </div>
-          <div className="pet-import-card">
-            <div className="pet-import-icon"><Import size={24} /></div>
-            <span>CODEX PET IMPORTER</span>
-            <h2>{t('petCenter.importTitle')}</h2>
-            <p>{t('petCenter.importDescriptionBefore')} <code>pet.json</code>{t('petCenter.importDescriptionAfter')}</p>
-            <div className="pet-import-actions">
-              <GlowButton onClick={openModelsFolder}><FolderOpen size={16} /> {t('petCenter.chooseFolder')}</GlowButton>
-              <GlowButton variant="ghost" onClick={importModel}>{t('petCenter.chooseManifest')}</GlowButton>
-            </div>
-            <div className="pet-import-contracts">
-              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV1')}</div>
-              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractV2')}</div>
-              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractLegacy')}</div>
-              <div className="pet-contract-row"><Check size={14} /> {t('petCenter.contractImage')}</div>
-            </div>
-          </div>
-          <div className="pet-model-library">
-            <div className="pet-section-title pet-model-library-title">
-              <div><span>LOCAL LIBRARY</span><h2>{t('petCenter.modelLibrary')}</h2></div>
-              <div className="pet-model-library-tools">
-                <b aria-label={t('petCenter.modelCount', { count: models.length })}>{models.length}</b>
-                <button type="button" className="pet-model-refresh" onClick={refreshModels} disabled={refreshingModels} aria-busy={refreshingModels}>
-                  <RefreshCw size={14} className={refreshingModels ? 'is-spinning' : ''} />
-                  {refreshingModels ? t('petCenter.refreshingModels') : t('petCenter.refreshModels')}
-                </button>
-              </div>
-            </div>
-            <ResizableTable
-              columns={modelColumns}
-              rows={pagedModels}
-              getRowKey={(model) => model.id}
-              getRowClassName={(model) => {
-                const selected = config.model.id === model.id
-                return `${selected ? ' active' : ''}${model.invalid ? ' invalid' : ''}`
-              }}
-              renderCell={renderModelCell}
-              storageKey="pet-model-table-columns"
-              className={`pet-model-table${refreshingModels ? ' is-loading' : ''}`}
-              empty={<div className="pet-model-empty">{t('petCenter.noModels')}</div>}
-            />
-            {models.length > MODEL_PAGE_SIZE && (
-              <nav className="pet-model-pagination" aria-label={t('petCenter.modelPagination')}>
-                <span className="pet-model-pagination-info" aria-live="polite">
-                  {(currentModelPage - 1) * MODEL_PAGE_SIZE + 1}–{Math.min(currentModelPage * MODEL_PAGE_SIZE, models.length)} / {models.length}
-                </span>
-                <div className="pet-model-pagination-controls">
-                  <button type="button" onClick={() => setModelPage(1)} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPageFirst')}>
-                    <ChevronsLeft size={15} />
-                  </button>
-                  <button type="button" onClick={() => setModelPage((p) => Math.max(1, p - 1))} disabled={currentModelPage <= 1} aria-label={t('petCenter.modelPagePrev')}>
-                    <ChevronLeft size={15} />
-                  </button>
-                  {modelPageItems.map((item, index) => (
-                    item === 'start-ellipsis' || item === 'end-ellipsis'
-                      ? <span key={`${item}-${index}`} className="pet-model-pagination-ellipsis" aria-hidden="true">…</span>
-                      : (
-                        <button
-                          key={item}
-                          type="button"
-                          className={item === currentModelPage ? 'active' : ''}
-                          aria-current={item === currentModelPage ? 'page' : undefined}
-                          onClick={() => setModelPage(item)}
-                        >
-                          {item}
-                        </button>
-                      )
-                  ))}
-                  <button type="button" onClick={() => setModelPage((p) => Math.min(modelTotalPages, p + 1))} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageNext')}>
-                    <ChevronRight size={15} />
-                  </button>
-                  <button type="button" onClick={() => setModelPage(modelTotalPages)} disabled={currentModelPage >= modelTotalPages} aria-label={t('petCenter.modelPageLast')}>
-                    <ChevronsRight size={15} />
-                  </button>
-                </div>
-              </nav>
             )}
           </div>
         </section>

@@ -27,5 +27,5 @@ export function useClipFrame(clip, playbackToken, onComplete) {
     return () => clearTimeout(timer)
   }, [clip, frame, frameCount, onComplete, playbackToken])
 
-  return frame
+  return Math.min(frame, Math.max(0, frameCount - 1))
 }

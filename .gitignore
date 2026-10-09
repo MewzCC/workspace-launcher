@@ -9,6 +9,7 @@ build/*
 .pet-runs/
 
 # Build output
+output/
 out/
 dist/
 dist_electron/

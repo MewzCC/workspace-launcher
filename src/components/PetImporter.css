@@ -1,0 +1,33 @@
+.pet-center-page .pet-models-layout { align-items: start; }
+.pet-import-card.pet-smart-import { min-width: 0; height: auto; }
+.pet-smart-import .pet-dropzone p { margin: 0; }
+.pet-smart-import .pet-dropzone .pet-import-actions { margin: 0; }
+.pet-smart-import .pet-dropzone .glow-btn { flex: 0 1 auto; padding: 9px 12px; font-size: 12px; }
+.pet-import-steps { display: flex; gap: 12px; padding: 0; margin: 22px 0; list-style: none; flex-wrap: wrap; }
+.pet-import-steps li { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--brand-muted-foreground); }
+.pet-import-steps b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-muted); }
+.pet-import-steps .current { color: var(--brand-primary); }
+.pet-dropzone { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 16px; border: 1px dashed var(--brand-border); border-radius: 16px; transition: background .15s, border-color .15s; text-align: center; }
+.pet-dropzone.is-dragging { border-color: #818cf8; background: rgba(129, 140, 248, .12); }
+.pet-dropzone.is-busy { opacity: .7; }
+.pet-dropzone p { margin: 0; font-size: 12px; }
+.pet-smart-import .pet-import-actions { justify-content: center; flex-wrap: wrap; }
+.pet-import-error { color: var(--brand-state-error); overflow-wrap: anywhere; }
+.pet-import-preview { margin-top: 22px; }
+.pet-import-detected { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
+.pet-import-detected span { margin-left: auto; color: var(--brand-muted-foreground); }
+.pet-import-stage { display: flex; align-items: flex-end; justify-content: center; min-height: 240px; padding: 24px 12px; border-radius: 14px; overflow: hidden; }
+.pet-import-stage.is-checker { background-color: #e4e6eb; background-image: conic-gradient(#cbd0da 25%, transparent 0 50%, #cbd0da 0 75%, transparent 0); background-size: 24px 24px; }
+.pet-import-stage.is-light { background: #f7f7fa; }
+.pet-import-stage.is-dark { background: #171b2c; }
+.pet-import-backgrounds, .pet-import-clips { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.pet-import-backgrounds button, .pet-import-clips button { border: 1px solid var(--brand-border); border-radius: 8px; padding: 6px 9px; background: transparent; color: var(--brand-foreground); cursor: pointer; font: inherit; font-size: 12px; }
+.pet-import-backgrounds button.active, .pet-import-clips button.active { color: var(--brand-primary); border-color: #818cf8; background: rgba(129, 140, 248, .1); }
+.pet-import-name, .pet-import-slider { display: grid; gap: 8px; margin: 16px 0; font-size: 12px; }
+.pet-import-name input { min-width: 0; width: 100%; padding: 10px 12px; border: 1px solid var(--brand-border); border-radius: 9px; background: var(--brand-muted); color: var(--brand-foreground); font: inherit; }
+.pet-import-slider span { display: flex; justify-content: space-between; }
+.pet-import-slider input { width: 100%; accent-color: #818cf8; }
+.pet-import-warnings { padding-left: 18px; font-size: 12px; line-height: 1.7; color: var(--brand-muted-foreground); }
+.pet-import-safe-note { display: block; text-align: center; color: var(--brand-muted-foreground); margin-top: 12px; font-size: 11px; }
+.pet-import-skill { border-top: 1px solid var(--brand-border); margin-top: 22px; padding-top: 20px; }
+.pet-import-skill p { font-size: 12px; overflow-wrap: anywhere; }

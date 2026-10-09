@@ -24,6 +24,8 @@
     "test:ai-memory": "electron scripts/verify-ai-memory.cjs",
     "test:ipc": "node scripts/verify-ipc.cjs",
     "test:pet-drag": "electron scripts/verify-pet-drag-animation.cjs",
+    "test:pet-import": "electron scripts/verify-pet-import.cjs",
+    "test:pet-import:ui": "npm run build && node scripts/run-pet-import-ui.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",
@@ -32,6 +34,7 @@
     "dist:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.11.1",
     "chart.js": "^4.5.1",
     "electron-updater": "^6.8.9",

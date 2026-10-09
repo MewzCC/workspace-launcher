@@ -5,6 +5,12 @@
   pointer-events: none;
 }
 
+.pet-renderer { overflow: hidden; }
+.pet-renderer--builtin, .pet-renderer--svg { overflow: visible; }
+.pet-renderer__content { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.pet-renderer__sequence-frame { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pet-renderer__atlas-image { position: absolute; top: 0; left: 0; max-width: none; transition: none; }
+
 .pet-sprite--atlas {
   overflow: hidden;
 }

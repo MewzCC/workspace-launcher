@@ -1,7 +1,7 @@
 // Preload 脚本
 // 在隔离的上下文中通过 contextBridge 向渲染层暴露 IPC 调用 API
 // 渲染层通过 window.api.* 调用主进程服务，禁止直接访问 Node API
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
   version: process.env.LAUNCHPAD_VERSION || '0.0.0',
@@ -149,6 +149,11 @@ contextBridge.exposeInMainWorld('api', {
     getModelsStorage: () => ipcRenderer.invoke('pet:getModelsStorage'),
     openModelsStorage: () => ipcRenderer.invoke('pet:openModelsStorage'),
     importModel: (manifestPath) => ipcRenderer.invoke('pet:importModel', manifestPath),
+    pathForDroppedFile: (file) => webUtils.getPathForFile(file),
+    previewImport: (paths) => ipcRenderer.invoke('pet:previewImport', paths),
+    cancelImport: (token) => ipcRenderer.invoke('pet:cancelImport', token),
+    useImport: (token, options) => ipcRenderer.invoke('pet:useImport', token, options),
+    exportCreationSkill: () => ipcRenderer.invoke('pet:exportCreationSkill'),
     selectModel: (id) => ipcRenderer.invoke('pet:selectModel', id),
     removeModel: (id) => ipcRenderer.invoke('pet:removeModel', id),
     updateSettings: (settings, instanceId) => ipcRenderer.invoke('pet:updateSettings', instanceId, settings),

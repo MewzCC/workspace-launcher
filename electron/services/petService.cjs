@@ -1,8 +1,9 @@
 // 多桌宠窗口服务：每个模型对应一个独立实例，窗口、位置、聊天和气泡互不共享。
 const path = require('path')
-const { BrowserWindow, screen, Menu } = require('electron')
+const { app, BrowserWindow, screen, Menu } = require('electron')
 const { settingsDao, conversationDao, memoryDao } = require('../db/index.cjs')
 const petModelService = require('./petModelService.cjs')
+const petImportService = require('./petImportService.cjs')
 const petProfileService = require('./petProfileService.cjs')
 const { calculatePetBubbleDuration } = require('./petBubbleDuration.cjs')
 const { defineRoutes, installHandlers } = require('../ipc/registry.cjs')
@@ -30,7 +31,8 @@ function profile(id) {
 }
 function dimensions(id) {
   const width = Math.round(SPRITE_WIDTH * profile(id).scale)
-  const height = Math.round(width * (208 / 192))
+  const canvas = model(id).render?.canvas || { width: 192, height: 208 }
+  const height = Math.round(width * canvas.height / canvas.width)
   return { width: width + 10, height: height + 12, spriteWidth: width, spriteHeight: height }
 }
 function cleanupLegacyDuplicateInstances() {
@@ -454,6 +456,28 @@ const petRoutes = [
   { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
   { channel: 'pet:openModelsStorage', schema: [], handler: async () => { const { shell } = require('electron'); const dir = petModelService.openFolder(); const error = await shell.openPath(dir); return error ? { error } : { success: true, path: dir } } },
   { channel: 'pet:importModel', schema: [v.optional(v.path({ max: 1024 }))], handler: (_e, file) => { const result = petModelService.importFromManifest(String(file || '')); petProfileService.ensure(result.id, { displayName: result.displayName }); return result } },
+  { channel: 'pet:previewImport', schema: [v.arr(v.path({ max: 1024 }), { min: 1, max: 120 })], handler: (event, paths) => petImportService.prepare(paths, event.sender.id) },
+  { channel: 'pet:cancelImport', schema: [v.str({ max: 64 })], handler: (event, token) => { petImportService.cleanup(token, event.sender.id); return { success: true } } },
+  { channel: 'pet:exportCreationSkill', schema: [], handler: async (event) => {
+    const { dialog } = require('electron')
+    const fs = require('fs')
+    const AdmZip = require('adm-zip')
+    const directory = petModelService.creationSkillDirectory()
+    if (!fs.existsSync(path.join(directory, 'SKILL.md'))) throw new Error('桌宠生成 skill 不存在，请检查安装文件')
+    const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), { defaultPath: 'create-launchpad-pet.zip', filters: [{ name: 'Skill ZIP', extensions: ['zip'] }] })
+    if (result.canceled || !result.filePath) return { canceled: true }
+    const archive = new AdmZip()
+    archive.addLocalFolder(directory, 'create-launchpad-pet')
+    archive.writeZip(result.filePath)
+    return { canceled: false, path: result.filePath }
+  } },
+  { channel: 'pet:useImport', schema: [v.str({ max: 64 }), v.obj({ displayName: v.str({ min: 1, max: 80 }), fps: v.optional(v.num({ min: 1, max: 30 })), scale: v.num({ min: 0.65, max: 1.35 }) })], handler: (event, token, options) => {
+    const result = petImportService.commit(token, options, event.sender.id)
+    petProfileService.ensure(result.id, { displayName: result.displayName })
+    petProfileService.update(result.id, { scale: options.scale, ...(result.static ? { roaming: false } : {}) })
+    setInstanceEnabled(result.id, true)
+    return result
+  } },
   { channel: 'pet:selectModel', schema: [v.str({ max: 200 })], handler: (_e, id) => petModelService.select(id) },
   { channel: 'pet:removeModel', schema: [v.str({ max: 200 })], handler: (_e, id) => { setInstanceEnabled(id, false); const result = petModelService.remove(id); petProfileService.remove(id); conversationDao.deleteByPet(id); memoryDao.clear(id); return result } },
   { channel: 'pet:updateSettings', schema: [v.or(idSchema, settingsSchema), v.optional(settingsSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const id = old ? undefined : first; const patch = old ? first : second; petProfileService.update(selectedId(id), patch); instance(id).refresh(); return instance(id).config() } },
@@ -480,6 +504,7 @@ const petRoutes = [
 ]
 
 function init(nextCallbacks) {
+  app.once('will-quit', () => petImportService.dispose())
   callbacks = nextCallbacks
   defineRoutes(petRoutes); installHandlers(); syncInstances()
   interactionService.init({

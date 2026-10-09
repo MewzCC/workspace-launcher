@@ -4,6 +4,7 @@ const { app } = require('electron')
 const { settingsDao } = require('../db/index.cjs')
 const { readImageSize } = require('./imageSize.cjs')
 const { t } = require('../i18n.cjs')
+const { validateSequence, sequenceRuntime } = require('./petSequence.cjs')
 
 const ATLAS_WIDTH = 1536
 const ATLAS_HEIGHTS = {
@@ -277,6 +278,11 @@ function readPetDirectory(directory) {
   if (!fs.existsSync(manifestPath)) return null
   try {
     const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    if (raw.renderer === 'sequence') {
+      const manifest = validateSequence(raw, directory)
+      manifest.id = safeId(raw.id)
+      return { ...manifest, directory, imported: true }
+    }
     // SVG 参数化模型：无精灵图，仅校验参数
     if (raw.renderer === 'svg') {
       const manifest = buildSvgManifest({
@@ -331,6 +337,7 @@ function list() {
     .filter(Boolean)
     .map((item) => {
       const { directory, spritePath, ...rest } = item
+      if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
       if (item.renderer === 'svg') return { ...rest, builtin: false }
       return {
         ...rest,
@@ -437,6 +444,7 @@ function getRuntimeModel(modelId) {
     return null
   }
   const { directory, spritePath, ...rest } = item
+  if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
   if (item.renderer === 'svg') return { ...rest, builtin: false }
   return {
     id: item.id,
@@ -461,4 +469,15 @@ function refresh() {
   return models
 }
 
-module.exports = { list, refresh, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, createFromAi, BUILTIN_ID }
+function previewDirectory(directory) {
+  const item = readPetDirectory(directory)
+  if (!item) throw new Error('模型无法读取：请检查 pet.json、图片尺寸和动作帧路径')
+  if (item.renderer === 'sequence') return sequenceRuntime(item, directory)
+  if (item.renderer === 'svg') return { ...item, builtin: false }
+  const mime = path.extname(item.spritePath).toLowerCase() === '.png' ? 'png' : 'webp'
+  return { ...item, builtin: false, spritesheetDataUrl: `data:image/${mime};base64,${fs.readFileSync(item.spritePath).toString('base64')}`, ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation({ ...item, id: `preview-${path.basename(directory)}` }) } : {}) }
+}
+
+function creationSkillDirectory() { return path.join(installRoot(), 'skills', 'create-launchpad-pet') }
+
+module.exports = { list, refresh, importFromManifest, select, remove, getRuntimeModel, openFolder, getStorageInfo, createFromAi, BUILTIN_ID, previewDirectory, validateManifest, validateAtlas, validateSvgParams, creationSkillDirectory }

@@ -2,6 +2,7 @@ import React from 'react'
 import FrameSequenceRenderer from './FrameSequenceRenderer'
 import AtlasRenderer from './AtlasRenderer'
 import SvgRenderer from './SvgRenderer'
+import Live2DRenderer from './Live2DRenderer'
 
 function BuiltinRenderer() {
   return (
@@ -16,7 +17,7 @@ function BuiltinRenderer() {
   )
 }
 
-export default function PetRenderer({ model, animationId = 'idle', playbackToken = 0, size = 160, className = '', onComplete }) {
+export default function PetRenderer({ model, animationId = 'idle', playbackToken = 0, size = 160, className = '', onComplete, onReady, onError }) {
   const canvas = model?.render?.canvas || { width: 192, height: 208 }
   const height = size * Number(canvas.height || 208) / Number(canvas.width || 192)
   const clip = model?.render?.animations?.[animationId] || model?.render?.animations?.idle || Object.values(model?.render?.animations || {})[0]
@@ -25,6 +26,9 @@ export default function PetRenderer({ model, animationId = 'idle', playbackToken
   const rootClass = `pet-sprite pet-renderer pet-renderer--${model?.render?.engine || 'builtin'} ${className}`
   if (!model || model.builtin || model.render?.engine === 'builtin') return <div className={`${rootClass} pet-sprite--builtin`} style={{ width: size, height }}><BuiltinRenderer /></div>
   if (model.render?.engine === 'svg') return <div className={`${rootClass} pet-sprite--builtin pet-sprite--svg`} style={{ width: size, height }}><SvgRenderer model={model} /></div>
+  if (model.render?.engine === 'live2d') return <div className={rootClass} style={{ width: size, height }} role="img" aria-label={model.displayName}>
+    <Live2DRenderer model={model} animationId={animationId} playbackToken={playbackToken} size={size} height={height} onReady={onReady} onError={onError} />
+  </div>
   return (
     <div className={rootClass} style={{ width: size, height }} role="img" aria-label={model.displayName || 'Pet'}>
       <div className="pet-renderer__content" style={contentStyle}>

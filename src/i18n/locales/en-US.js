@@ -1,6 +1,8 @@
 // English language pack
 export default {
   petImport: {
+    live2dLoading: 'Loading Live2D…',
+    live2dFailed: 'Live2D failed to load:',
     decodeFailed: 'An image could not be decoded. Export valid PNG/WebP files and try again.',
     sequenceDescription: 'Custom frame pet · {count} actions',
     "title": "Bring your character to the desktop",
@@ -608,3 +610,4 @@ export default {
     notFound: 'Workspace does not exist: {id}'
   }
 }
+

@@ -1,6 +1,8 @@
 // 简体中文语言包
 export default {
   petImport: {
+    live2dLoading: '正在加载 Live2D…',
+    live2dFailed: 'Live2D 加载失败：',
     decodeFailed: '素材图片无法解码，请重新导出有效的 PNG/WebP 文件。',
     sequenceDescription: '自定义逐帧桌宠 · {count} 个动作',
     "title": "让喜欢的角色住进桌面",
@@ -608,3 +610,4 @@ export default {
     notFound: '工作空间不存在: {id}'
   }
 }
+

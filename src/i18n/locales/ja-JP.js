@@ -1,6 +1,8 @@
 // 日本語言語パック
 export default {
   petImport: {
+    live2dLoading: 'Live2D を読み込み中…',
+    live2dFailed: 'Live2D の読み込みに失敗：',
     decodeFailed: '画像を読み込めません。有効な PNG/WebP に書き出して再試行してください。',
     sequenceDescription: 'カスタムフレームペット · {count} 動作',
     "title": "好きなキャラクターをデスクトップへ",
@@ -608,3 +610,4 @@ export default {
     notFound: 'ワークスペースが存在しません: {id}'
   }
 }
+

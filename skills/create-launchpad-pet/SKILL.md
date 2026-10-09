@@ -1,6 +1,6 @@
 ---
 name: create-launchpad-pet
-description: 根据文字描述或参考图片创建 LaunchPad 自定义桌宠，制作透明角色与逐帧动作，校验并输出可直接拖入预览的 ZIP 模型包。适用于 LaunchPad 桌宠生成和素材转换。
+description: 根据文字描述或参考图片创建 LaunchPad 自定义逐帧桌宠，或整理已有 Live2D 模型，校验并输出可直接拖入预览的 ZIP 模型包。适用于 LaunchPad 桌宠生成和素材转换。
 ---
 
 # 创建 LaunchPad 自定义桌宠
@@ -14,6 +14,8 @@ description: 根据文字描述或参考图片创建 LaunchPad 自定义桌宠�
 用户提供参考图片时保留其身份特征。未指定名字、风格时自行选择简短名字和适合小尺寸的清晰轮廓。
 
 ## 制作与预览
+
+用户提供已有 `.model3.json` / `.moc3` 模型或明确要求 Live2D 时，先读 [Live2D 模型契约](references/live2d-contract.md)。已有完整模型走 Live2D 打包路径；文字或参考图片只能先生成角色美术，仍需 Cubism Editor 的分层、绑定与导出才能成为真正的 Live2D 模型。不要把 PNG 改名为 moc3，或把逐帧模型声明成 Live2D。用户未指定引擎时保留下面的逐帧生成流程。
 
 1. 先读 [模型格式](references/sequence-contract.md)。优先使用逐帧模型；不要求固定 Codex 图集尺寸。
 2. 使用当前环境可用的图像生成/编辑能力制作透明底角色。若提供 imagegen 技能或工具，按它的说明调用；生成图像不使用手绘代码代替。未提供生成能力时，可转换用户已有素材；纯文字请求则说明缺少图像生成能力，保留角色设计描述，不能把机器人换色说成角色生成。

@@ -85,7 +85,7 @@ LaunchPad 提供独立的“桌宠工作台”：你可以拖入图片、动作�
 
 在“模型衣橱”把素材拖入导入区域，也可以点击“选择素材”或“选择文件夹”：**拖入素材 → 自动识别并预览 → 使用这个桌宠**。预览可切换动作、透明棋盘/深浅背景、显示大小和逐帧动画速度。只有点击“使用”后才保存到模型库并开启桌宠；源文件保持不变，重名模型保存为新副本。
 
-支持 ZIP、`pet.json`、PNG/WebP、按动作分类的帧目录。多张未分类图片按自然文件名顺序作为待机动画。单张图片可作为静态桌宠，默认关闭漫游；缺失动作会提示并使用待机画面。
+支持 Live2D 完整模型包、ZIP、`pet.json`、PNG/WebP、按动作分类的帧目录。多张未分类图片按自然文件名顺序作为待机动画。单张图片可作为静态桌宠，默认关闭漫游；缺失动作会提示并使用待机画面。渲染引擎默认“自动识别”，也可手动选择“原有桌宠”或“Live2D”；选择引擎不会转换素材格式。
 
 支持的模型格式：
 
@@ -94,6 +94,7 @@ LaunchPad 提供独立的“桌宠工作台”：你可以拖入图片、动作�
 | Codex v1 | 8 × 9 | 1536 × 1872 | `spriteVersionNumber: 1`，旧模型可省略该字段 |
 | Codex v2 | 8 × 11 | 1536 × 2288 | `spriteVersionNumber: 2` |
 | LaunchPad 逐帧 | 按动作组织图片 | 所有动作画布一致 | `schemaVersion: 1`、`renderer: "sequence"` |
+| Live2D Cubism 3/4/5 | 网格模型、纹理、动作与表情 | 按模型原始比例居中 | 完整 `.model3.json` 导出包；固定 Core 5.2 |
 
 V1/V2 模型目录至少应包含 `pet.json` 与 `spritesheet.png`/`spritesheet.webp`。逐帧素材可以不写清单，按动作组织帧文件，例如：
 
@@ -107,6 +108,10 @@ my-pet/
 
 导入器检查图片解码、帧尺寸、资源路径和压缩包大小。每动作最多 120 帧、总计 600 帧/128 MB，单张最多 16 MB。所有帧画布相同、边长不超过 4096，宽高比在 1:2 到 2:1 之间。校验失败会在导入区显示原因，模型库不会留下半成品。
 
+Live2D 可直接拖入 `.model3.json`、完整模型目录或 ZIP，须保留 `.moc3`、纹理及配置引用的资源。多个模型会提示选择。预览提供真实动作、表情与行为映射；模型成功渲染后才能点击“使用”。未映射行为保持待机，点击使用会保存映射和缩略图并开启独立桌宠窗口。资源通过受限本地协议读取，导入素材中的 JavaScript 不会执行。
+
+Live2D 使用 `untitled-pixi-live2d-engine` 1.4.0 + PixiJS 8.22.0，Core 5.2 本地随包提供，离线可用；Core 的授权说明见 `public/live2d/NOTICE.md` 和 `LICENSE.html`。目前不支持 Cubism 2 `.model.json`、编辑工程 `.cmo3`，以及需要更新 Core 的 moc 版本。图片或逐帧素材不会自动变成 Live2D 绑定模型。
+
 ### 自定义生成桌宠 Skill
 
 在导入卡片点击“导出生成 Skill”，将 ZIP 中的 `create-launchpad-pet` 文件夹放入 Codex 的 `~/.codex/skills/`，在新聊天中使用：
@@ -115,7 +120,9 @@ my-pet/
 
 也可以提供参考图片。Skill 使用当前环境可用的图像生成能力制作透明角色，再通过 Python/Pillow 脚本校验、生成联系表和 ZIP 包；生成质量需要实际视觉检查。生成的 ZIP 直接拖入本应用预览即可。[Skill 源码](skills/create-launchpad-pet/SKILL.md)和[模型格式](skills/create-launchpad-pet/references/sequence-contract.md)随项目提供。
 
-开发验证：`npm run test:pet-import`（导入服务），`npm run test:pet-import:ui`（构建后验证原生拖放、预览、桌面启用和 Skill 导出）。打包脚本可使用安装了 Pillow 的 Python 运行 `scripts/verify-pet-skill.py` 验证。
+Skill 也支持整理已有 Live2D 模型，详见 [Live2D 契约](skills/create-launchpad-pet/references/live2d-contract.md)。从参考图制作 Live2D 仍需分层、绑定及 Cubism 导出，不能仅靠图片生成替代。
+
+开发验证：`npm run test:pet-import`（旧格式导入服务），`npm run test:live2d-runtime`（真实 Live2D 模型、ZIP、引擎选择、资源隔离、安装、透明渲染和 GPU 释放），`npm run test:pet-import:ui`（生产构建、原生拖放、旧图集兼容、Live2D 预览/动作映射、桌面启用和 Skill 导出）。Live2D 测试首次下载固定版本的官方 Haru 样例至忽略的 output 目录，后续可复用本地文件。打包脚本可使用安装了 Pillow 的 Python 运行 `scripts/verify-pet-skill.py` 验证。
 
 ## 界面预览
 

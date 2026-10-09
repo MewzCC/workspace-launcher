@@ -126,6 +126,7 @@ export default function PetImporter({ onImported }) {
       await petApi.useImport(preview.token, { displayName: name.trim(), scale, ...(preview.model.renderer === 'live2d' ? { mappings, thumbnail } : {}), ...(fpsOverride !== null ? { fps: fpsOverride } : {}) })
       installed = true
       tokenRef.current = null
+      pathsRef.current = []
       setPreview(null)
       await onImported()
     } catch (reason) {

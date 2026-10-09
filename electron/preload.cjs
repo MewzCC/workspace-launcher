@@ -150,7 +150,7 @@ contextBridge.exposeInMainWorld('api', {
     openModelsStorage: () => ipcRenderer.invoke('pet:openModelsStorage'),
     importModel: (manifestPath) => ipcRenderer.invoke('pet:importModel', manifestPath),
     pathForDroppedFile: (file) => webUtils.getPathForFile(file),
-    previewImport: (paths) => ipcRenderer.invoke('pet:previewImport', paths),
+    previewImport: (paths, options) => ipcRenderer.invoke('pet:previewImport', paths, options),
     cancelImport: (token) => ipcRenderer.invoke('pet:cancelImport', token),
     useImport: (token, options) => ipcRenderer.invoke('pet:useImport', token, options),
     exportCreationSkill: () => ipcRenderer.invoke('pet:exportCreationSkill'),

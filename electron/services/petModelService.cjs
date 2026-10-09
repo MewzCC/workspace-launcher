@@ -5,6 +5,7 @@ const { settingsDao } = require('../db/index.cjs')
 const { readImageSize } = require('./imageSize.cjs')
 const { t } = require('../i18n.cjs')
 const { validateSequence, sequenceRuntime } = require('./petSequence.cjs')
+const live2d = require('./petLive2d.cjs')
 
 const ATLAS_WIDTH = 1536
 const ATLAS_HEIGHTS = {
@@ -278,6 +279,11 @@ function readPetDirectory(directory) {
   if (!fs.existsSync(manifestPath)) return null
   try {
     const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    if (raw.renderer === 'live2d') {
+      const manifest = live2d.validate(raw, directory)
+      manifest.id = safeId(raw.id)
+      return { ...manifest, directory, imported: true }
+    }
     if (raw.renderer === 'sequence') {
       const manifest = validateSequence(raw, directory)
       manifest.id = safeId(raw.id)
@@ -337,6 +343,7 @@ function list() {
     .filter(Boolean)
     .map((item) => {
       const { directory, spritePath, ...rest } = item
+      if (item.renderer === 'live2d') return live2d.runtime(item, directory)
       if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
       if (item.renderer === 'svg') return { ...rest, builtin: false }
       return {
@@ -425,6 +432,7 @@ function remove(id) {
   const directory = path.resolve(petsRoot(), target)
   const root = path.resolve(petsRoot())
   if (path.dirname(directory) !== root) throw new Error(t('pet.invalidPetPath'))
+  live2d.revoke(directory)
   fs.rmSync(directory, { recursive: true, force: true })
   clearModelCache(target)
   if (settingsDao.get('petModelId') === target) settingsDao.set('petModelId', BUILTIN_ID)
@@ -444,6 +452,7 @@ function getRuntimeModel(modelId) {
     return null
   }
   const { directory, spritePath, ...rest } = item
+  if (item.renderer === 'live2d') return live2d.runtime(item, directory)
   if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
   if (item.renderer === 'svg') return { ...rest, builtin: false }
   return {
@@ -472,6 +481,7 @@ function refresh() {
 function previewDirectory(directory) {
   const item = readPetDirectory(directory)
   if (!item) throw new Error('模型无法读取：请检查 pet.json、图片尺寸和动作帧路径')
+  if (item.renderer === 'live2d') return live2d.runtime(item, directory)
   if (item.renderer === 'sequence') return sequenceRuntime(item, directory)
   if (item.renderer === 'svg') return { ...item, builtin: false }
   const mime = path.extname(item.spritePath).toLowerCase() === '.png' ? 'png' : 'webp'

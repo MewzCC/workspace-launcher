@@ -456,7 +456,7 @@ const petRoutes = [
   { channel: 'pet:getModelsStorage', schema: [], handler: () => petModelService.getStorageInfo() },
   { channel: 'pet:openModelsStorage', schema: [], handler: async () => { const { shell } = require('electron'); const dir = petModelService.openFolder(); const error = await shell.openPath(dir); return error ? { error } : { success: true, path: dir } } },
   { channel: 'pet:importModel', schema: [v.optional(v.path({ max: 1024 }))], handler: (_e, file) => { const result = petModelService.importFromManifest(String(file || '')); petProfileService.ensure(result.id, { displayName: result.displayName }); return result } },
-  { channel: 'pet:previewImport', schema: [v.arr(v.path({ max: 1024 }), { min: 1, max: 120 })], handler: (event, paths) => petImportService.prepare(paths, event.sender.id) },
+  { channel: 'pet:previewImport', schema: [v.arr(v.path({ max: 1024 }), { min: 1, max: 120 }), v.optional(v.obj({ engine: v.optional(v.str({ max: 16 })), entry: v.optional(v.str({ max: 1024 })) }))], handler: (event, paths, options) => petImportService.prepare(paths, event.sender.id, options) },
   { channel: 'pet:cancelImport', schema: [v.str({ max: 64 })], handler: (event, token) => { petImportService.cleanup(token, event.sender.id); return { success: true } } },
   { channel: 'pet:exportCreationSkill', schema: [], handler: async (event) => {
     const { dialog } = require('electron')
@@ -471,7 +471,7 @@ const petRoutes = [
     archive.writeZip(result.filePath)
     return { canceled: false, path: result.filePath }
   } },
-  { channel: 'pet:useImport', schema: [v.str({ max: 64 }), v.obj({ displayName: v.str({ min: 1, max: 80 }), fps: v.optional(v.num({ min: 1, max: 30 })), scale: v.num({ min: 0.65, max: 1.35 }) })], handler: (event, token, options) => {
+  { channel: 'pet:useImport', schema: [v.str({ max: 64 }), v.obj({ displayName: v.str({ min: 1, max: 80 }), fps: v.optional(v.num({ min: 1, max: 30 })), scale: v.num({ min: 0.65, max: 1.35 }), thumbnail: v.optional(v.str({ max: 2097152 })), mappings: v.optional(v.obj(Object.fromEntries(require('./petLive2d.cjs').STATES.map(state => [state, v.optional(v.str({ max: 120 }))])))) })], handler: (event, token, options) => {
     const result = petImportService.commit(token, options, event.sender.id)
     petProfileService.ensure(result.id, { displayName: result.displayName })
     petProfileService.update(result.id, { scale: options.scale, ...(result.static ? { roaming: false } : {}) })

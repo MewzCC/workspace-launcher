@@ -188,6 +188,7 @@ const { defineRoutes } = require('../electron/ipc/registry.cjs')
 // autoUpdater（调用 app.getVersion()），没有真实运行时必须提供该表面。
 const fakeElectron = {
   app: {
+    isReady: () => false,
     getVersion: () => '1.5.1',
     isPackaged: false,
     getPath: () => os.tmpdir(),
@@ -204,6 +205,7 @@ const fakeElectron = {
   },
   BrowserWindow: function BrowserWindow() {},
   ipcMain: { handle() {}, on() {} },
+  protocol: { registerSchemesAsPrivileged() {}, handle() {} },
   nativeTheme: { themeSource: 'light' },
   screen: {},
   Menu: function Menu() {},

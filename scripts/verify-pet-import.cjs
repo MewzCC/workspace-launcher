@@ -35,6 +35,14 @@ async function waitFor(win, script) {
   throw new Error(`UI condition timed out: ${script}\n${await win.webContents.executeJavaScript(`JSON.stringify({url:location.href,status:document.querySelector('.pet-live2d-host')?.outerHTML,error:document.querySelector('.pet-import-error')?.textContent})`)}`)
 }
 
+async function refreshPreview(win) {
+  if (!process.env.LAUNCHPAD_TEST_HMR_URL) return
+  const updates = await win.webContents.executeJavaScript('window.__petImportHmrCount || 0')
+  await fetch(process.env.LAUNCHPAD_TEST_HMR_URL, { method: 'POST' })
+  await waitFor(win, `(window.__petImportHmrCount || 0) > ${updates}`)
+  assert(await win.webContents.executeJavaScript(`Boolean(document.querySelector('.pet-import-preview'))`), 'Fast Refresh retains the preview')
+}
+
 async function verifyUI(source) {
   // Integration windows remain hidden during verification.
   BrowserWindow.prototype.show = function () {}
@@ -44,7 +52,8 @@ async function verifyUI(source) {
   const errors = []
   const win = new BrowserWindow({ show: false, width: 1440, height: 1100, webPreferences: { preload: path.join(repo, 'out/preload/index.cjs'), contextIsolation: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } })
   win.webContents.on('console-message', (_event, level, message) => { if (level >= 3) { errors.push(message); console.error('Renderer:', message) } })
-  await win.loadFile(path.join(repo, 'out/renderer/index.html'))
+  if (process.env.ELECTRON_RENDERER_URL) await win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  else await win.loadFile(path.join(repo, 'out/renderer/index.html'))
   win.webContents.send('app:navigate', 'pet-center')
   // The channel is read from preload, not assumed by a real UI user.
   await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('桌宠工作台'))?.click()`)
@@ -81,6 +90,7 @@ async function verifyUI(source) {
     await new Promise((resolve) => setTimeout(resolve, 250))
     fs.writeFileSync(path.join(out, 'pet-import-preview.png'), (await win.webContents.capturePage()).toPNG())
     assert.strictEqual(db.settingsDao.get('petModelId'), 'custom-pet-2', 'UI preview leaves selection unchanged')
+    await refreshPreview(win)
     await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b => b.textContent.includes('使用这个桌宠')).click()`)
     await waitFor(win, `document.querySelector('.pet-import-preview') === null`)
     const selected = db.settingsDao.get('petModelId')
@@ -198,6 +208,8 @@ async function verifyUI(source) {
       await win.webContents.executeJavaScript(`document.querySelector('.pet-import-stage').scrollIntoView({block:'center'})`)
       await waitFor(win, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready' && !Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).disabled`)
       fs.writeFileSync(path.join(out,'user-live2d-preview.png'),(await win.webContents.capturePage()).toPNG())
+      await refreshPreview(win)
+      await waitFor(win, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
       await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).click()`)
       await waitFor(win, `!document.querySelector('.pet-import-preview')`)
       const chosen=db.settingsDao.get('petModelId')
@@ -207,6 +219,23 @@ async function verifyUI(source) {
       assert(window,'User model opens a desktop window')
       await waitFor(window, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
       console.log('User Live2D ZIP preview and Use button passed:',chosen)
+    }
+    if (process.env.LAUNCHPAD_TEST_HMR_URL) {
+      let pending
+      const prepare = imports.prepare
+      imports.prepare = (...args) => (pending = prepare(...args))
+      try {
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [liveFixture] })
+        await waitFor(win, `!document.querySelector('.pet-dropzone button').disabled`)
+        await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-dropzone button')).find(b=>b.textContent.includes('选择文件夹')).click()`)
+        await waitFor(win, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
+        const resource = JSON.stringify(pending.model.live2d.entryUrl)
+        assert.strictEqual(await win.webContents.executeJavaScript(`fetch(${resource}).then(r=>r.status)`), 200)
+        await win.webContents.executeJavaScript(`document.querySelector('#pet-tab-settings').click()`)
+        await waitFor(win, `!document.querySelector('.pet-import-preview') && fetch(${resource}).then(r=>r.status===404)`)
+        assert.throws(() => imports.commit(pending.token, {}, win.webContents.id), /过期/)
+        console.log('Fast Refresh keeps previews usable; real unmount cancels the session and revokes resources')
+      } finally { imports.prepare = prepare }
     }
     win.destroy()
     console.log('UI native drag/drop, legacy compatibility, Live2D preview, engine/model selection, action mapping, desktop activation, failed-preview gate and skill export passed')

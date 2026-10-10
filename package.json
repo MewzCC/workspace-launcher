@@ -27,6 +27,7 @@
     "test:live2d-runtime": "node scripts/verify-live2d-runtime.cjs",
     "test:pet-import": "electron scripts/verify-pet-import.cjs",
     "test:pet-import:ui": "npm run build && node scripts/run-pet-import-ui.cjs",
+    "test:pet-import:dev": "npm run build && node scripts/verify-pet-import-dev.cjs",
     "test:pet-study": "electron scripts/verify-pet-study.cjs",
     "test:storage-upgrade": "electron scripts/verify-storage-upgrade.cjs",
     "preview": "electron-vite preview",

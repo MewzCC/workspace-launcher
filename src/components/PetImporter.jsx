@@ -49,13 +49,20 @@ export default function PetImporter({ onImported }) {
   const live = useRef(true)
   const tokenRef = useRef(null)
   const busyRef = useRef(false)
+  const cleanupTimerRef = useRef(null)
   const dropDepth = useRef(0)
 
   useEffect(() => {
+    clearTimeout(cleanupTimerRef.current)
     live.current = true
     return () => {
       live.current = false
-      if (tokenRef.current) petApi.cancelImport(tokenRef.current).catch(() => {})
+      const token = tokenRef.current
+      // Fast Refresh tears down and immediately restores effects while keeping
+      // the preview state. Cancel only if the component actually stays unmounted.
+      cleanupTimerRef.current = setTimeout(() => {
+        if (token) petApi.cancelImport(token).catch(() => {})
+      }, 0)
     }
   }, [])
 

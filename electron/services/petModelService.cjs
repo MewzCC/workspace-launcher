@@ -15,9 +15,14 @@ const ATLAS_HEIGHTS = {
 const BUILTIN_ID = 'builtin-launchbot'
 const DRAG_ATLAS_STATES = new Set(['idle', 'wave', 'jump', 'failed', 'waiting', 'working', 'review'])
 let dataUrlCache = new Map()
+const directoryCache = new Map()
+let runtimeCache = new WeakMap()
 let resolvedModelsRoot = null
 
 function clearModelCache(id) {
+  for (const [directory, cached] of directoryCache) {
+    if (cached.item?.id === id) { runtimeCache.delete(cached.item); directoryCache.delete(directory) }
+  }
   const prefix = `${id}:`
   for (const key of dataUrlCache.keys()) {
     if (key === id || key.startsWith(prefix)) dataUrlCache.delete(key)
@@ -275,6 +280,24 @@ function resolveManifestPath(inputPath) {
 }
 
 function readPetDirectory(directory) {
+  // Only installed models are cached. Import snapshots must always undergo
+  // fresh validation before they can be published to the library.
+  const cacheable = path.dirname(path.resolve(directory)) === path.resolve(petsRoot()) && !path.basename(directory).startsWith('.import-')
+  if (!cacheable) return loadPetDirectory(directory)
+  const manifestPath = path.join(directory, 'pet.json')
+  let stamp
+  try {
+    const stat = fs.statSync(manifestPath)
+    stamp = `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}:${stat.ino}`
+  } catch (_) { directoryCache.delete(directory); return null }
+  const cached = directoryCache.get(directory)
+  if (cached?.stamp === stamp) return cached.item
+  const item = loadPetDirectory(directory)
+  directoryCache.set(directory, { stamp, item })
+  return item
+}
+
+function loadPetDirectory(directory) {
   const manifestPath = path.join(directory, 'pet.json')
   if (!fs.existsSync(manifestPath)) return null
   try {
@@ -336,23 +359,28 @@ function runtimeDragAnimation(item) {
   }
 }
 
+function runtimeFor(item) {
+  const cached = runtimeCache.get(item)
+  if (cached) return cached
+  const { directory, spritePath, ...rest } = item
+  let value
+  if (item.renderer === 'live2d') value = live2d.runtime(item, directory)
+  else if (item.renderer === 'sequence') value = sequenceRuntime(rest, directory)
+  else if (item.renderer === 'svg') value = { ...rest, builtin: false }
+  else value = {
+    ...rest, builtin: false, spritesheetDataUrl: spriteDataUrl(item),
+    ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation(item) } : {})
+  }
+  runtimeCache.set(item, value)
+  return value
+}
+
 function list() {
   const imported = fs.readdirSync(petsRoot(), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.import-'))
     .map((entry) => readPetDirectory(path.join(petsRoot(), entry.name)))
     .filter(Boolean)
-    .map((item) => {
-      const { directory, spritePath, ...rest } = item
-      if (item.renderer === 'live2d') return live2d.runtime(item, directory)
-      if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
-      if (item.renderer === 'svg') return { ...rest, builtin: false }
-      return {
-        ...rest,
-        builtin: false,
-        spritesheetDataUrl: spriteDataUrl({ ...rest, spritePath }),
-        ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation(item) } : {})
-      }
-    })
+    .map(runtimeFor)
   return [
     {
       id: BUILTIN_ID,
@@ -451,19 +479,7 @@ function getRuntimeModel(modelId) {
     }
     return null
   }
-  const { directory, spritePath, ...rest } = item
-  if (item.renderer === 'live2d') return live2d.runtime(item, directory)
-  if (item.renderer === 'sequence') return sequenceRuntime(rest, directory)
-  if (item.renderer === 'svg') return { ...rest, builtin: false }
-  return {
-    id: item.id,
-    displayName: item.displayName,
-    description: item.description,
-    spriteVersionNumber: item.spriteVersionNumber,
-    builtin: false,
-    spritesheetDataUrl: spriteDataUrl(item),
-    ...(item.dragAnimation ? { dragAnimation: runtimeDragAnimation(item) } : {})
-  }
+  return runtimeFor(item)
 }
 
 function openFolder() {
@@ -472,6 +488,8 @@ function openFolder() {
 
 function refresh() {
   dataUrlCache.clear()
+  directoryCache.clear()
+  runtimeCache = new WeakMap()
   const models = list()
   const selected = String(settingsDao.get('petModelId') || BUILTIN_ID)
   if (!models.some((item) => item.id === selected)) settingsDao.set('petModelId', BUILTIN_ID)

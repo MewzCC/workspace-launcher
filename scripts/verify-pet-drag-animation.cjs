@@ -4,11 +4,22 @@ const os = require('os')
 const path = require('path')
 const { app } = require('electron')
 
-const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-pet-drag-'))
+if (!app) {
+  const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'launchpad-pet-drag-'))
+  const result = require('child_process').spawnSync(require('electron'), [__filename], {
+    stdio: 'inherit', env: { ...process.env, LAUNCHPAD_DRAG_TEST_ROOT: testRoot }, timeout: 60000
+  })
+  if (path.dirname(testRoot).toLowerCase() !== os.tmpdir().toLowerCase() || !path.basename(testRoot).startsWith('launchpad-pet-drag-')) throw new Error('Invalid drag test root')
+  fs.rmSync(testRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
+}
+const testRoot = process.env.LAUNCHPAD_DRAG_TEST_ROOT
+if (!testRoot) throw new Error('Run this verification with Node so cleanup happens after Electron exits')
+app.setPath('userData', path.join(testRoot, 'userData'))
 process.env.PORTABLE_EXECUTABLE_DIR = path.resolve(__dirname, '..')
 
 app.whenReady().then(() => {
-  app.setPath('userData', path.join(testRoot, 'userData'))
   const modelService = require('../electron/services/petModelService.cjs')
   const lanxi = modelService.getRuntimeModel('blue-whale-maid')
   const klee = modelService.getRuntimeModel('klee-spark-knight')
@@ -34,11 +45,9 @@ app.whenReady().then(() => {
   assert.strictEqual(bottomLeft.placement, 'right')
 
   require('../electron/db/index.cjs').closeDb()
-  fs.rmSync(testRoot, { recursive: true, force: true })
   console.log('澜汐拖拽动画模型验证通过 ✓')
-  app.quit()
+  app.exit(0)
 }).catch((error) => {
   console.error(error)
-  try { fs.rmSync(testRoot, { recursive: true, force: true }) } catch (_) {}
   app.exit(1)
 })

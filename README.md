@@ -124,6 +124,8 @@ Skill 也支持整理已有 Live2D 模型，详见 [Live2D 契约](skills/create
 
 开发验证：`npm run test:pet-import`（旧格式导入服务），`npm run test:live2d-runtime`（真实 Live2D 模型、ZIP、引擎选择、资源隔离、安装、透明渲染和 GPU 释放），`npm run test:pet-import:ui`（生产构建、原生拖放、旧图集兼容、Live2D 预览/动作映射、桌面启用和 Skill 导出），`npm run test:pet-import:dev`（独立 Vite 开发服务器、Fast Refresh 后继续启用预览、离开页面时释放会话与资源）。设置环境变量 `LAUNCHPAD_TEST_LIVE2D_PACKAGE` 为本地模型 ZIP 路径，可同时验证该模型的预览、启用和桌面渲染。Live2D 测试首次下载固定版本的官方 Haru 样例至忽略的 output 目录，后续可复用本地文件。打包脚本可使用安装了 Pillow 的 Python 运行 `scripts/verify-pet-skill.py` 验证。
 
+性能验证：`npm run test:pet-performance` 使用本地鲸鱼娘模型，测量 50 次移动区域调用的耗时和资源读取量，并检查缓存失效。模型目录可通过 `LAUNCHPAD_TEST_LIVE2D_DIRECTORY` 指定。已安装模型复用校验结果和运行资源；修改 `pet.json` 会更新缓存，外部修改纹理或动作后点击模型列表的刷新按钮即可重新校验。导入预览及安装前的资源校验始终执行。
+
 ## 界面预览
 
 ### 工作空间管理

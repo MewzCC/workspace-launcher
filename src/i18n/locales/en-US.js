@@ -1,6 +1,9 @@
 // English language pack
 export default {
   petImport: {
+    installing: 'Activating this pet…',
+    waitForModel: 'Loading the model. You can use it once the preview is ready…',
+    actionPreviewFailed: 'Action preview failed: {message}. The model is loaded; you can still use the pet or choose another action.',
     engine: 'Rendering engine',
     engine_auto: 'Auto detect (recommended)',
     engine_sprite: 'Existing pets (SVG / atlas / frames)',

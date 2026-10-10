@@ -20,6 +20,7 @@
 .pet-dropzone p { margin: 0; font-size: 12px; }
 .pet-smart-import .pet-import-actions { justify-content: center; flex-wrap: wrap; }
 .pet-import-error { color: var(--brand-state-error); overflow-wrap: anywhere; }
+.pet-import-readiness { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--brand-muted-foreground); }
 .pet-import-preview { margin-top: 22px; }
 .pet-import-detected { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
 .pet-import-detected span { margin-left: auto; color: var(--brand-muted-foreground); }

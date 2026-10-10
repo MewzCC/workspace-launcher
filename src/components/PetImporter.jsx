@@ -31,6 +31,7 @@ export default function PetImporter({ onImported }) {
   const [engine, setEngine] = useState('auto')
   const [candidates, setCandidates] = useState([])
   const [engineReady, setEngineReady] = useState(false)
+  const [actionError, setActionError] = useState('')
   const [thumbnail, setThumbnail] = useState('')
   const [mappings, setMappings] = useState({})
   const pathsRef = useRef([])
@@ -65,6 +66,7 @@ export default function PetImporter({ onImported }) {
     setError('')
     setPreview(null)
     setEngineReady(false)
+    setActionError('')
     setThumbnail('')
     setCandidates([])
     pathsRef.current = paths
@@ -185,11 +187,11 @@ export default function PetImporter({ onImported }) {
         <GlowButton variant="ghost" disabled={busy} onClick={() => choose(true)}><FolderOpen size={15} />{t('petImport.chooseFolder')}</GlowButton>
       </div>
     </div>
-    {error && <p className="pet-import-error" role="alert">{error}</p>}
+    {error && !preview && <p className="pet-import-error" role="alert">{error}</p>}
     {!!candidates.length && <label className="pet-import-model-choice">{t('petImport.chooseModel')}<select aria-label={t('petImport.chooseModel')} defaultValue="" disabled={busy} onChange={event => recognize(pathsRef.current, engine, event.target.value)}><option value="" disabled>{t('petImport.chooseModel')}</option>{candidates.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
     {preview && <section className="pet-import-preview" aria-label={t('petImport.stepPreview')}>
       <div className="pet-import-detected"><Check size={15} /><strong>{t(`petImport.format_${preview.format}`)}</strong><span>{t('petImport.actionCount', { count: preview.actions.length })}</span></div>
-      <div className={`pet-import-stage is-${background}`}><PetSprite model={previewModel} state={action} size={160 * scale} playbackToken={replay} onReady={({ thumbnail: value }) => { setThumbnail(value); setEngineReady(true); setError('') }} onError={reason => { setEngineReady(false); setError(reason.message) }} /></div>
+      <div className={`pet-import-stage is-${background}`}><PetSprite model={previewModel} state={action} size={160 * scale} playbackToken={replay} onReady={({ thumbnail: value }) => { setThumbnail(value); setEngineReady(true); setActionError('') }} onError={reason => { setEngineReady(false); setError(reason.message) }} onActionError={reason => setActionError(reason.message)} /></div>
       <div className="pet-import-backgrounds" aria-label={t('petImport.background')}>
         {['checker', 'light', 'dark'].map((value) => <button key={value} type="button" className={background === value ? 'active' : ''} onClick={() => setBackground(value)} aria-pressed={background === value}>{t(`petImport.bg_${value}`)}</button>)}
       </div>
@@ -199,7 +201,10 @@ export default function PetImporter({ onImported }) {
       <label className="pet-import-slider"><span>{t('petImport.size')}<b>{Math.round(scale * 100)}%</b></span><input type="range" min="0.65" max="1.35" step="0.05" value={scale} onChange={(event) => setScale(Number(event.target.value))} disabled={busy} /></label>
       {preview.model.renderer === 'sequence' && <label className="pet-import-slider"><span>{t('petImport.speed')}<b>{fps} FPS</b></span><input type="range" min="1" max="30" value={fps} onChange={(event) => setFpsOverride(Number(event.target.value))} disabled={busy} /></label>}
       {!!preview.warnings.length && <ul className="pet-import-warnings">{preview.warnings.map((warning) => <li key={warning}>{t(`petImport.warning_${warning}`)}</li>)}</ul>}
-      <div className="pet-import-actions"><GlowButton disabled={busy || !engineReady || !name.trim()} onClick={usePet}><Check size={16} />{t('petImport.use')}</GlowButton><GlowButton variant="ghost" disabled={busy} onClick={reset}><RotateCcw size={14} />{t('petImport.reset')}</GlowButton></div>
+      {!engineReady && !error && <p className="pet-import-readiness" role="status"><LoaderCircle size={14} className="is-spinning" />{t('petImport.waitForModel')}</p>}
+      {actionError && <p className="pet-import-warnings" role="status">{t('petImport.actionPreviewFailed', { message: actionError })}</p>}
+      {error && <p className="pet-import-error" role="alert">{error}</p>}
+      <div className="pet-import-actions"><GlowButton disabled={busy || !engineReady || !name.trim()} onClick={usePet}>{busy ? <LoaderCircle size={16} className="is-spinning" /> : <Check size={16} />}{t(busy ? 'petImport.installing' : 'petImport.use')}</GlowButton><GlowButton variant="ghost" disabled={busy} onClick={reset}><RotateCcw size={14} />{t('petImport.reset')}</GlowButton></div>
       <small className="pet-import-safe-note">{t('petImport.previewNote')}</small>
     </section>}
     <div className="pet-import-skill"><strong>{t('petImport.skillTitle')}</strong><p>{t('petImport.skillDescription')}</p><GlowButton variant="ghost" disabled={skillBusy} onClick={exportSkill}><Download size={15} />{t('petImport.exportSkill')}</GlowButton>{skillNotice && <p role="status">{skillNotice}</p>}</div>

@@ -1,6 +1,9 @@
 // 简体中文语言包
 export default {
   petImport: {
+    installing: '正在使用这个桌宠…',
+    waitForModel: '正在加载模型，预览成功后即可使用…',
+    actionPreviewFailed: '动作预览失败：{message}。模型已加载，仍可使用桌宠或选择其他动作。',
     engine: '渲染引擎',
     engine_auto: '自动识别（推荐）',
     engine_sprite: '原有桌宠（SVG / 图集 / 逐帧）',

@@ -1,6 +1,9 @@
 // 日本語言語パック
 export default {
   petImport: {
+    installing: 'ペットを有効にしています…',
+    waitForModel: 'モデルを読み込み中です。プレビューが準備できると使用できます…',
+    actionPreviewFailed: '動作のプレビューに失敗：{message}。モデルは読み込み済みです。ペットを使用するか、別の動作を選択できます。',
     engine: '描画エンジン',
     engine_auto: '自動認識（推奨）',
     engine_sprite: '既存のペット（SVG / アトラス / フレーム）',

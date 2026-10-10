@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createLive2DView } from './live2dRuntime'
 import { useT } from '../../hooks/useT'
 
-export default function Live2DRenderer({ model, animationId = 'idle', playbackToken = 0, size, height, onReady, onError }) {
+export default function Live2DRenderer({ model, animationId = 'idle', playbackToken = 0, size, height, onReady, onError, onActionError }) {
   const t = useT()
   const host = useRef(null)
   const view = useRef(null)
-  const callbacks = useRef({ onReady, onError })
-  callbacks.current = { onReady, onError }
+  const callbacks = useRef({ onReady, onError, onActionError })
+  callbacks.current = { onReady, onError, onActionError }
   const latest = useRef({ animationId, size, height })
   latest.current = { animationId, size, height }
   const [status, setStatus] = useState('loading')
@@ -31,11 +31,14 @@ export default function Live2DRenderer({ model, animationId = 'idle', playbackTo
       view.current = result
       result.resize(latest.current.size, latest.current.height)
       setStatus('ready')
+      // Installation requires a rendered model, not successful playback of
+      // every optional motion/expression in a third-party package.
+      callbacks.current.onReady?.({ thumbnail: result.thumbnail() })
       try {
         await result.play(actionRef.current(latest.current.animationId))
         if (!cancelled) callbacks.current.onReady?.({ thumbnail: result.thumbnail() })
       } catch (reason) {
-        if (!cancelled) { setStatus('error'); setError(reason.message); callbacks.current.onError?.(reason) }
+        if (!cancelled) callbacks.current.onActionError?.(reason)
       }
     }).catch((reason) => {
       if (cancelled) return
@@ -64,7 +67,7 @@ export default function Live2DRenderer({ model, animationId = 'idle', playbackTo
     view.current?.setIdleGroup(idle?.group)
     view.current?.play(selectAction(animationId)).then(applied => {
       if (applied && view.current) { setStatus('ready'); setError(''); callbacks.current.onReady?.({ thumbnail: view.current.thumbnail() }) }
-    }).catch((reason) => callbacks.current.onError?.(reason))
+    }).catch((reason) => callbacks.current.onActionError?.(reason))
   }, [animationId, playbackToken, model.live2d.mappings])
 
   return <div ref={host} className="pet-live2d-host" data-status={status} data-action={activeAction}>

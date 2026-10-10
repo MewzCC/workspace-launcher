@@ -338,7 +338,7 @@ function runtimeDragAnimation(item) {
 
 function list() {
   const imported = fs.readdirSync(petsRoot(), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.import-'))
     .map((entry) => readPetDirectory(path.join(petsRoot(), entry.name)))
     .filter(Boolean)
     .map((item) => {

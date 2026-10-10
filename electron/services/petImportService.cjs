@@ -272,6 +272,38 @@ function prepare(paths, owner, options = {}) {
   }
 }
 
+function publishDirectory(temporary, destination) {
+  try {
+    fs.renameSync(temporary, destination)
+    return
+  } catch (error) {
+    // Windows scanners/editors can hold directory handles that deny rename
+    // while allowing the files to be copied. Other errors remain failures.
+    if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code)) throw error
+  }
+  // Reserve a new destination exclusively. Never merge with or remove an
+  // existing model, even if another importer took this name meanwhile.
+  fs.mkdirSync(destination)
+  try {
+    const manifest = fs.readFileSync(path.join(temporary, 'pet.json'))
+    for (const name of fs.readdirSync(temporary)) {
+      if (name === 'pet.json') continue
+      fs.cpSync(path.join(temporary, name), path.join(destination, name), { recursive: true, force: false, errorOnExist: true })
+    }
+    // A directory is discoverable only when pet.json exists. Publish it last,
+    // after every validated resource has been copied successfully.
+    fs.writeFileSync(path.join(destination, 'pet.json'), manifest, { flag: 'wx' })
+  } catch (error) {
+    try { fs.rmSync(destination, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) }
+    catch (cleanupError) { console.warn('[pet import] Failed to remove incomplete model:', cleanupError.message) }
+    throw error
+  }
+  // Installation has succeeded. A locked staging directory must not turn it
+  // into an apparent failure; hidden staging directories are not library items.
+  try { fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) }
+  catch (error) { console.warn('[pet import] Failed to remove staging directory:', error.message) }
+}
+
 function commit(token, options, owner) {
   const item = previews.get(token)
   if (!item || item.owner !== owner || Date.now() - item.created > TTL) throw new Error('预览已过期，请重新拖入素材')
@@ -294,7 +326,7 @@ function commit(token, options, owner) {
   if (manifest.renderer === 'sequence') {
     for (const clip of Object.values(manifest.animations)) clip.fps = options.fps || clip.fps
   }
-  // Rename only a fully validated snapshot; failed copies stay outside the library.
+  // Publish only a fully validated snapshot; failed copies stay outside the library.
   const temporary = path.join(root, `.import-${token}`)
   const destination = path.join(root, id)
   try {
@@ -302,10 +334,11 @@ function commit(token, options, owner) {
     fs.writeFileSync(path.join(temporary, 'pet.json'), JSON.stringify(manifest, null, 2))
     models.previewDirectory(temporary)
     live2d.revoke(temporary)
-    fs.renameSync(temporary, destination)
+    publishDirectory(temporary, destination)
   } catch (error) {
     live2d.revoke(temporary)
-    fs.rmSync(temporary, { recursive: true, force: true })
+    try { fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) }
+    catch (cleanupError) { console.warn('[pet import] Failed to remove staging directory:', cleanupError.message) }
     throw error
   }
   cleanup(token, owner)

@@ -43,6 +43,65 @@ async function refreshPreview(win) {
   assert(await win.webContents.executeJavaScript(`Boolean(document.querySelector('.pet-import-preview'))`), 'Fast Refresh retains the preview')
 }
 
+function verifyLockedPublication(source, models) {
+  const fixture = path.join(root, 'locked-fixture')
+  fs.cpSync(source, fixture, { recursive: true })
+  const originalRename = fs.renameSync
+  const originalCopy = fs.cpSync
+  const originalRemove = fs.rmSync
+  const destination = path.join(models.openFolder(), 'locked-fixture')
+  let failCopy = false, keepStaging = false, retained
+  let copies = 0
+  fs.renameSync = (from, to) => {
+    if (path.basename(from).startsWith('.import-')) throw Object.assign(new Error('Simulated Windows directory lock'), { code: 'EPERM' })
+    return originalRename(from, to)
+  }
+  fs.cpSync = (from, to, options) => {
+    if (path.basename(path.dirname(from)).startsWith('.import-')) {
+      copies++
+      assert(!fs.existsSync(path.join(destination, 'pet.json')), 'Incomplete copies have no published manifest')
+      if (failCopy) {
+        fs.writeFileSync(path.join(destination, 'partial.png'), 'partial')
+        throw Object.assign(new Error('Simulated failed copy'), { code: 'EIO' })
+      }
+      originalCopy(from, to, options)
+      assert(!fs.existsSync(path.join(destination, 'pet.json')), 'Resource copy excludes pet.json until completion')
+      assert(!models.list().some(model => model.id === 'locked-fixture'), 'Incomplete model is not listed')
+      return
+    }
+    return originalCopy(from, to, options)
+  }
+  fs.rmSync = (target, options) => {
+    if (keepStaging && path.basename(target).startsWith('.import-')) {
+      retained = target
+      throw Object.assign(new Error('Simulated staging directory lock'), { code: 'EPERM' })
+    }
+    return originalRemove(target, options)
+  }
+  try {
+    const preview = imports.prepare([fixture], 77)
+    failCopy = true
+    assert.throws(() => imports.commit(preview.token, { displayName: '锁定模型', scale: 1 }, 77), /Simulated failed copy/)
+    assert(!fs.existsSync(destination), 'Failed copy rolls back the new directory')
+    assert.strictEqual(db.settingsDao.get('petModelId'), 'custom-pet-2', 'Failed installation preserves selection')
+    failCopy = false
+    keepStaging = true
+    const installed = imports.commit(preview.token, { displayName: '锁定模型', scale: 1 }, 77)
+    assert.strictEqual(installed.id, 'locked-fixture', 'Same preview can be retried after a failed copy')
+    assert(copies >= 2)
+    assert.strictEqual(models.list().filter(model => model.id === installed.id).length, 1, 'Locked staging copy is never listed')
+    assert.strictEqual(models.getRuntimeModel(installed.id).render.engine, 'sequence')
+    assert(fs.readFileSync(path.join(destination, 'animations/idle/000.png')).equals(fs.readFileSync(path.join(fixture, 'idle/frame_2.png'))))
+    console.log('Windows EPERM fallback, manifest-last publication, rollback, retry and locked staging cleanup passed')
+  } finally {
+    fs.renameSync = originalRename
+    fs.cpSync = originalCopy
+    fs.rmSync = originalRemove
+    if (retained) fs.rmSync(retained, { recursive: true, force: true })
+    models.select('custom-pet-2')
+  }
+}
+
 async function verifyUI(source) {
   // Integration windows remain hidden during verification.
   BrowserWindow.prototype.show = function () {}
@@ -210,8 +269,17 @@ async function verifyUI(source) {
       fs.writeFileSync(path.join(out,'user-live2d-preview.png'),(await win.webContents.capturePage()).toPNG())
       await refreshPreview(win)
       await waitFor(win, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
-      await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).click()`)
-      await waitFor(win, `!document.querySelector('.pet-import-preview')`)
+      const rename = fs.renameSync
+      let blockedRenames = 0
+      if (process.env.LAUNCHPAD_TEST_RENAME_EPERM) fs.renameSync = (from, to) => {
+        if (path.basename(from).startsWith('.import-')) { blockedRenames++; throw Object.assign(new Error('Simulated Windows directory lock'), { code: 'EPERM' }) }
+        return rename(from, to)
+      }
+      try {
+        await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-import-preview button')).find(b=>b.textContent.includes('使用这个桌宠')).click()`)
+        await waitFor(win, `!document.querySelector('.pet-import-preview')`)
+        if (process.env.LAUNCHPAD_TEST_RENAME_EPERM) assert.strictEqual(blockedRenames, 1, 'User ZIP installs with a blocked directory rename')
+      } finally { fs.renameSync = rename }
       const chosen=db.settingsDao.get('petModelId')
       assert(db.settingsDao.get('petInstanceIds').includes(chosen),'User package activation creates a desktop instance')
       let window
@@ -321,6 +389,7 @@ app.whenReady().then(async () => {
   assert.strictEqual(preview.model.renderer, 'svg')
   imports.cleanup(preview.token, 1)
   console.log('Import isolation, folder/ZIP/image/sequence detection, collisions, frame ordering and invalid asset rejection passed')
+  verifyLockedPublication(source, models)
   if (ui) await verifyUI(source)
   petService?.destroyPetWindow()
   imports.dispose()

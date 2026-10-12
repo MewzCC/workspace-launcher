@@ -157,6 +157,10 @@ export default {
     shellPermissionOn: 'フル権限を有効にしました。ペットがシステム操作を実行できます。',
     shellPermissionOff: 'フル権限を無効にしました。',
     shellPermissionActive: '⚠ フル権限が有効です：ペットはプロセス終了と Shell コマンドを実行できます。',
+    modelActions: 'モデルのモーションと表情',
+    actionType_motion: 'モーション',
+    actionType_expression: '表情',
+    noModelActions: 'このモデルにはこの種類のリソースがありません',
     animation: { idle: '待機', walkRight: '右へ移動', walkLeft: '左へ移動', wave: '手を振る', jump: 'ジャンプ', failed: '失敗', waiting: '入力待ち', working: '作業中', review: '確認' }
   },
   petStudy: {

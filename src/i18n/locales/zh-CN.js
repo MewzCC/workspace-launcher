@@ -157,6 +157,10 @@ export default {
     shellPermissionOn: '完全权限已开启，桌宠可以执行系统操作。',
     shellPermissionOff: '完全权限已关闭。',
     shellPermissionActive: '⚠ 完全权限已开启：桌宠可以结束进程并执行 Shell 命令。',
+    modelActions: '模型动作与表情',
+    actionType_motion: '动作',
+    actionType_expression: '表情',
+    noModelActions: '这个模型没有提供此类资源',
     animation: { idle: '待机', walkRight: '右行', walkLeft: '左行', wave: '招手', jump: '跳跃', failed: '失败', waiting: '等待', working: '工作', review: '检查' }
   },
   petStudy: {

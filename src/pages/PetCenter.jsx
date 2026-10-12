@@ -54,6 +54,9 @@ function PetCenter() {
   const [socialMemories, setSocialMemories] = useState({ relationship: [], diary: [] })
   const [aiConfig, setAiConfig] = useState(null)
   const [previewState, setPreviewState] = useState('idle')
+  const [previewReplay, setPreviewReplay] = useState(0)
+  const [previewActionType, setPreviewActionType] = useState('motion')
+  const [previewError, setPreviewError] = useState('')
   const [messages, setMessages] = useState([])
   const [conversations, setConversations] = useState([])
   const [conversation, setConversation] = useState(null)
@@ -99,6 +102,19 @@ function PetCenter() {
     typeBufferRef.current = ''
   }
   const tabsRef = useRef(null)
+
+  useEffect(() => {
+    setPreviewState('idle')
+    setPreviewReplay(0)
+    setPreviewActionType('motion')
+    setPreviewError('')
+  }, [config?.model?.id])
+
+  const playPreview = (id) => {
+    setPreviewError('')
+    setPreviewState(id)
+    setPreviewReplay(value => value + 1)
+  }
 
   const load = async () => {
     const [nextConfig, nextModels, nextAi, nextConversation, nextConversations, nextMemories] = await Promise.all([
@@ -235,8 +251,6 @@ function PetCenter() {
     try {
       await petApi.selectModel(id)
       await load()
-      setPreviewState('wave')
-      setTimeout(() => setPreviewState('idle'), 1200)
     } catch (error) { setNotice(error.message) }
   }
 
@@ -665,15 +679,33 @@ function PetCenter() {
 
       {activeTab === 'companion' && (
         <section id="pet-panel-companion" role="tabpanel" aria-labelledby="pet-tab-companion" className={`pet-companion-grid ${panelMotionClass}`}>
-          <div className="pet-stage-card">
+          <div className={`pet-stage-card ${config.model.render?.engine === 'live2d' ? 'pet-stage-card--live2d' : ''}`}>
             <div className="pet-stage-light" />
             <div className="pet-stage-status"><span /> ONLINE · {config.model.displayName || 'LaunchBot'}</div>
-            <PetSprite model={config.model} state={previewState} size={210} />
+            <PetSprite model={config.model} state={previewState} size={210} playbackToken={previewReplay}
+              onError={error => setPreviewError(error.message)} onActionError={error => setPreviewError(error.message)} />
             <div className="pet-stage-platform" />
-            <div className="pet-state-picker">
-              {PREVIEW_STATES.map(([key, labelKey]) => (
-                <button key={key} className={previewState === key ? 'active' : ''} onClick={() => setPreviewState(key)}>{t(`petCenter.animation.${labelKey}`)}</button>
+            <div className={`pet-state-picker ${config.model.render?.engine === 'live2d' ? 'pet-state-picker--live2d' : ''}`} data-playback-token={previewReplay}>
+              {config.model.render?.engine === 'live2d' ? <>
+                <div className="pet-action-types" role="group" aria-label={t('petCenter.modelActions')}>
+                  {['motion', 'expression'].map(type => <button key={type} aria-pressed={previewActionType === type}
+                    className={previewActionType === type ? 'active' : ''} onClick={() => setPreviewActionType(type)}>
+                    {t(`petCenter.actionType_${type}`)} · {config.model.live2d.actions.filter(action => action.type === type).length}
+                  </button>)}
+                  <button onClick={() => playPreview('idle')}>{t('petCenter.animation.idle')}</button>
+                </div>
+                <div key={previewActionType} className="pet-model-actions">
+                  {config.model.live2d.actions.filter(action => action.type === previewActionType).map(action => (
+                    <button key={action.id} data-action-id={action.id} aria-pressed={previewState === action.id}
+                      className={previewState === action.id ? 'active' : ''} title={action.label || action.name || action.id}
+                      onClick={() => playPreview(action.id)}>{action.label || action.name || action.id}</button>
+                  ))}
+                  {!config.model.live2d.actions.some(action => action.type === previewActionType) && <span>{t('petCenter.noModelActions')}</span>}
+                </div>
+              </> : PREVIEW_STATES.map(([key, labelKey]) => (
+                <button key={key} className={previewState === key ? 'active' : ''} onClick={() => playPreview(key)}>{t(`petCenter.animation.${labelKey}`)}</button>
               ))}
+              {previewError && <div className="pet-preview-error" role="alert">{previewError}</div>}
             </div>
           </div>
 

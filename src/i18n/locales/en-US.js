@@ -157,6 +157,10 @@ export default {
     shellPermissionOn: 'Full control enabled. The pet can perform system operations.',
     shellPermissionOff: 'Full control disabled.',
     shellPermissionActive: '⚠ Full control is ON: the pet can terminate processes and run shell commands.',
+    modelActions: 'Model motions and expressions',
+    actionType_motion: 'Motions',
+    actionType_expression: 'Expressions',
+    noModelActions: 'This model provides no resources of this type',
     animation: { idle: 'Idle', walkRight: 'Walk right', walkLeft: 'Walk left', wave: 'Wave', jump: 'Jump', failed: 'Failed', waiting: 'Waiting', working: 'Working', review: 'Review' }
   },
   petStudy: {

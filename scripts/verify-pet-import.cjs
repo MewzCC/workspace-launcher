@@ -353,6 +353,26 @@ async function verifyUI(source) {
       assert(window,'User model opens a desktop window')
       await waitFor(window, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
       console.log('User Live2D ZIP preview and Use button passed:',chosen)
+      await win.webContents.executeJavaScript(`document.querySelector('#pet-tab-companion').click()`)
+      await waitFor(win, `document.querySelector('.pet-stage-card .pet-live2d-host')?.dataset.status === 'ready'`)
+      const actions = require('../electron/services/petModelService.cjs').getRuntimeModel(chosen).live2d.actions
+      for (const type of ['motion', 'expression']) {
+        await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-action-types button')).find(b=>b.textContent.includes(${JSON.stringify(type === 'motion' ? '动作' : '表情')})).click()`)
+        const expected = actions.filter(action => action.type === type)
+        assert.deepStrictEqual(await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-model-actions button')).map(b=>b.dataset.actionId)`), expected.map(action => action.id), 'Companion shows actual model resources')
+        const selected = expected.find(action => action.label === '爱心眼') || expected[expected.length - 1]
+        const selector = `.pet-model-actions button[data-action-id="${selected.id}"]`
+        await win.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).click()`)
+        await waitFor(win, `document.querySelector('.pet-stage-card .pet-live2d-host')?.dataset.action === ${JSON.stringify(selected.id)}`)
+        const replay = await win.webContents.executeJavaScript(`Number(document.querySelector('.pet-state-picker').dataset.playbackToken)`)
+        await win.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).click()`)
+        await waitFor(win, `Number(document.querySelector('.pet-state-picker').dataset.playbackToken) === ${replay + 1}`)
+        assert.strictEqual(await win.webContents.executeJavaScript(`Boolean(document.querySelector('.pet-preview-error'))`), false)
+      }
+      await new Promise(resolve => setTimeout(resolve, 600)) // Allow the expression fade-in before visual inspection.
+      fs.writeFileSync(path.join(out,'user-live2d-actions.png'),(await win.webContents.capturePage()).toPNG())
+      console.log('Companion dynamically lists and plays model motions/expressions, including repeated clicks')
+      await win.webContents.executeJavaScript(`document.querySelector('#pet-tab-models').click()`)
       await verifyPetStartup(chosen, '.pet-live2d-host[data-status="ready"]')
     }
     if (process.env.LAUNCHPAD_TEST_HMR_URL) {

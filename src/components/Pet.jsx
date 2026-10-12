@@ -333,6 +333,10 @@ function Pet() {
 
   const spriteSize = config?.settings?.dimensions?.spriteWidth || 116
 
+  // Keep the transparent desktop window empty until its configured model is
+  // available, including the interaction zone and shadow.
+  if (!config?.model) return null
+
   return (
     <div
       className={`pet-root pet-root--${petState}${dragging ? ' pet-root--dragging' : ''}`}

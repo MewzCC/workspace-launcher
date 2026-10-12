@@ -15,6 +15,7 @@ const repo = process.env.LAUNCHPAD_TEST_REPO || path.resolve(__dirname, '..')
 const ui = process.argv.includes('--ui')
 require('../electron/services/petLive2d.cjs') // Register the resource scheme before ready.
 let imports, petService, db
+const startupGates = new Map()
 
 function png(file, width = 192, height = 208, color = 0x70) {
   fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -41,6 +42,45 @@ async function refreshPreview(win) {
   await fetch(process.env.LAUNCHPAD_TEST_HMR_URL, { method: 'POST' })
   await waitFor(win, `(window.__petImportHmrCount || 0) > ${updates}`)
   assert(await win.webContents.executeJavaScript(`Boolean(document.querySelector('.pet-import-preview'))`), 'Fast Refresh retains the preview')
+}
+
+async function verifyPetStartup(id, readySelector) {
+  console.log('Checking delayed startup:', id)
+  const probe = new BrowserWindow({ show: false, webPreferences: { preload: path.join(repo, 'out/preload/index.cjs'), contextIsolation: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } })
+  let release
+  const gate = { requested: false, promise: new Promise(resolve => { release = resolve }) }
+  startupGates.set(probe.webContents.id, gate)
+  try {
+    await probe.loadURL('about:blank')
+    probe.webContents.debugger.attach('1.3')
+    await probe.webContents.debugger.sendCommand('Page.enable')
+    await probe.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: `
+      window.__builtinSeen = false;
+      new MutationObserver(() => {
+        if (document.querySelector('svg[aria-label="LaunchBot"]')) window.__builtinSeen = true;
+      }).observe(document, {childList:true,subtree:true});
+    ` })
+    const hash = `/pet?instance=${encodeURIComponent(id)}`
+    const loaded = process.env.ELECTRON_RENDERER_URL
+      ? probe.loadURL(`${process.env.ELECTRON_RENDERER_URL}#${hash}`)
+      : probe.loadFile(path.join(repo, 'out/renderer/index.html'), { hash })
+    loaded.catch(() => {})
+    for (let i = 0; i < 100 && !gate.requested; i++) await new Promise(resolve => setTimeout(resolve, 50))
+    assert(gate.requested, 'Startup waits for its model configuration')
+    await new Promise(resolve => setTimeout(resolve, 150))
+    const evaluate = async expression => (await probe.webContents.debugger.sendCommand('Runtime.evaluate', { expression, returnByValue: true })).result.value
+    assert.strictEqual(await evaluate('window.__builtinSeen'), false, 'Pending configuration must not flash the built-in pet')
+    assert.strictEqual(await evaluate(`Boolean(document.querySelector('.pet-shadow'))`), false, 'Pending configuration has no placeholder shadow')
+    release()
+    await loaded
+    await waitFor(probe, `Boolean(document.querySelector(${JSON.stringify(readySelector)}))`)
+    assert.strictEqual(await probe.webContents.executeJavaScript('window.__builtinSeen'), id === 'builtin-launchbot', 'Only the explicitly selected built-in model renders LaunchBot')
+    console.log('Delayed startup renders only the configured pet:', id)
+  } finally {
+    release()
+    startupGates.delete(probe.webContents.id)
+    probe.destroy()
+  }
 }
 
 function verifyLockedPublication(source, models) {
@@ -107,6 +147,30 @@ async function verifyUI(source) {
   BrowserWindow.prototype.show = function () {}
   require('../electron/ipc/handlers.cjs').registerIpcHandlers()
   petService = require('../electron/services/petService.cjs')
+  if (process.env.LAUNCHPAD_TEST_STARTUP_ONLY) {
+    app.on('window-all-closed', () => {})
+    const { ipcMain } = require('electron')
+    ipcMain.handle('pet:getConfig', async (event, id) => {
+      const gate = startupGates.get(event.sender.id)
+      if (gate) { gate.requested = true; await gate.promise }
+      return { model: require('../electron/services/petModelService.cjs').getRuntimeModel(id), settings: { dimensions: { spriteWidth: 116 }, roaming: false, study: { mode: 'companion' } } }
+    })
+    await verifyPetStartup('custom-pet-2', '.pet-renderer__sequence-frame')
+    await verifyPetStartup('builtin-launchbot', 'svg[aria-label="LaunchBot"]')
+    if (process.env.LAUNCHPAD_TEST_LIVE2D_PACKAGE) {
+      const prepared = imports.prepare([process.env.LAUNCHPAD_TEST_LIVE2D_PACKAGE], 901)
+      const installed = imports.commit(prepared.token, { displayName: 'Startup whale', scale: 1 }, 901)
+      await verifyPetStartup(installed.id, '.pet-live2d-host[data-status="ready"]')
+    }
+    return
+  }
+  const configRoute = petService.petRoutes.find(route => route.channel === 'pet:getConfig')
+  const getConfig = configRoute.handler
+  configRoute.handler = async (event, ...args) => {
+    const gate = startupGates.get(event.sender.id)
+    if (gate) { gate.requested = true; await gate.promise }
+    return getConfig(event, ...args)
+  }
   petService.init({})
   const errors = []
   const win = new BrowserWindow({ show: false, width: 1440, height: 1100, webPreferences: { preload: path.join(repo, 'out/preload/index.cjs'), contextIsolation: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } })
@@ -162,6 +226,8 @@ async function verifyUI(source) {
     const config = petService.getRuntimeConfig(selected)
     assert.strictEqual(config.settings.dimensions.spriteHeight, Math.round(config.settings.dimensions.spriteWidth * 208 / 192))
     assert.deepStrictEqual(errors, [], 'No frontend error messages')
+    await verifyPetStartup(selected, '.pet-renderer__sequence-frame')
+    await verifyPetStartup('builtin-launchbot', 'svg[aria-label="LaunchBot"]')
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path.join(repo, 'models/blue-whale-maid')] })
     await win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.pet-dropzone button')).find(b => b.textContent.includes('选择文件夹')).click()`)
     await waitFor(win, `Boolean(document.querySelector('.pet-import-preview .pet-sprite--idle'))`)
@@ -287,6 +353,7 @@ async function verifyUI(source) {
       assert(window,'User model opens a desktop window')
       await waitFor(window, `document.querySelector('.pet-live2d-host')?.dataset.status === 'ready'`)
       console.log('User Live2D ZIP preview and Use button passed:',chosen)
+      await verifyPetStartup(chosen, '.pet-live2d-host[data-status="ready"]')
     }
     if (process.env.LAUNCHPAD_TEST_HMR_URL) {
       let pending

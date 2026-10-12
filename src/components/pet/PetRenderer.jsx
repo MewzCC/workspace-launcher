@@ -24,7 +24,8 @@ export default function PetRenderer({ model, animationId = 'idle', playbackToken
   const placement = clip?.placement || {}
   const contentStyle = { transform: `translate(${placement.offsetX || 0}px, ${placement.offsetY || 0}px) scale(${placement.scale || 1})`, transformOrigin: '50% 100%' }
   const rootClass = `pet-sprite pet-renderer pet-renderer--${model?.render?.engine || 'builtin'} ${className}`
-  if (!model || model.builtin || model.render?.engine === 'builtin') return <div className={`${rootClass} pet-sprite--builtin`} style={{ width: size, height }}><BuiltinRenderer /></div>
+  if (!model) return null
+  if (model.builtin || model.render?.engine === 'builtin') return <div className={`${rootClass} pet-sprite--builtin`} style={{ width: size, height }}><BuiltinRenderer /></div>
   if (model.render?.engine === 'svg') return <div className={`${rootClass} pet-sprite--builtin pet-sprite--svg`} style={{ width: size, height }}><SvgRenderer model={model} /></div>
   if (model.render?.engine === 'live2d' && thumbnailOnly) return <div className={`${rootClass} pet-live2d-thumbnail`} style={{ width: size, height }} role="img" aria-label={model.displayName}>{model.thumbnailDataUrl ? <img src={model.thumbnailDataUrl} alt="" /> : <span>Live2D</span>}</div>
   if (model.render?.engine === 'live2d') return <div className={rootClass} style={{ width: size, height }} role="img" aria-label={model.displayName}>

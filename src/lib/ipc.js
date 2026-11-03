@@ -213,6 +213,7 @@ export const aiApi = {
   getConfig: (petModelId) => unwrap(api.ai.getConfig(petModelId)),
   saveConfig: (config, petModelId) => unwrap(api.ai.saveConfig(config, petModelId)),
   detectModel: (petModelId) => unwrap(api.ai.detectModel(petModelId)),
+  listModels: (request) => unwrap(api.ai.listModels(request)),
   chat: (request) => unwrap(api.ai.chat(request)),
   captureScreen: () => unwrap(api.ai.captureScreen()),
   getConversation: (id, petModelId) => unwrap(api.ai.getConversation(id, petModelId)),

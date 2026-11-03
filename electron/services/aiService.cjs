@@ -205,6 +205,45 @@ async function detectModel(petModelId) {
   return result
 }
 
+// 读取某个 API Key 可用的模型列表。优先使用界面上尚未保存的 Key 与地址，
+// 这样用户填写后无需先保存就能直接拉取模型。
+async function listProviderModels(request = {}) {
+  const provider = String(request.provider || settingsDao.get('aiProvider') || 'custom')
+  const baseUrl = String(request.baseUrl || settingsDao.get('aiBaseUrl') || '').trim().replace(/\/$/, '')
+  const key = String(request.apiKey || '').trim() || decryptKey(provider)
+  if (!baseUrl) throw new Error(t('pet.apiAddressRequired'))
+  if (!key) throw new Error(t('pet.keyRequired'))
+  let url
+  try {
+    url = new URL(baseUrl)
+  } catch (_) {
+    throw new Error(t('pet.apiAddressRequired'))
+  }
+  if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') throw new Error(t('pet.httpsRequired'))
+  let response
+  try {
+    response = await fetch(`${baseUrl}/models`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(20000)
+    })
+  } catch (error) {
+    throw new Error(t('pet.modelsRequestFailed', { message: error.message }))
+  }
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload?.error?.message || t('pet.requestFailed', { status: response.status }))
+  const raw = Array.isArray(payload?.data)
+    ? payload.data
+    : (Array.isArray(payload?.models) ? payload.models : (Array.isArray(payload) ? payload : []))
+  const models = raw
+    .map((item) => (typeof item === 'string' ? item : String(item?.id || item?.name || '')))
+    .filter(Boolean)
+  const unique = [...new Set(models)].sort((a, b) => a.localeCompare(b))
+  if (!unique.length) throw new Error(t('pet.noModels'))
+  return { provider, baseUrl, models: unique }
+}
+
+
 // ===== Function Calling 工具 =====
 // 基础工具始终可用；危险工具（结束进程、Shell 执行）仅在用户开启"完全权限"后暴露。
 const BASE_TOOL_DEFINITIONS = [
@@ -1219,7 +1258,7 @@ async function generateStudyEntry({ language = 'en', term = '' } = {}) {
 }
 
 module.exports = {
-  getConfig, saveConfig, chat, detectModel,
+  getConfig, saveConfig, chat, detectModel, listProviderModels,
   getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
   setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory,
   generateStudyItems, generateStudyEntry

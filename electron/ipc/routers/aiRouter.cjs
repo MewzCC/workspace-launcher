@@ -82,6 +82,16 @@ const aiRoutes = [
     handler: (_event, petModelId) => aiService.detectModel(petModelId)
   },
   {
+    // 用当前 API Key 拉取可用模型列表；未保存的 Key 与地址也可直接传入
+    channel: 'ai:listModels',
+    schema: [obj({
+      provider: optional(oneOf(PROVIDERS)),
+      baseUrl: optional(str({ max: 512 })),
+      apiKey: optional(str({ max: 512 }))
+    }, { label: '模型列表请求' })],
+    handler: (_event, request) => aiService.listProviderModels(request)
+  },
+  {
     channel: 'ai:chat',
     schema: [or(chatRequestSchema, legacyMessagesSchema)],
     handler: async (event, request) => {

@@ -72,6 +72,10 @@ function PetCenter() {
   const [visionEnabled, setVisionEnabled] = useState(true)
   const [detecting, setDetecting] = useState(false)
   const [detectResult, setDetectResult] = useState(null)
+  const [modelOptions, setModelOptions] = useState([])
+  const [loadingModels, setLoadingModels] = useState(false)
+  const [modelError, setModelError] = useState('')
+  const [apiKeyDraft, setApiKeyDraft] = useState('')
   const [notice, setNotice] = useState('')
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [provider, setProvider] = useState('openai')
@@ -567,10 +571,11 @@ function PetCenter() {
     const form = new FormData(event.currentTarget)
     try {
       const next = await aiApi.saveConfig({
-        provider, apiFormat, baseUrl, model: aiModel, apiKey: form.get('apiKey'),
+        provider, apiFormat, baseUrl, model: aiModel, apiKey: apiKeyDraft,
         petName: form.get('petName'), personality: form.get('personality'), mode: chatMode
       }, config?.model?.id)
       setAiConfig(next)
+      setApiKeyDraft('')
       setNotice(t('petCenter.aiSaved'))
     } catch (error) { setNotice(error.message) }
   }
@@ -581,6 +586,26 @@ function PetCenter() {
     setApiFormat(preset.apiFormat)
     setBaseUrl(preset.baseUrl)
     setAiModel(preset.models[0] || '')
+    setModelOptions([])
+    setModelError('')
+    setApiKeyDraft('')
+  }
+
+  // 用当前填写的 Key 与地址拉取该账号可用的模型，支持先选模型再保存设置。
+  const fetchModels = async () => {
+    if (loadingModels) return
+    setLoadingModels(true)
+    setModelError('')
+    try {
+      const result = await aiApi.listModels({ provider, baseUrl, apiKey: apiKeyDraft })
+      const list = Array.isArray(result?.models) ? result.models : []
+      setModelOptions(list)
+      if (!aiModel && list.length > 0) setAiModel(list[0])
+    } catch (error) {
+      setModelError(error.message)
+    } finally {
+      setLoadingModels(false)
+    }
   }
 
   // 完全权限（Shell 接管）：开启时必须二次确认危险授权
@@ -605,7 +630,7 @@ function PetCenter() {
     }
   }
 
-  const providerModels = AI_PROVIDERS[provider]?.models || []
+  const providerModels = [...new Set([...(AI_PROVIDERS[provider]?.models || []), ...modelOptions])]
   const selectedModelOption = providerModels.includes(aiModel) ? aiModel : CUSTOM_MODEL
   const activeTabIndex = PET_TAB_KEYS.indexOf(activeTab)
   const panelMotionClass = `pet-tab-panel pet-tab-panel--${tabDirection}`
@@ -1191,15 +1216,23 @@ function PetCenter() {
               </label>
             </fieldset>
             <label>{t('petCenter.model')}
-              <select
-                className="pet-themed-select"
-                value={selectedModelOption}
-                onChange={(event) => setAiModel(event.target.value === CUSTOM_MODEL ? '' : event.target.value)}
-              >
-                {providerModels.map((model) => <option key={model} value={model}>{model}</option>)}
-                <option value={CUSTOM_MODEL}>{t('petCenter.customModelOption')}</option>
-              </select>
+              <div className="pet-model-picker">
+                <select
+                  className="pet-themed-select"
+                  value={selectedModelOption}
+                  onChange={(event) => setAiModel(event.target.value === CUSTOM_MODEL ? '' : event.target.value)}
+                >
+                  {providerModels.map((model) => <option key={model} value={model}>{model}</option>)}
+                  <option value={CUSTOM_MODEL}>{t('petCenter.customModelOption')}</option>
+                </select>
+                <button type="button" onClick={fetchModels} disabled={loadingModels} title={t('petCenter.fetchModels')}>
+                  <RefreshCw size={14} className={loadingModels ? 'is-spinning' : ''} />
+                  {loadingModels ? t('petCenter.loadingModels') : t('petCenter.fetchModels')}
+                </button>
+              </div>
             </label>
+            {modelError && <div className="pet-model-error" role="alert">{modelError}</div>}
+            {modelOptions.length > 0 && <div className="pet-model-hint">{t('petCenter.modelsFetched', { count: modelOptions.length })}</div>}
             {selectedModelOption === CUSTOM_MODEL && (
               <label className="pet-custom-model">{t('petCenter.customModelId')}
                 <input value={aiModel} onChange={(event) => setAiModel(event.target.value)} placeholder={t('petCenter.customModelPlaceholder')} />
@@ -1217,7 +1250,7 @@ function PetCenter() {
             )}
             <div className="pet-form-row">
               <label>{t('petCenter.companionName')}<input key={`name-${aiConfig.petModelId}`} name="petName" defaultValue={aiConfig.petName} /></label>
-              <label>API Key<input name="apiKey" type="password" placeholder={aiConfig.providerKeys?.[provider] ? t('petCenter.keySaved') : t('petCenter.keyPlaceholder')} autoComplete="off" /></label>
+              <label>API Key<input name="apiKey" type="password" value={apiKeyDraft} onChange={(event) => setApiKeyDraft(event.target.value)} placeholder={aiConfig.providerKeys?.[provider] ? t('petCenter.keySaved') : t('petCenter.keyPlaceholder')} autoComplete="off" /></label>
             </div>
             <label>{t('petCenter.personality')}<textarea key={`${language}-${aiConfig.petModelId}-${aiConfig.personality}`} name="personality" defaultValue={aiConfig.personality} rows="5" /></label>
             <div className="pet-ai-security"><KeyRound size={14} /> {t('petCenter.keySecurity')}</div>

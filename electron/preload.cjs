@@ -218,6 +218,7 @@ contextBridge.exposeInMainWorld('api', {
     getConfig: (petModelId) => ipcRenderer.invoke('ai:getConfig', petModelId),
     saveConfig: (config, petModelId) => ipcRenderer.invoke('ai:saveConfig', config, petModelId),
     detectModel: (petModelId) => ipcRenderer.invoke('ai:detectModel', petModelId),
+    listModels: (request) => ipcRenderer.invoke('ai:listModels', request),
     chat: (request) => ipcRenderer.invoke('ai:chat', request),
     captureScreen: () => ipcRenderer.invoke('ai:captureScreen'),
     getConversation: (id, petModelId) => ipcRenderer.invoke('ai:conversation:get', id, petModelId),

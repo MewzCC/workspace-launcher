@@ -1,7 +1,8 @@
 // AI 域路由：会话 / 记忆 / 配置 / 对话
 // 所有入参先过契约校验（validate.cjs），再进入 aiService
-const { BrowserWindow } = require('electron')
+const { BrowserWindow, desktopCapturer, screen } = require('electron')
 const aiService = require('../../services/aiService.cjs')
+const { t } = require('../../i18n.cjs')
 const {
   str, num, id, bool, oneOf, optional, obj, arr, or, ValidationError
 } = require('../validate.cjs')
@@ -29,6 +30,7 @@ const aiConfigSchema = obj({
   mode: optional(oneOf(['concise', 'focus', 'creative', 'casual'])),
   memoryMode: optional(oneOf(['off', 'manual', 'auto'])),
   shellEnabled: optional(bool()),
+  visionEnabled: optional(bool()),
   apiKey: optional(str({ max: 512 })),
   clearApiKey: optional(bool())
 })
@@ -37,7 +39,9 @@ const aiConfigSchema = obj({
 const chatRequestSchema = obj({
   conversationId: optional(id()),
   petModelId: petIdSchema,
-  content: optional(str({ max: 12000 }))
+  content: optional(str({ max: 12000 })),
+  // 多模态图片以 data URL 数组传入，由 aiService 再做格式与体积收敛
+  images: optional(arr(str({ max: 4 * 1024 * 1024, label: '图片' }), { max: 4, label: '图片列表' }))
 }, { label: '聊天请求' })
 const legacyMessagesSchema = arr(
   obj({ role: oneOf(['user', 'assistant']), content: str({ max: 12000 }) }, { label: '消息' }),
@@ -72,6 +76,12 @@ const aiRoutes = [
     handler: (_event, config, petModelId) => aiService.saveConfig(config, petModelId)
   },
   {
+    // 用一张内置测试图验证连接与多模态能力，帮助用户快速判断自定义模型是否支持识图
+    channel: 'ai:detectModel',
+    schema: [petIdSchema],
+    handler: (_event, petModelId) => aiService.detectModel(petModelId)
+  },
+  {
     channel: 'ai:chat',
     schema: [or(chatRequestSchema, legacyMessagesSchema)],
     handler: async (event, request) => {
@@ -86,6 +96,42 @@ const aiRoutes = [
       })
       broadcastAi('ai:conversationChanged', { conversationId: result.conversation.id, petModelId: result.conversation.pet_model_id })
       return result
+    }
+  },
+  {
+    // 捕获主显示器画面并转成 JPEG data URL；截图期间临时隐藏桌宠窗口，
+    // 避免透明浮层遮挡用户想询问的内容。
+    channel: 'ai:captureScreen',
+    schema: [],
+    handler: async () => {
+      const petWindows = BrowserWindow.getAllWindows().filter((win) =>
+        !win.isDestroyed() && win.isVisible() && String(win.getURL()).includes('#/pet')
+      )
+      for (const win of petWindows) win.hide()
+      if (petWindows.length > 0) await new Promise((resolve) => setTimeout(resolve, 160))
+      try {
+        const display = screen.getPrimaryDisplay()
+        const targetWidth = Math.min(1440, display.size.width)
+        const targetHeight = Math.round(display.size.height * targetWidth / display.size.width)
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: {
+            width: Math.round(targetWidth * display.scaleFactor),
+            height: Math.round(targetHeight * display.scaleFactor)
+          }
+        })
+        const source = sources.find((item) => String(item.display_id) === String(display.id)) || sources[0]
+        if (!source || source.thumbnail.isEmpty()) throw new Error(t('pet.screenshotFailed'))
+        const jpeg = source.thumbnail.toJPEG(86)
+        const size = source.thumbnail.getSize()
+        return {
+          dataUrl: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+          width: size.width,
+          height: size.height
+        }
+      } finally {
+        for (const win of petWindows) if (!win.isDestroyed()) win.showInactive()
+      }
     }
   },
   {

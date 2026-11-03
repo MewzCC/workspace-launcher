@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Archive, Bot, Box, Brain, BookOpen, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleHelp, Eraser,
-  KeyRound, MessageCircle, Pencil, Plus, Save, Send, Settings2, Sparkles, Square,
-  RefreshCw, Terminal, Trash2, WandSparkles
+  ImagePlus, KeyRound, MessageCircle, Monitor, Pencil, Plus, Save, Send, Settings2, Sparkles, Square,
+  RefreshCw, Terminal, Trash2, WandSparkles, X
 } from 'lucide-react'
 import GlowButton from '../components/ui/GlowButton'
 import Toggle from '../components/ui/Toggle'
@@ -14,6 +14,7 @@ import PetStudyPanel from '../components/PetStudyPanel'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import { aiApi, petApi } from '../lib/ipc'
 import { renderMarkdown } from '../lib/markdown'
+import { MAX_CHAT_IMAGES, clipboardImageFiles, fileToChatImage } from '../lib/chatImages'
 import { useT } from '../hooks/useT'
 import { useStore } from '../store/useStore'
 import './PetCenter.css'
@@ -65,7 +66,12 @@ function PetCenter() {
   const [memoryType, setMemoryType] = useState('preference')
   const [memoryDraft, setMemoryDraft] = useState('')
   const [draft, setDraft] = useState('')
+  const [attachments, setAttachments] = useState([])
+  const [imageBusy, setImageBusy] = useState(false)
   const [chatting, setChatting] = useState(false)
+  const [visionEnabled, setVisionEnabled] = useState(true)
+  const [detecting, setDetecting] = useState(false)
+  const [detectResult, setDetectResult] = useState(null)
   const [notice, setNotice] = useState('')
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [provider, setProvider] = useState('openai')
@@ -78,6 +84,7 @@ function PetCenter() {
   const [conversationTitleDraft, setConversationTitleDraft] = useState('')
   const chatEndRef = useRef(null)
   const chatScrollRef = useRef(null)
+  const imageInputRef = useRef(null)
   const prevConversationIdRef = useRef(null)
   const typeBufferRef = useRef('')
   const typeTimerRef = useRef(null)
@@ -130,6 +137,7 @@ function PetCenter() {
     setAiModel(nextAi.model || '')
     setMemoryMode(nextAi.memoryMode || 'manual')
     setShellEnabled(Boolean(nextAi.shellEnabled))
+    setVisionEnabled(nextAi.visionEnabled !== false)
     setChatMode(nextAi.mode || 'concise')
     setRenamingConversation(false)
     setConversation(nextConversation.conversation)
@@ -313,22 +321,102 @@ function PetCenter() {
     } catch (error) { setNotice(error.message) }
   }
 
+  const appendImages = async (files) => {
+    const list = Array.from(files || []).slice(0, MAX_CHAT_IMAGES - attachments.length)
+    if (!list.length || imageBusy) return
+    setImageBusy(true)
+    setNotice('')
+    try {
+      const next = []
+      for (const file of list) {
+        const dataUrl = await fileToChatImage(file)
+        if (dataUrl) next.push(dataUrl)
+      }
+      if (next.length) setAttachments((items) => [...items, ...next].slice(0, MAX_CHAT_IMAGES))
+    } catch (error) {
+      setNotice(error.message || String(error))
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
+  const handlePasteImages = (event) => {
+    if (!visionEnabled) return
+    const files = clipboardImageFiles(event)
+    if (!files.length) return
+    event.preventDefault()
+    appendImages(files).catch(() => {})
+  }
+
+  const captureScreen = async () => {
+    if (!visionEnabled || imageBusy || attachments.length >= MAX_CHAT_IMAGES) return
+    setImageBusy(true)
+    setNotice('')
+    try {
+      const result = await aiApi.captureScreen()
+      if (result?.dataUrl) setAttachments((items) => [...items, result.dataUrl].slice(0, MAX_CHAT_IMAGES))
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setImageBusy(false)
+    }
+  }
+
+  const toggleVision = async (enabled) => {
+    try {
+      const next = await aiApi.saveConfig({ visionEnabled: enabled }, config?.model?.id)
+      setAiConfig(next)
+      setVisionEnabled(Boolean(next.visionEnabled))
+      if (!enabled) setAttachments([])
+    } catch (error) {
+      setNotice(error.message)
+    }
+  }
+
+  // 依次验证文本与图片请求，让用户明确区分“连接失败”和“模型不支持识图”。
+  const detectModel = async () => {
+    if (detecting) return
+    setDetecting(true)
+    setDetectResult(null)
+    try {
+      const result = await aiApi.detectModel(config?.model?.id)
+      if (!result?.textOk) {
+        setDetectResult({ tone: 'error', text: t('petCenter.detectFailed', { message: result?.message || '' }) })
+      } else if (result.visionOk) {
+        setDetectResult({ tone: 'ok', text: t('petCenter.detectVisionOk') })
+      } else {
+        setDetectResult({ tone: 'warn', text: t('petCenter.detectTextOnly', { message: result.visionMessage || '' }) })
+      }
+    } catch (error) {
+      setDetectResult({ tone: 'error', text: t('petCenter.detectFailed', { message: error.message }) })
+    } finally {
+      setDetecting(false)
+    }
+  }
+
   const sendMessage = async (event) => {
     event?.preventDefault()
     const content = draft.trim()
-    if (!content || chatting) return
+    const images = attachments
+    if ((!content && images.length === 0) || chatting) return
     setMessages((items) => [
       ...items.filter((item) => item.id),
-      { id: `local-u-${Date.now()}`, role: 'user', content },
+      { id: `local-u-${Date.now()}`, role: 'user', content, images: images.length ? images : undefined },
       { id: 'streaming', role: 'assistant', content: '' }
     ])
     setDraft('')
+    setAttachments([])
     setChatting(true)
     stopTypewriter()
     setPreviewState('working')
     petApi.performAction({ state: 'working', bubble: t('petCenter.bubbleThinking'), duration: 12000 }, config?.model?.id)
     try {
-      const result = await aiApi.chat({ conversationId: conversation?.id, content, petModelId: config?.model?.id })
+      const result = await aiApi.chat({
+        conversationId: conversation?.id,
+        content,
+        images: images.length ? images : undefined,
+        petModelId: config?.model?.id
+      })
       stopTypewriter()
       const snapshot = await aiApi.getConversation(result.conversation.id, config?.model?.id)
       setConversation(snapshot.conversation)
@@ -741,17 +829,30 @@ function PetCenter() {
             )}
             <div className="pet-chat-messages" ref={chatScrollRef}>
               {!messages.length && <div className="pet-message pet-message--assistant"><p>{t('petCenter.greeting')}</p></div>}
-              {messages.filter((item) => item.tool || String(item.content || '').trim()).map((item, index) => (
-                <div key={item.id || index} className={`pet-message pet-message--${item.role}`}>
-                  {item.tool ? (
-                    <p className="pet-message-tool">{item.content}</p>
-                  ) : item.role === 'assistant' ? (
-                    <div className="md-render pet-message-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(item.content) }} />
-                  ) : (
-                    <p>{item.content}</p>
-                  )}
-                </div>
-              ))}
+              {messages.filter((item) => {
+                const media = item.metadata?.images || item.images
+                return item.tool || String(item.content || '').trim() || (Array.isArray(media) && media.length > 0)
+              }).map((item, index) => {
+                const media = item.metadata?.images || item.images || []
+                return (
+                  <div key={item.id || index} className={`pet-message pet-message--${item.role}`}>
+                    {item.tool ? (
+                      <p className="pet-message-tool">{item.content}</p>
+                    ) : (
+                      <div className="pet-message-body">
+                        {media.length > 0 && (
+                          <div className="pet-message-media">
+                            {media.map((url, mediaIndex) => <img key={mediaIndex} src={url} alt="" loading="lazy" />)}
+                          </div>
+                        )}
+                        {item.role === 'assistant'
+                          ? <div className="md-render pet-message-md" dangerouslySetInnerHTML={{ __html: renderMarkdown(item.content) }} />
+                          : item.content ? <p>{item.content}</p> : null}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
               {chatting && (
                 <div
                   className="pet-message pet-message--assistant pet-message--typing"
@@ -764,10 +865,66 @@ function PetCenter() {
               <div ref={chatEndRef} />
             </div>
             <form className="pet-chat-compose" onSubmit={sendMessage}>
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('petCenter.chatPlaceholder')} rows="2" onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-              }} />
-              <button type="submit" disabled={!draft.trim() || chatting} aria-label={t('petCenter.send')}><Send size={18} /></button>
+              {attachments.length > 0 && (
+                <div className="pet-chat-attachments">
+                  {attachments.map((url, index) => (
+                    <div className="pet-chat-attachment" key={index}>
+                      <img src={url} alt="" />
+                      <button type="button" onClick={() => setAttachments((items) => items.filter((_, itemIndex) => itemIndex !== index))} aria-label={t('petCenter.removeImage')}>
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="pet-chat-compose-row">
+                {visionEnabled && (
+                  <>
+                    <button
+                      type="button"
+                      className="pet-chat-tool"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={chatting || imageBusy || attachments.length >= MAX_CHAT_IMAGES}
+                      title={t('petCenter.attachImage')}
+                      aria-label={t('petCenter.attachImage')}
+                    >
+                      <ImagePlus size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className="pet-chat-tool"
+                      onClick={captureScreen}
+                      disabled={chatting || imageBusy || attachments.length >= MAX_CHAT_IMAGES}
+                      title={t('petCenter.captureScreen')}
+                      aria-label={t('petCenter.captureScreen')}
+                    >
+                      <Monitor size={17} />
+                    </button>
+                  </>
+                )}
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={t('petCenter.chatPlaceholder')}
+                  rows="2"
+                  onPaste={handlePasteImages}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+                  }}
+                />
+                <button type="submit" disabled={(!draft.trim() && attachments.length === 0) || chatting || imageBusy} aria-label={t('petCenter.send')}><Send size={18} /></button>
+              </div>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                hidden
+                onChange={(event) => {
+                  appendImages(event.target.files).catch(() => {})
+                  event.target.value = ''
+                }}
+              />
             </form>
           </div>
         </section>
@@ -987,6 +1144,25 @@ function PetCenter() {
           </div>
 
           <div className="pet-settings-ai-column">
+          <div className="pet-settings-card pet-vision-card">
+            <div className="pet-section-title"><div><span>MULTIMODAL</span><h2>{t('petCenter.visionTitle')}</h2></div><ImagePlus size={20} /></div>
+            <p className="pet-vision-desc">{t('petCenter.visionDesc')}</p>
+            <SettingToggle
+              title={t('petCenter.visionToggle')}
+              desc={t('petCenter.visionToggleDesc')}
+              checked={visionEnabled}
+              onChange={toggleVision}
+            />
+            <div className="pet-vision-detect">
+              <button type="button" onClick={detectModel} disabled={detecting}>
+                <RefreshCw size={13} className={detecting ? 'is-spinning' : ''} />
+                {detecting ? t('petCenter.detecting') : t('petCenter.detectModel')}
+              </button>
+              <span>{t('petCenter.detectHint')}</span>
+            </div>
+            {detectResult && <div className={`pet-vision-detect-result is-${detectResult.tone}`}>{detectResult.text}</div>}
+            {!visionEnabled && <div className="pet-vision-hint">{t('petCenter.visionDisabledHint')}</div>}
+          </div>
           <form className="pet-settings-card pet-ai-settings" onSubmit={saveAi}>
             <div className="pet-section-title"><div><span>AI CONNECTION</span><h2>{t('petCenter.chatCapability')}</h2></div><KeyRound size={20} /></div>
             <fieldset className="pet-chat-mode-grid">

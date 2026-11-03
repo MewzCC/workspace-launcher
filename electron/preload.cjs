@@ -137,6 +137,7 @@ contextBridge.exposeInMainWorld('api', {
     openMain: () => ipcRenderer.invoke('pet:openMain'),
     showMenu: (instanceId) => ipcRenderer.invoke('pet:showMenu', instanceId),
     setChatOpen: (open, instanceId) => ipcRenderer.invoke('pet:setChatOpen', instanceId, open),
+    setChatHeight: (height, instanceId) => ipcRenderer.invoke('pet:setChatHeight', instanceId, height),
     showBubble: (text, duration, instanceId) => ipcRenderer.invoke('pet:showBubble', instanceId, text, duration),
     reportBubbleSize: (size, instanceId) => ipcRenderer.send('pet:bubbleSize', instanceId, size),
     home: (instanceId) => ipcRenderer.invoke('pet:home', instanceId),
@@ -216,7 +217,9 @@ contextBridge.exposeInMainWorld('api', {
   ai: {
     getConfig: (petModelId) => ipcRenderer.invoke('ai:getConfig', petModelId),
     saveConfig: (config, petModelId) => ipcRenderer.invoke('ai:saveConfig', config, petModelId),
+    detectModel: (petModelId) => ipcRenderer.invoke('ai:detectModel', petModelId),
     chat: (request) => ipcRenderer.invoke('ai:chat', request),
+    captureScreen: () => ipcRenderer.invoke('ai:captureScreen'),
     getConversation: (id, petModelId) => ipcRenderer.invoke('ai:conversation:get', id, petModelId),
     listConversations: (petModelId) => ipcRenderer.invoke('ai:conversation:list', petModelId),
     createConversation: (title, petModelId) => ipcRenderer.invoke('ai:conversation:create', title, petModelId),

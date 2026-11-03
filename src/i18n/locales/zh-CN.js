@@ -137,6 +137,8 @@ export default {
     tabCompanion: '陪伴对话', tabModels: '模型衣橱', tabSettings: '桌宠设置', greeting: '嗨，我已经准备好了。今天我们先完成哪件事？',
     loading: '正在唤醒桌宠…', importSuccess: '导入成功，已切换为新桌宠。', removeConfirm: '确定删除这个已导入的桌宠模型吗？',
     bubbleThinking: '正在认真思考…', bubbleFailed: '连接失败了，再试一次吧', aiConnectFailed: '暂时没能连接到 AI：{message}', aiSaved: 'AI 对话设置已保存。',
+    visionTitle: '多模态识图', visionDesc: '让桌宠直接理解截图与图片：粘贴、拖入或截取屏幕后提问，图片会随消息一起发送给当前模型。', visionToggle: '允许发送图片', visionToggleDesc: '开启后聊天输入区会显示图片与截图按钮；关闭后仅发送文字。', visionDisabledHint: '多模态已关闭，桌宠只会接收文字消息。开启后即可使用识图。', attachImage: '发送图片', captureScreen: '截取屏幕', removeImage: '移除图片',
+    detectModel: '检测模型', detecting: '检测中…', detectHint: '先保存设置，再发送一句文本和一张测试图，验证连接与识图能力。', detectVisionOk: '连接正常，模型已支持图片识别。', detectTextOnly: '连接正常，但模型未接受图片：{message}', detectFailed: '检测失败：{message}',
     profileScopedTitle: '当前桌宠独立档案', profileScopedDesc: '名字、性格、对话模式与桌面行为仅对「{name}」生效。',
     companion: '工作伙伴', conciseMode: '简短陪伴模式', chatMode: '对话模式', mode_concise: '简洁陪伴', mode_conciseDesc: '直达核心，给出清晰的下一步', mode_focus: '专注教练', mode_focusDesc: '拆解目标，减少分心并推动执行', mode_creative: '灵感共创', mode_creativeDesc: '探索多种思路与意外联系', mode_casual: '轻松聊天', mode_casualDesc: '温和自然地陪伴，不强调效率', aiConnected: 'AI 已连接', awaitingConfig: '等待配置', chatPlaceholder: '告诉它你现在准备完成什么…', desktopChatPlaceholder: '和桌宠说点什么…', send: '发送',
     importTitle: '把新的伙伴带回家', importDescriptionBefore: '打开安装目录中的 models 桌宠库，将包含', importDescriptionAfter: '的完整桌宠文件夹放入即可；也可直接选择桌宠导入。',

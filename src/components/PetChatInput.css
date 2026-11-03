@@ -16,10 +16,9 @@ body.pet-chat-window-body::after { display: none; }
 .pet-chat-input {
   width: 100%;
   height: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px 30px;
-  align-items: center;
-  gap: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 5px;
   color: var(--brand-foreground);
   background: color-mix(in srgb, var(--brand-card) 96%, transparent);
@@ -29,7 +28,18 @@ body.pet-chat-window-body::after { display: none; }
   animation: pet-chat-drop 180ms cubic-bezier(.2, .8, .2, 1);
 }
 
-.pet-chat-input input {
+.pet-chat-input__row {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+}
+
+.pet-chat-input input[type="text"],
+.pet-chat-input input:not([type]),
+.pet-chat-input .pet-chat-input__row > input {
+  flex: 1;
   min-width: 0;
   height: 32px;
   padding: 0 9px;
@@ -53,6 +63,7 @@ body.pet-chat-window-body::after { display: none; }
   width: 30px;
   height: 30px;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -60,6 +71,20 @@ body.pet-chat-window-body::after { display: none; }
   border-radius: 9px;
   cursor: pointer;
 }
+
+.pet-chat-input .pet-chat-input__tool {
+  width: 26px;
+  height: 26px;
+  color: var(--brand-muted-foreground);
+  background: transparent;
+}
+
+.pet-chat-input .pet-chat-input__tool:hover:not(:disabled) {
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-muted) 76%, transparent);
+}
+
+.pet-chat-input .pet-chat-input__tool:disabled { opacity: .4; cursor: default; }
 
 .pet-chat-input__send {
   color: var(--brand-primary-foreground, #fff);
@@ -69,6 +94,8 @@ body.pet-chat-window-body::after { display: none; }
 .pet-chat-input__send:disabled { opacity: .42; cursor: default; }
 
 .pet-chat-input .pet-chat-input__close {
+  width: 26px;
+  height: 26px;
   color: var(--brand-muted-foreground);
   background: transparent;
 }
@@ -76,6 +103,45 @@ body.pet-chat-window-body::after { display: none; }
 .pet-chat-input .pet-chat-input__close:hover {
   color: var(--brand-foreground);
   background: color-mix(in srgb, var(--brand-muted) 76%, transparent);
+}
+
+.pet-chat-input__attachments {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 1px 1px 0;
+}
+
+.pet-chat-input__attachment {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background: var(--brand-muted);
+}
+
+.pet-chat-input__attachment img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pet-chat-input .pet-chat-input__attachment button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  color: #fff;
+  background: rgba(15, 23, 42, .72);
+  border-radius: 50%;
+}
+
+.pet-chat-input .pet-chat-input__attachment button:hover {
+  background: rgba(15, 23, 42, .92);
 }
 
 @keyframes pet-chat-drop {

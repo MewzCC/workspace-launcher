@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const zlib = require('zlib')
 const { app, safeStorage } = require('electron')
 const { settingsDao, conversationDao, memoryDao, petSocialMemoryDao, workspaceDao, softwareDao } = require('../db/index.cjs')
 const petProfileService = require('./petProfileService.cjs')
@@ -44,6 +45,164 @@ function projectContext() {
   const docs = getProjectDocs()
   if (!docs) return ''
   return `\n\nProject background (LaunchPad is a Windows workspace launcher with a desktop pet assistant). Feature history:\n${docs}\nUse this background to answer questions about the product accurately.`
+}
+
+// ===== 多模态（图片识别）=====
+// 图片以 data URL 形式随消息传入，主进程只做格式与体积收敛，
+// 不落盘、不读取本地路径，避免自定义模型端需要额外的文件访问能力。
+const MAX_CHAT_IMAGES = 4
+const MAX_IMAGE_CHARS = 4 * 1024 * 1024
+const IMAGE_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i
+
+function visionEnabled() {
+  return settingsDao.get('aiVisionEnabled') !== false
+}
+
+function sanitizeImages(images) {
+  if (!Array.isArray(images)) return []
+  const result = []
+  for (const item of images) {
+    if (result.length >= MAX_CHAT_IMAGES) break
+    const value = String(item || '').trim()
+    if (!value || value.length > MAX_IMAGE_CHARS) continue
+    if (!IMAGE_DATA_URL_RE.test(value)) continue
+    result.push(value)
+  }
+  return result
+}
+
+// 按接口格式生成一条用户消息的内容；只有文本时保持纯字符串，兼容性最好。
+function buildContentParts(text, images, apiFormat) {
+  const parts = []
+  if (text) {
+    parts.push(apiFormat === 'responses' ? { type: 'input_text', text } : { type: 'text', text })
+  }
+  for (const url of images) {
+    parts.push(apiFormat === 'responses'
+      ? { type: 'input_image', image_url: url, detail: 'auto' }
+      : { type: 'image_url', image_url: { url } })
+  }
+  return parts
+}
+
+// 把会话记录转成模型输入：仅为最近 3 条含图消息保留图片，且总张数受限，
+// 避免上下文无限膨胀；同时返回图片总数用于系统提示。
+function buildChatHistory(rows, apiFormat) {
+  const imagesByMessage = new Map()
+  let budget = MAX_CHAT_IMAGES
+  for (let index = rows.length - 1; index >= 0 && budget > 0 && imagesByMessage.size < 3; index -= 1) {
+    const row = rows[index]
+    if (row.role !== 'user') continue
+    const images = Array.isArray(row.metadata?.images)
+      ? row.metadata.images.filter((url) => typeof url === 'string').slice(0, budget)
+      : []
+    if (!images.length) continue
+    imagesByMessage.set(row.id, images)
+    budget -= images.length
+  }
+  let imageCount = 0
+  const history = rows.map((row) => {
+    const images = imagesByMessage.get(row.id) || []
+    if (!images.length) return { role: row.role, content: row.content }
+    imageCount += images.length
+    return { role: row.role, content: buildContentParts(row.content, images, apiFormat) }
+  })
+  return { history, imageCount }
+}
+
+// 非原生调用（摘要、记忆提取等）只需要纯文本，同时保留已构造好的内容分段。
+function normalizeTextInput(input) {
+  return input.map((item) => ({
+    role: item?.role === 'assistant' ? 'assistant' : 'user',
+    content: Array.isArray(item?.content) ? item.content : String(item?.content || '').slice(0, 12000)
+  })).filter((item) => (Array.isArray(item.content) ? item.content.length > 0 : item.content.trim()))
+}
+
+// ===== 模型能力检测 =====
+// 生成一张 16×16 纯色 PNG 作为探测图，避免依赖本地文件，也保证所有
+// 支持图片输入的厂商都能解析（内容无关紧要，只用于确认图片是否被接受）。
+const CRC_TABLE = (() => {
+  const table = new Int32Array(256)
+  for (let index = 0; index < 256; index += 1) {
+    let value = index
+    for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
+    table[index] = value
+  }
+  return table
+})()
+
+function crc32(buffer) {
+  let value = -1
+  for (const byte of buffer) value = CRC_TABLE[(value ^ byte) & 0xff] ^ (value >>> 8)
+  return (value ^ -1) >>> 0
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type, 'ascii')
+  const length = Buffer.alloc(4)
+  length.writeUInt32BE(data.length, 0)
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0)
+  return Buffer.concat([length, typeBuffer, data, crc])
+}
+
+let testImageCache = null
+function testImageDataUrl() {
+  if (testImageCache) return testImageCache
+  const size = 16
+  const rowSize = 1 + size * 3
+  const raw = Buffer.alloc(size * rowSize)
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const offset = y * rowSize + 1 + x * 3
+      raw[offset] = 220
+      raw[offset + 1] = 38
+      raw[offset + 2] = 38
+    }
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(size, 0)
+  ihdr.writeUInt32BE(size, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0))
+  ])
+  testImageCache = `data:image/png;base64,${png.toString('base64')}`
+  return testImageCache
+}
+
+// 依次验证：文本请求是否可用、图片请求是否被模型接受。
+// 文本失败说明 Key / 地址 / 模型名有问题；仅图片失败说明该模型不支持多模态。
+async function detectModel(petModelId) {
+  const key = decryptKey()
+  if (!key) throw new Error(t('pet.keyRequired'))
+  const model = String(settingsDao.get('aiModel') || '').trim()
+  if (!model) throw new Error(t('pet.invalidModel'))
+  const apiFormat = settingsDao.get('aiApiFormat') || 'responses'
+  const instructions = 'You are a short capability probe. Follow the user instruction exactly.'
+  const result = { ok: false, apiFormat, model, textOk: false, visionOk: false, message: '', visionMessage: '' }
+  try {
+    const reply = await requestModel(instructions, [{ role: 'user', content: 'Reply with exactly: OK' }], 20000)
+    result.textOk = true
+    result.ok = true
+    result.message = String(reply.text || '').trim().slice(0, 120)
+  } catch (error) {
+    result.message = String(error.message || error).slice(0, 200)
+    return result
+  }
+  try {
+    const content = buildContentParts(t('pet.detectVisionPrompt'), [testImageDataUrl()], apiFormat)
+    const reply = await requestModel(instructions, [{ role: 'user', content }], 20000, { native: true })
+    result.visionOk = true
+    result.visionMessage = String(reply.text || '').trim().slice(0, 120)
+  } catch (error) {
+    result.visionMessage = String(error.message || error).slice(0, 200)
+  }
+  return result
 }
 
 // ===== Function Calling 工具 =====
@@ -407,7 +566,9 @@ function getConfig(petModelId) {
     hasApiKey: Boolean(decryptKey()),
     providerKeys,
     memoryMode: pet.profile.memoryMode,
-    shellEnabled: shellPermissionEnabled()
+    shellEnabled: shellPermissionEnabled(),
+    visionEnabled: visionEnabled(),
+    visionMaxImages: MAX_CHAT_IMAGES
   }
 }
 
@@ -445,6 +606,7 @@ function saveConfig(config = {}, petModelId) {
     petProfileService.update(pet.modelId, { memoryMode: config.memoryMode }, { displayName: pet.displayName })
   }
   if (Object.prototype.hasOwnProperty.call(config, 'shellEnabled')) settingsDao.set('aiShellEnabled', config.shellEnabled === true)
+  if (Object.prototype.hasOwnProperty.call(config, 'visionEnabled')) settingsDao.set('aiVisionEnabled', config.visionEnabled !== false)
 
   const provider = String(config.provider || settingsDao.get('aiProvider') || 'custom')
   const providerKeys = { ...(settingsDao.get('aiProviderKeysEncrypted') || {}) }
@@ -488,10 +650,7 @@ async function requestModel(instructions, input, timeout = 45000, options = {}) 
   const model = String(settingsDao.get('aiModel') || '').trim()
   const withTools = options.tools === true
   const native = options.native === true
-  const normalized = input.map((item) => ({
-    role: item?.role === 'assistant' ? 'assistant' : 'user',
-    content: String(item?.content || '').slice(0, 12000)
-  })).filter((item) => item.content.trim())
+  const normalized = normalizeTextInput(input)
   const endpoint = apiFormat === 'responses' ? 'responses' : 'chat/completions'
   const body = apiFormat === 'responses'
     ? {
@@ -577,10 +736,7 @@ async function streamModel(instructions, input, timeout = 45000, options = {}) {
   const withTools = options.tools === true
   const native = options.native === true
   const onDelta = typeof options.onDelta === 'function' ? options.onDelta : () => {}
-  const normalized = input.map((item) => ({
-    role: item?.role === 'assistant' ? 'assistant' : 'user',
-    content: String(item?.content || '').slice(0, 12000)
-  })).filter((item) => item.content.trim())
+  const normalized = normalizeTextInput(input)
   const endpoint = apiFormat === 'responses' ? 'responses' : 'chat/completions'
   const body = apiFormat === 'responses'
     ? {
@@ -826,24 +982,35 @@ function titleFromMessage(content) {
 
 async function chat(request = {}, options = {}) {
   const legacyMessages = Array.isArray(request) ? request : null
-  const content = legacyMessages
+  const rawContent = legacyMessages
     ? [...legacyMessages].reverse().find((item) => item?.role === 'user')?.content
     : request.content
+  const content = String(rawContent || '').trim()
+  const requestedImages = Array.isArray(request?.images) ? request.images : []
+  if (requestedImages.length > 0 && !visionEnabled()) throw new Error(t('pet.visionDisabled'))
+  const images = sanitizeImages(requestedImages)
+  if (!content && images.length === 0) throw new Error(t('pet.messageRequired'))
+  const messageText = content || t('pet.imageOnlyPrompt')
   const pet = activePetProfile(request.petModelId)
   const conversation = request.conversationId
     ? conversationDao.setActive(request.conversationId, pet.modelId)
     : conversationDao.ensureActive(pet.modelId)
-  const userMessage = conversationDao.appendMessage(conversation.id, 'user', content)
-  if (!conversation.title) conversationDao.setTitle(conversation.id, titleFromMessage(content))
+  const userMessage = conversationDao.appendMessage(
+    conversation.id, 'user', messageText,
+    images.length ? { images } : null
+  )
+  if (!conversation.title) conversationDao.setTitle(conversation.id, titleFromMessage(messageText))
 
   const memoryMode = getMemoryMode(pet.modelId)
-  const memories = memoryMode === 'off' ? [] : memoryDao.search(content, 8, pet.modelId)
-  const recent = conversationDao.listMessages(conversation.id, 16)
+  const memories = memoryMode === 'off' ? [] : memoryDao.search(messageText, 8, pet.modelId)
+  const apiFormat = settingsDao.get('aiApiFormat') || 'responses'
+  const recentRows = conversationDao.listMessages(conversation.id, 16)
     .filter((item) => item.role === 'user' || item.role === 'assistant')
-    .map((item) => ({ role: item.role, content: item.content }))
+  const { history: recent, imageCount } = buildChatHistory(recentRows, apiFormat)
   const current = conversationDao.get(conversation.id)
   const mode = petProfileService.CHAT_MODES.includes(pet.profile.mode) ? pet.profile.mode : 'concise'
-  const instructions = `${t('pet.systemInstruction', { name: pet.profile.petName, personality: pet.profile.personality })}\n${t(`pet.modeInstruction_${mode}`)}\n${t('pet.responseLanguageRule')}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
+  const visionRule = imageCount > 0 ? `\n${t('pet.visionSystemRule', { count: imageCount })}` : ''
+  const instructions = `${t('pet.systemInstruction', { name: pet.profile.petName, personality: pet.profile.personality })}\n${t(`pet.modeInstruction_${mode}`)}\n${t('pet.responseLanguageRule')}${visionRule}${projectContext()}${summaryContext(current)}${memoryContext(memories)}`
   // 最近消息与会话摘要已经包含完整上下文，让模型自主选择工具；
   // 不按单句正则强制路由，确保“做啊/继续”等承接表达能继承真实会话意图。
   const forcedTool = null
@@ -1052,7 +1219,7 @@ async function generateStudyEntry({ language = 'en', term = '' } = {}) {
 }
 
 module.exports = {
-  getConfig, saveConfig, chat,
+  getConfig, saveConfig, chat, detectModel,
   getConversation, listConversations, createConversation, switchConversation, clearConversation, renameConversation, deleteConversation,
   setMemoryMode, listMemories, createMemory, updateMemory, forgetMemory, clearMemories, generateInteractionReply, generateInteractionMemory,
   generateStudyItems, generateStudyEntry

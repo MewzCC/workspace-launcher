@@ -103,6 +103,7 @@ class PetInstance {
     this.bubbleWindow = null
     this.quickAddWindow = null
     this.chatOpen = false
+    this.chatHeight = CHAT.height
     this.bubbleTimer = null
     this.bubblePayload = null
     this.bubblePlacement = null
@@ -212,11 +213,12 @@ class PetInstance {
     this.bubbleMeasuredSize = null
     this.petBounds = null
     this.chatOpen = false
+    this.chatHeight = CHAT.height
   }
   createChat() {
     if (this.chatWindow && !this.chatWindow.isDestroyed()) return this.chatWindow
     const win = new BrowserWindow({
-      width: CHAT.width, height: CHAT.height, transparent: true, backgroundColor: '#00000000', frame: false, show: false, resizable: false,
+      width: CHAT.width, height: this.chatHeight, transparent: true, backgroundColor: '#00000000', frame: false, show: false, resizable: false,
       alwaysOnTop: profile(this.id).alwaysOnTop, skipTaskbar: true, hasShadow: false,
       webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload/index.cjs') }
     })
@@ -234,6 +236,13 @@ class PetInstance {
     } else if (this.chatWindow && !this.chatWindow.isDestroyed()) this.chatWindow.destroy()
     if (this.petWindow && !this.petWindow.isDestroyed()) this.petWindow.webContents.send('pet:chatVisibility', this.chatOpen)
     return { open: this.chatOpen, instanceId: this.id }
+  }
+  // 浮窗聊天附加图片时需要临时增高，清空附件后恢复默认高度。
+  setChatHeight(height) {
+    const value = Math.min(200, Math.max(CHAT.height, Math.round(Number(height) || CHAT.height)))
+    this.chatHeight = value
+    this.positionOverlays()
+    return { height: value }
   }
   createBubble() {
     if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) return this.bubbleWindow
@@ -293,9 +302,10 @@ class PetInstance {
     const pet = petBounds || this.petBounds || this.petWindow.getBounds()
     const { workArea } = screen.getDisplayNearestPoint({ x: pet.x, y: pet.y })
     if (this.chatWindow && !this.chatWindow.isDestroyed()) {
+      const height = this.chatHeight
       const x = Math.min(workArea.x + workArea.width - CHAT.width, Math.max(workArea.x, Math.round(pet.x + pet.width / 2 - CHAT.width / 2)))
-      const y = Math.min(workArea.y + workArea.height - CHAT.height, pet.y + pet.height + 6)
-      setBoundsIfChanged(this.chatWindow, { x, y, width: CHAT.width, height: CHAT.height })
+      const y = Math.min(workArea.y + workArea.height - height, pet.y + pet.height + 6)
+      setBoundsIfChanged(this.chatWindow, { x, y, width: CHAT.width, height })
     }
     if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
       const w = width || this.bubbleWindow.getBounds().width
@@ -442,6 +452,7 @@ const petRoutes = [
   { channel: 'pet:savePosition', kind: 'on', schema: [idSchema], handler: (_e, id) => instance(id)?.savePosition() },
   { channel: 'pet:performAction', kind: 'on', schema: [v.or(idSchema, actionSchema), v.optional(actionSchema)], handler: (_e, first, second) => instance(typeof first === 'object' ? undefined : first)?.action(typeof first === 'object' ? first : second) },
   { channel: 'pet:setChatOpen', schema: [idSchema, v.bool()], handler: (_e, id, open) => instance(id).setChat(open) },
+  { channel: 'pet:setChatHeight', schema: [idSchema, v.num({ min: 48, max: 200 })], handler: (_e, id, height) => instance(id)?.setChatHeight(height) },
   { channel: 'pet:showBubble', schema: [idSchema, v.optional(v.or(v.str({ max: 1200 }), v.num())), v.optional(v.num())], handler: (_e, first, second, third) => { const legacy = typeof second === 'number'; return instance(legacy ? undefined : first).bubble(legacy ? first : second, legacy ? second : third) } },
   { channel: 'pet:bubbleSize', kind: 'on', schema: [v.or(idSchema, bubbleSizeSchema), v.optional(bubbleSizeSchema)], handler: (_e, first, second) => { const old = typeof first === 'object'; const item = instance(old ? undefined : first); item?.resizeBubble(old ? first : second) } },
   { channel: 'pet:openMain', schema: [], handler: () => { callbacks?.showWindow?.(); callbacks?.openPetCenter?.(); return { success: true } } },

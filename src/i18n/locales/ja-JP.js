@@ -137,6 +137,8 @@ export default {
     tabCompanion: 'コンパニオン会話', tabModels: 'モデル衣装棚', tabSettings: 'ペット設定', greeting: '準備できました。今日は何から終わらせますか？',
     loading: 'ペットを起こしています…', importSuccess: 'インポートし、新しいペットに切り替えました。', removeConfirm: 'このインポート済みペットモデルを削除しますか？',
     bubbleThinking: 'じっくり考えています…', bubbleFailed: '接続できませんでした。もう一度お試しください。', aiConnectFailed: 'AI に接続できませんでした：{message}', aiSaved: 'AI 会話設定を保存しました。',
+    visionTitle: 'マルチモーダル画像認識', visionDesc: 'スクリーンショットや画像をそのまま理解させます。貼り付け・ドロップ・画面キャプチャのあとに質問すると、画像はメッセージと一緒に現在のモデルへ送信されます。', visionToggle: '画像送信を許可', visionToggleDesc: '有効にすると入力欄に画像・キャプチャボタンが表示されます。無効の場合はテキストのみ送信します。', visionDisabledHint: 'マルチモーダルがオフのため、テキストのみ受け取ります。有効にすると画像認識を利用できます。', attachImage: '画像を送信', captureScreen: '画面をキャプチャ', removeImage: '画像を削除',
+    detectModel: 'モデルを検出', detecting: '検出中…', detectHint: '先に設定を保存し、テキストとテスト画像を送信して接続と画像認識の対応を確認します。', detectVisionOk: '接続は正常です。モデルは画像入力に対応しています。', detectTextOnly: '接続は正常ですが、モデルは画像を受け付けませんでした：{message}', detectFailed: '検出に失敗しました：{message}',
     profileScopedTitle: '現在のペット個別プロファイル', profileScopedDesc: '名前、性格、会話モード、デスクトップ動作は「{name}」にのみ適用されます。',
     companion: '仕事仲間', conciseMode: '簡潔なコンパニオンモード', chatMode: '会話モード', mode_concise: '簡潔な相棒', mode_conciseDesc: '核心と明確な次の一歩を示す', mode_focus: '集中コーチ', mode_focusDesc: '目標を分解し、集中を支える', mode_creative: '創造パートナー', mode_creativeDesc: '複数の案と意外なつながりを探す', mode_casual: 'リラックス会話', mode_casualDesc: '生産性を強いず温かく自然に話す', aiConnected: 'AI 接続済み', awaitingConfig: '設定待ち', chatPlaceholder: '今から終わらせたいことを伝えてください…', desktopChatPlaceholder: 'ペットに話しかける…', send: '送信',
     importTitle: '新しい仲間を迎える', importDescriptionBefore: 'LaunchPad の隣にある models ライブラリを開き、', importDescriptionAfter: 'を含む完整なペットフォルダーを配置するか、ペットを直接選択してインポートします。',

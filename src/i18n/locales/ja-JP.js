@@ -128,6 +128,21 @@ export default {
     version: 'バージョン'
   },
   petCenter: {
+    switchPet: "ペットを切り替え",
+    customBackground: "背景をカスタマイズ",
+    cropBackground: "背景をトリミング",
+    cropBackgroundHint: "枠は現在の背景と同じ比率です。画像をドラッグするか、矢印キーで位置を調整できます。",
+    cropZoom: "拡大",
+    cropReset: "リセット",
+    cropApply: "トリミングして適用",
+    backgroundColor: "背景色",
+    chooseBackgroundImage: "ローカル画像を選択",
+    resetBackground: "既定の背景に戻す",
+    backgroundLocalHint: "ペットごとにこの端末だけに保存します。アップロードや AI への送信は行いません。PNG・JPEG・WebP、最大8MB。",
+    backgroundStorageFailed: "背景の読み込みまたは保存に失敗しました。ローカルの空き容量を確認してください。",
+    backgroundImageInvalid: "8MB以内のPNG・JPEG・WebP画像を選択してください。",
+    backgroundImageFailed: "画像の読み込みまたは保存に失敗しました。有効な画像と空き容量を確認してください。",
+
     tabStudy: '学習モード',
     capabilitiesSection: '機能と権限',
     allMemoryTypes: 'すべての種類',

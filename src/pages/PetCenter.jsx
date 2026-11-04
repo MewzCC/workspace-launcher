@@ -11,6 +11,8 @@ import PetSprite from '../components/PetSprite'
 import PetImporter from '../components/PetImporter'
 import TutorialDrawer from '../components/TutorialDrawer'
 import PetStudyPanel from '../components/PetStudyPanel'
+import PetChatSwitcher from '../components/PetChatSwitcher'
+import PetStageBackground from '../components/PetStageBackground'
 import { useConfirmDialog } from '../components/ConfirmDialog'
 import { aiApi, petApi } from '../lib/ipc'
 import { renderMarkdown } from '../lib/markdown'
@@ -51,6 +53,11 @@ function PetCenter() {
   const [memoryFilter, setMemoryFilter] = useState('all')
   const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false })
   const [config, setConfig] = useState(null)
+  const [switchingPet, setSwitchingPet] = useState(false)
+  const switchingPetRef = useRef(false)
+  const petDraftsRef = useRef(new Map())
+  const loadVersionRef = useRef(0)
+  const selectedPetRef = useRef(null)
   const [models, setModels] = useState([])
   const [modelPage, setModelPage] = useState(1)
   const MODEL_PAGE_SIZE = 5
@@ -134,11 +141,16 @@ function PetCenter() {
     setPreviewReplay(value => value + 1)
   }
 
-  const load = async () => {
-    const [nextConfig, nextModels, nextAi, nextConversation, nextConversations, nextMemories] = await Promise.all([
-      petApi.getConfig(), petApi.listInstances(), aiApi.getConfig(), aiApi.getConversation(),
-      aiApi.listConversations(), aiApi.listMemories()
+  const load = async (petId) => {
+    const version = ++loadVersionRef.current
+    const nextConfig = await petApi.getConfig(petId)
+    const id = nextConfig.model.id
+    const [nextModels, nextAi, nextConversation, nextConversations, nextMemories, nextStatus, nextInteractions] = await Promise.all([
+      petApi.listInstances(), aiApi.getConfig(id), aiApi.getConversation(undefined, id),
+      aiApi.listConversations(id), aiApi.listMemories(undefined, id), petApi.interactionStatus(), petApi.listInteractions(12)
     ])
+    if (version !== loadVersionRef.current) return false
+    selectedPetRef.current = id
     setConfig(nextConfig)
     setModels(nextModels)
     setAiConfig(nextAi)
@@ -155,11 +167,11 @@ function PetCenter() {
     setMessages(nextConversation.messages || [])
     setConversations(nextConversations)
     setMemories(nextMemories)
-    const [nextStatus, nextInteractions] = await Promise.all([petApi.interactionStatus(), petApi.listInteractions(12)])
     setInteractionStatus(nextStatus)
     setInteractions(nextInteractions)
     const activePets = nextModels.filter((item) => item.active)
     setInteractionPair((current) => [current[0] || activePets[0]?.id || '', current[1] || activePets[1]?.id || ''])
+    return true
   }
 
   useEffect(() => { load().catch((error) => setNotice(error.message)) }, [language])
@@ -167,6 +179,7 @@ function PetCenter() {
     if (activeTab !== 'memory') return
     const petModelId = config?.model?.id
     Promise.all([aiApi.listMemories(undefined, petModelId), aiApi.getConfig(petModelId)]).then(([nextMemories, nextAi]) => {
+      if (selectedPetRef.current !== petModelId) return
       setMemories(nextMemories)
       setMemoryMode(nextAi.memoryMode || 'manual')
     }).catch((error) => setNotice(error.message))
@@ -197,13 +210,17 @@ function PetCenter() {
         const [nextConversation, nextConversations] = await Promise.all([
           aiApi.getConversation(payload?.conversationId, petModelId), aiApi.listConversations(petModelId)
         ])
+        if (selectedPetRef.current !== petModelId) return
         setConversation(nextConversation.conversation)
         setMessages(nextConversation.messages || [])
         setConversations(nextConversations)
       } catch (_) {}
     })
     const unsubscribeMemory = aiApi.onMemoryChanged(() => {
-      aiApi.listMemories(undefined, config?.model?.id).then(setMemories).catch(() => {})
+      const petModelId = config?.model?.id
+      aiApi.listMemories(undefined, petModelId).then((items) => {
+        if (selectedPetRef.current === petModelId) setMemories(items)
+      }).catch(() => {})
     })
     const unsubscribeInteraction = petApi.onInteractionChanged(() => {
       Promise.all([petApi.interactionStatus(), petApi.listInteractions(12)]).then(([nextStatus, nextItems]) => { setInteractionStatus(nextStatus); setInteractions(nextItems) }).catch(() => {})
@@ -267,10 +284,35 @@ function PetCenter() {
   }
 
   const selectModel = async (id) => {
+    if (chatting || imageBusy || switchingPetRef.current) return false
+    if (id === config?.model?.id) return true
+    switchingPetRef.current = true
+    setSwitchingPet(true)
+    const previousId = config?.model?.id
+    petDraftsRef.current.set(previousId, { draft, attachments })
+    selectedPetRef.current = id
     try {
       await petApi.selectModel(id)
-      await load()
-    } catch (error) { setNotice(error.message) }
+      if (!await load(id)) return false
+      const saved = petDraftsRef.current.get(id)
+      setDraft(saved?.draft || '')
+      setAttachments(saved?.attachments || [])
+      setApiKeyDraft('')
+      setModelOptions([])
+      setModelError('')
+      setDetectResult(null)
+      return true
+    } catch (error) {
+      if (previousId) {
+        try { await petApi.selectModel(previousId) } catch { /* Preserve the original switching error. */ }
+      }
+      selectedPetRef.current = previousId
+      setNotice(error.message)
+      return false
+    } finally {
+      switchingPetRef.current = false
+      setSwitchingPet(false)
+    }
   }
 
   const removeModel = async (id) => {
@@ -409,7 +451,7 @@ function PetCenter() {
     event?.preventDefault()
     const content = draft.trim()
     const images = attachments
-    if ((!content && images.length === 0) || chatting) return
+    if ((!content && images.length === 0) || chatting || switchingPetRef.current) return
     setMessages((items) => [
       ...items.filter((item) => item.id),
       { id: `local-u-${Date.now()}`, role: 'user', content, images: images.length ? images : undefined },
@@ -744,7 +786,7 @@ function PetCenter() {
       case 'actions':
         return (
           <div className="pet-model-cell-actions">
-            <button disabled={model.invalid} className={selected ? 'selected' : ''} onClick={() => selectModel(model.id)}>
+            <button disabled={model.invalid || chatting || imageBusy || switchingPet} className={selected ? 'selected' : ''} onClick={() => selectModel(model.id)}>
               {selected ? <><Check size={13} /> {t('petCenter.selectedPet')}</> : t('petCenter.setAsPet')}
             </button>
             <button disabled={model.invalid} className={model.active ? 'selected' : ''} onClick={() => toggleModelInstance(model.id, !model.active)}>
@@ -801,6 +843,7 @@ function PetCenter() {
       {activeTab === 'companion' && (
         <section id="pet-panel-companion" role="tabpanel" aria-busy={tabBusy} inert={tabBusy ? '' : undefined} aria-labelledby="pet-tab-companion" className={`pet-companion-grid ${panelMotionClass}`}>
           <div className={`pet-stage-card ${config.model.render?.engine === 'live2d' ? 'pet-stage-card--live2d' : ''}`}>
+            <PetStageBackground petId={config.model.id} onError={setNotice} />
             <div className="pet-stage-light" />
             <div className={`pet-stage-status ${config.settings.enabled ? 'is-enabled' : ''}`}><span /> {config.model.displayName || 'LaunchBot'}</div>
             <div className="pet-stage-quick-controls">
@@ -842,7 +885,7 @@ function PetCenter() {
               <div className="pet-chat-profile">
                 <div className="pet-chat-avatar"><PetSprite model={config.model} state="idle" size={34} thumbnailOnly /></div>
                 <div className="pet-chat-identity">
-                  <strong title={aiConfig.petName || t('petCenter.companion')}>{aiConfig.petName || t('petCenter.companion')}</strong>
+                  <div className="pet-chat-name-row"><strong title={aiConfig.petName || t('petCenter.companion')}>{aiConfig.petName || t('petCenter.companion')}</strong><PetChatSwitcher models={models} currentId={config.model.id} disabled={chatting || imageBusy || switchingPet} onSelect={selectModel} /></div>
                   <select className="pet-chat-mode-select pet-themed-select" value={chatMode} onChange={(event) => changeChatMode(event.target.value)} aria-label={t('petCenter.chatMode')}>
                     {CHAT_MODES.map((mode) => <option key={mode} value={mode}>{t(`petCenter.mode_${mode}`)}</option>)}
                   </select>
@@ -904,7 +947,7 @@ function PetCenter() {
               )}
               <div ref={chatEndRef} />
             </div>
-            <form className="pet-chat-compose" onSubmit={sendMessage}>
+            <form className="pet-chat-compose" inert={switchingPet ? '' : undefined} onSubmit={sendMessage}>
               {attachments.length > 0 && (
                 <div className="pet-chat-attachments">
                   {attachments.map((url, index) => (
@@ -952,7 +995,7 @@ function PetCenter() {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
                   }}
                 />
-                <button type="submit" disabled={(!draft.trim() && attachments.length === 0) || chatting || imageBusy} aria-label={t('petCenter.send')}><Send size={18} /></button>
+                <button type="submit" disabled={(!draft.trim() && attachments.length === 0) || chatting || imageBusy || switchingPet} aria-label={t('petCenter.send')}><Send size={18} /></button>
               </div>
               <input
                 ref={imageInputRef}

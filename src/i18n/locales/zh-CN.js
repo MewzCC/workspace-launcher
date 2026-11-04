@@ -128,6 +128,21 @@ export default {
     version: '版本'
   },
   petCenter: {
+    switchPet: "切换桌宠",
+    customBackground: "自定义背景",
+    cropBackground: "裁剪背景",
+    cropBackgroundHint: "裁剪框与当前背景同比例。拖动图片调整位置，也可使用方向键移动。",
+    cropZoom: "缩放",
+    cropReset: "重置",
+    cropApply: "裁剪并应用",
+    backgroundColor: "背景颜色",
+    chooseBackgroundImage: "选择本地图片",
+    resetBackground: "恢复默认背景",
+    backgroundLocalHint: "每只桌宠单独保存。仅在本机存储，不会上传或发送给 AI。支持 PNG、JPEG、WebP，最大 8MB。",
+    backgroundStorageFailed: "背景保存或读取失败，请检查本地存储空间。",
+    backgroundImageInvalid: "请选择 8MB 以内的 PNG、JPEG 或 WebP 图片。",
+    backgroundImageFailed: "图片无法读取或保存，请选择有效图片并检查本地存储空间。",
+
     tabStudy: '学习模式',
     capabilitiesSection: '能力与权限',
     allMemoryTypes: '全部类型',

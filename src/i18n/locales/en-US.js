@@ -128,6 +128,21 @@ export default {
     version: 'Version'
   },
   petCenter: {
+    switchPet: "Switch companion",
+    customBackground: "Custom background",
+    cropBackground: "Crop background",
+    cropBackgroundHint: "The frame matches the current background. Drag the image or use the arrow keys to position it.",
+    cropZoom: "Zoom",
+    cropReset: "Reset",
+    cropApply: "Crop and apply",
+    backgroundColor: "Background color",
+    chooseBackgroundImage: "Choose local image",
+    resetBackground: "Restore default background",
+    backgroundLocalHint: "Saved separately for each pet, on this device only. Never uploaded or sent to AI. PNG, JPEG or WebP, up to 8MB.",
+    backgroundStorageFailed: "Could not read or save the background. Check local storage space.",
+    backgroundImageInvalid: "Choose a PNG, JPEG or WebP image smaller than 8MB.",
+    backgroundImageFailed: "Could not read or save the image. Choose a valid image and check local storage space.",
+
     tabStudy: 'Study',
     capabilitiesSection: 'Capabilities & permissions',
     allMemoryTypes: 'All types',

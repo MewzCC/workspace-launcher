@@ -20,8 +20,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 0.3s ease, color 0.3s ease;
+  transition: margin-left 220ms ease, width 220ms ease, background-color 220ms ease, color 220ms ease;
 }
 
 /* 页面内容区至少铺满主窗口，空状态面板再填充标题/工具栏之后的剩余空间。 */
@@ -160,4 +159,56 @@
   background: var(--brand-muted);
   font-size: 12px;
   color: var(--brand-muted-foreground);
+}
+
+@media (min-width: 1025px) {
+  .layout--rail .main-view { margin-left: 76px; width: calc(100% - 76px); }
+}
+.main-view--pet { overflow-y: hidden; }
+
+/* Page changes share one exit/loading/enter rhythm with workbench tabs. */
+.layout { --navigation-width: 240px; }
+.page-scene { min-height: 100%; }
+.main-view--pet .page-scene { height: 100%; min-height: 0; }
+.view-transition-exit { animation: view-fade-out 120ms ease-in both; pointer-events: none; }
+.view-transition-loading { opacity: 0; pointer-events: none; }
+.view-transition-enter { animation: view-fade-in 240ms cubic-bezier(.2, .7, .2, 1) both; }
+.view-transition-status { position: fixed; z-index: 40; left: calc((100% + var(--navigation-width)) / 2); top: 48%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 14px 20px; border: 1px solid var(--brand-border); border-radius: 14px; background: var(--brand-popover); backdrop-filter: blur(16px); color: var(--brand-muted-foreground); font-size: 12px; box-shadow: 0 8px 30px #0001; pointer-events: none; animation: view-status-in 120ms ease both; }
+.view-transition-status svg { color: var(--brand-primary); animation: view-loading-spin 800ms linear infinite; }
+.view-transition-progress { position: fixed; z-index: 40; top: 0; left: var(--navigation-width); right: 0; height: 2px; overflow: hidden; pointer-events: none; }
+.view-transition-progress span { display: block; width: 100%; height: 100%; background: var(--brand-primary); transform-origin: left; animation: view-progress 440ms ease-out both; }
+@keyframes view-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes view-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes view-status-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes view-loading-spin { to { transform: rotate(360deg); } }
+@keyframes view-progress { from { transform: scaleX(.04); opacity: .5; } to { transform: scaleX(1); opacity: 1; } }
+@media (min-width: 1025px) { .layout--rail { --navigation-width: 76px; } }
+@media (max-width: 1024px) { .layout { --navigation-width: 0px; } }
+@media (prefers-reduced-motion: reduce) {
+  .view-transition-exit, .view-transition-enter, .view-transition-status, .view-transition-progress span, .view-transition-status svg { animation: none; }
+}
+
+/* Animate content blocks independently so the arrival is visible, not just a page fade. */
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) {
+  --arrival-delay: 0ms;
+  animation: component-rise 560ms cubic-bezier(.22, .6, .25, 1) var(--arrival-delay) backwards;
+}
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(even) { animation-name: component-slide-left; }
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(2) { --arrival-delay: 70ms; }
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(3) { --arrival-delay: 140ms; }
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(4) { --arrival-delay: 210ms; }
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(5) { --arrival-delay: 280ms; }
+:is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content):nth-child(n+6) { --arrival-delay: 280ms; }
+@keyframes component-rise { from { opacity: 0; transform: translateY(36px); } to { opacity: 1; transform: none; } }
+@keyframes component-slide-left { from { opacity: 0; transform: translateX(44px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) { animation: none !important; }
+}
+
+/* User preference affects interface motion, leaving pet playback and activity indicators alone. */
+.layout--motion-off :is(.page-scene > :not(.pet-center-page), .pet-tab-panel, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) > :not(.modal-overlay, .tutorial-overlay, dialog, [role="dialog"], .view-transition-status, .view-transition-progress, .workspace-grid, .software-grid, .pet-library-layout, .pet-study-layout, .pet-settings-content) { animation: none !important; }
+.layout--motion-off :is(.page-scene, .pet-tab-panel, .sidebar, .main-view, .nav-item, .nav-group-items, .nav-group-chevron, .language-select-panel, .language-select-chevron, .pet-center-tabs, .pet-center-tabs__indicator, .pet-center-tabs button, .pet-center-tabs button svg, .pet-action-drawer, .pet-memory-drawer) {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }

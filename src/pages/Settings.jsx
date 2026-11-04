@@ -60,6 +60,8 @@ function formatReleaseDate(value) {
 export function Settings() {
   const t = useT()
   const confirm = useConfirmDialog()
+  const animationsEnabled = useStore((s) => s.animationsEnabled)
+  const setAnimationsEnabled = useStore((s) => s.setAnimationsEnabled)
   const repositoryUrl = 'https://github.com/MewzCC/workspace-launcher'
   // 从 store 读取工作空间、软件列表及刷新动作
   const workspaces = useStore((s) => s.workspaces)
@@ -379,6 +381,17 @@ export function Settings() {
 
       {activeTab === 'general' && (
       <>
+      <GlassCard className="settings-section" hover={false}>
+        <h3>{t('settings.interfaceAppearance')}</h3>
+        <div className="system-setting-row">
+          <span className="system-setting-symbol"><Sparkles size={18} /></span>
+          <div className="system-setting-copy">
+            <strong>{t('settings.interfaceAnimations')}</strong>
+            <span>{t('settings.interfaceAnimationsDesc')}</span>
+          </div>
+          <Toggle checked={animationsEnabled} onChange={(event) => setAnimationsEnabled(event.target.checked)} ariaLabel={t('settings.interfaceAnimations')} />
+        </div>
+      </GlassCard>
       {/* 应用信息 */}
       <GlassCard className="settings-section" hover={false}>
         <h3>{t('settings.appInfo')}</h3>

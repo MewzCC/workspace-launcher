@@ -70,6 +70,7 @@ export default {
     "action_sitDown": "座る"
 },
   common: {
+    switchingView: '画面を切り替えています…',
     confirm: '確認',
     otherApps: 'その他のアプリ',
     clickToEdit: 'クリックしてクイック編集',
@@ -102,6 +103,11 @@ export default {
     savingFailed: '保存失敗: '
   },
   nav: {
+    workGroup: '作業と起動',
+    systemGroup: 'システムツール',
+    expandSidebar: 'ナビゲーションを展開',
+    collapseSidebar: 'ナビゲーションを折りたたむ',
+
     petCenter: 'ペットワークベンチ',
     dashboard: 'ダッシュボード',
     workspaces: 'スペース管理',
@@ -122,6 +128,10 @@ export default {
     version: 'バージョン'
   },
   petCenter: {
+    tabStudy: '学習モード',
+    capabilitiesSection: '機能と権限',
+    allMemoryTypes: 'すべての種類',
+
     tabMemory: '記憶センター',
     conversation: '現在の会話', newConversation: '新しい会話', clearConversation: '会話を消去', clearConversationConfirm: '現在の会話と要約を消去しますか？この操作は元に戻せません。',
     renameConversation: '会話タイトルを編集', conversationTitle: '会話タイトル', conversationTitlePlaceholder: 'わかりやすいトピックを入力', conversationTitleRequired: '会話タイトルを入力してください', deleteConversation: '会話を削除', deleteConversationConfirm: '会話「{title}」を削除しますか？すべてのメッセージと要約が完全に削除されます。',
@@ -148,7 +158,7 @@ export default {
     multiPetTitle: 'マルチペット編成', multiPetDesc: '複数のペットを同時に起動し、位置・性格・会話・記憶を個別に保存します。ペット間会話は独立した文脈を使い、システムツールを呼びません。', autoInteraction: 'アイドル時の自動会話', autoInteractionDesc: 'システムがアイドルでクールダウン終了後のみ実行', interactionTurns: '会話ターン数', chooseFirstPet: '1匹目を選択', chooseSecondPet: '2匹目を選択', firstPet: '1匹目のペット', secondPet: '2匹目のペット', interactionTopic: '会話テーマ（任意）', interactionTopicLabel: '会話テーマ', startInteraction: '会話を開始', stopInteraction: '会話を停止', petInteraction: 'ペット間会話', recentInteractions: '最近の交流', recentInteractionsHint: '最新 {count} 件を表示',
     interactionMemory: '交流の記憶を残す', interactionMemoryDesc: '一緒に話した出来事、約束、思い出を覚えます', shareOwnerMoments: '今日のご主人の出来事を共有', shareOwnerMomentsDesc: '元の会話や機密情報を共有せず、安全な日常要約だけをペット間会話に使います', sharedMemoryTitle: '共同生活の記憶', relationshipMemories: 'ふたりの思い出', todayOwnerMoments: '今日のご主人の小さな出来事', noRelationshipMemories: '何度か交流すると、ここに思い出が増えていきます。', noOwnerMoments: '今日はまだ共有できる出来事がありません。', clearRelationshipMemory: '共同記憶を消去', clearInteractionMemoryConfirm: 'この2匹の共同記憶を消去しますか？交流履歴は削除されません。',
     desktopBehavior: 'デスクトップ動作', showPet: 'ペットを表示', showPetDesc: '透明な最前面の仕事仲間をデスクトップに表示', roaming: '自然な移動', roamingDesc: '待機中に散歩や巡回を行い、画面端を自動で避けます', roamRange: '移動範囲', roamActivity: '活発さ', alwaysOnTop: '常に最前面', alwaysOnTopDesc: 'ほかのウィンドウより上に表示', petSize: 'ペットの大きさ', opacity: '不透明度',
-    chatCapability: '会話機能', provider: 'モデル提供元', providerCustom: 'カスタム提供元', apiFormat: 'API 形式', chatCompletionsDesc: '汎用 OpenAI 互換形式', responsesDesc: 'OpenAI Responses 形式', model: 'モデル', customModelOption: 'カスタムモデル…', customModelId: 'カスタムモデル ID', customModelPlaceholder: '提供元が指定するモデル ID を入力', awaitingModel: 'モデルを入力してください', apiAddress: 'API アドレス', companionName: '仲間の名前', keySaved: 'この提供元の Key は保存済みです。空欄なら変更しません', keyPlaceholder: 'この提供元の API Key を入力', personality: '性格プロンプト', keySecurity: 'Key は Electron のメインプロセスのみが読み取り、システムの安全なストレージで暗号化されます。', saveAi: 'AI 設定を保存',
+    chatCapability: 'モデル設定', provider: 'モデル提供元', providerCustom: 'カスタム提供元', apiFormat: 'API 形式', chatCompletionsDesc: '汎用 OpenAI 互換形式', responsesDesc: 'OpenAI Responses 形式', model: 'モデル', customModelOption: 'カスタムモデル…', customModelId: 'カスタムモデル ID', customModelPlaceholder: '提供元が指定するモデル ID を入力', awaitingModel: 'モデルを入力してください', apiAddress: 'API アドレス', companionName: '仲間の名前', keySaved: 'この提供元の Key は保存済みです。空欄なら変更しません', keyPlaceholder: 'この提供元の API Key を入力', personality: '性格プロンプト', keySecurity: 'Key は Electron のメインプロセスのみが読み取り、システムの安全なストレージで暗号化されます。', saveAi: 'AI 設定を保存',
     petBubbleReady: '一緒に作業する準備はできましたか？', petBubbleCheer: '今日も頑張りましょう！', petBubbleNext: '次は何をしますか？',
     toolCall: '{tool}中…', tool_list_workspaces: 'ワークスペースを確認', tool_launch_workspace: 'ワークスペースを起動', tool_close_workspace: 'ワークスペースを終了', tool_list_software: 'ソフトウェアを検索', tool_get_system_info: 'システム状態を確認', tool_show_launchpad: 'LaunchPad を開く', tool_open_browser: 'ブラウザを開く', tool_create_pet: '新しいペットをデザイン', tool_terminate_process: 'プロセスを終了', tool_execute_shell: 'コマンドを実行',
     shellPermission: 'フル権限（Shell 操作）',
@@ -167,6 +177,7 @@ export default {
     animation: { idle: '待機', walkRight: '右へ移動', walkLeft: '左へ移動', wave: '手を振る', jump: 'ジャンプ', failed: '失敗', waiting: '入力待ち', working: '作業中', review: '確認' }
   },
   petStudy: {
+    backToTop: '先頭に戻る',
     loading: '学習エンジンを読み込み中…', title: 'ペット学習モード', modeCompanion: 'ペットモード', modeCompanionDesc: '通常のクリック会話を保持します', modeStudy: '単語学習', modeStudyDesc: '吹き出しでカードを表示し、クリックで記憶済みにします', modeStealth: 'ステルス学習', modeStealthDesc: '低干渉の表示とショートカット追加',
     targetLanguage: '対象言語', interval: '表示間隔', seconds: '秒', shortcut: 'クイック操作キー', modeSwitchShortcut: 'モード切替キー', shortcutChecking: 'キーを確認中…', shortcutDuplicate: 'ワークスペース「{name}」で使用中です', shortcutStudyConflict: 'もう一方の学習キーと重複しています', shortcutOccupied: '他のプログラムが使用中です', shortcutInvalid: '無効なキーです', shortcutSaved: 'キーを保存しました', shortcutPlaceholder: 'クリックしてキーを押す', shortcutRecording: '新しいキーを押す。Esc で取消', shortcutHint: 'ステルス学習では追加画面を開閉し、単語学習では現在の語を習得済みにします', modeSwitchHint: 'ペット・単語学習・ステルス学習を順番に切り替えます',
     statTerms: '語', statDue: '復習待ち', statToday: '今日', statMemory: '長期記憶', addTitle: '追加と AI 生成', termPlaceholder: '単語またはフレーズを入力', adding: 'AI 補完中…', addWithAi: 'AI 補完で追加', defaultTopic: '日常の高頻度語彙', topicPlaceholder: 'AI 生成テーマ（例：ビジネス英語）', generating: '生成中…', generate: '12 件生成', aiHint: '設定済みの AI モデルで選択言語の内容を生成します。', addedNotice: '項目を復習キューに追加しました', generatedNotice: '{language} のカードを {count} 件作成しました',
@@ -471,6 +482,10 @@ export default {
     na: '不明'
   },
   settings: {
+    interfaceAppearance: '外観',
+    interfaceAnimations: '画面アニメーション',
+    interfaceAnimationsDesc: '初期設定はオンです。画面切替・カード表示・ナビゲーションの動きを制御します。オフにすると即時切替になり、ペット自身の動きには影響しません。',
+
     title: '設定',
     subtitle: 'システムトレイ・起動動作・プロセスポリシー・ローカルデータを管理',
     tabGeneral: '一般',

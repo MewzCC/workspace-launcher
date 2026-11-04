@@ -78,12 +78,13 @@ export const useStore = create((set, get) => ({
   // ===== State =====
   // 主题：'dark' | 'light'
   theme: getInitialTheme(),
+  animationsEnabled: (() => { try { return localStorage.getItem('lp-animations-enabled') !== 'false' } catch { return true } })(),
   // 界面语言：'zh-CN' | 'en-US' | 'ja-JP'
   language: getInitialLanguage(),
   // 当前页面 key，默认首页
   currentView: 'dashboard',
   // 侧边栏是否折叠（桌面端）
-  sidebarCollapsed: false,
+  sidebarCollapsed: (() => { try { return localStorage.getItem('lp-sidebar-collapsed') === 'true' } catch { return false } })(),
   // 移动端侧边栏抽屉是否展开
   mobileNavOpen: false,
   // 工作空间列表
@@ -112,6 +113,11 @@ export const useStore = create((set, get) => ({
     set({ theme })
   },
 
+  setAnimationsEnabled: (enabled) => {
+    try { localStorage.setItem('lp-animations-enabled', String(enabled)) } catch { /* Optional UI preference. */ }
+    set({ animationsEnabled: enabled })
+  },
+
   // 切换界面语言
   setLanguage: (language) => {
     const next = MESSAGES[language] ? language : DEFAULT_LANGUAGE
@@ -126,7 +132,11 @@ export const useStore = create((set, get) => ({
   setCurrentView: (view) => set({ currentView: view, mobileNavOpen: false }),
 
   // 切换侧边栏折叠状态
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleSidebar: () => set((state) => {
+    const sidebarCollapsed = !state.sidebarCollapsed
+    try { localStorage.setItem('lp-sidebar-collapsed', String(sidebarCollapsed)) } catch { /* Optional UI preference. */ }
+    return { sidebarCollapsed }
+  }),
 
   // 切换移动端侧边栏抽屉
   toggleMobileNav: () => set((state) => ({ mobileNavOpen: !state.mobileNavOpen })),

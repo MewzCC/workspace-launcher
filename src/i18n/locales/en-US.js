@@ -70,6 +70,7 @@ export default {
     "action_sitDown": "Sit"
 },
   common: {
+    switchingView: 'Switching view…',
     confirm: 'Confirm',
     otherApps: 'Other apps',
     clickToEdit: 'Click to quick edit',
@@ -102,6 +103,11 @@ export default {
     savingFailed: 'Save failed: '
   },
   nav: {
+    workGroup: 'Work & launch',
+    systemGroup: 'System tools',
+    expandSidebar: 'Expand navigation',
+    collapseSidebar: 'Collapse navigation',
+
     petCenter: 'Pet Companion',
     dashboard: 'Dashboard',
     workspaces: 'Space Management',
@@ -122,6 +128,10 @@ export default {
     version: 'Version'
   },
   petCenter: {
+    tabStudy: 'Study',
+    capabilitiesSection: 'Capabilities & permissions',
+    allMemoryTypes: 'All types',
+
     tabMemory: 'Memory',
     conversation: 'Current conversation', newConversation: 'New conversation', clearConversation: 'Clear conversation', clearConversationConfirm: 'Clear this conversation and its summary? This cannot be undone.',
     renameConversation: 'Edit conversation title', conversationTitle: 'Conversation title', conversationTitlePlaceholder: 'Enter a recognizable topic', conversationTitleRequired: 'Enter a conversation title', deleteConversation: 'Delete conversation', deleteConversationConfirm: 'Delete conversation "{title}"? All messages and its summary will be permanently removed.',
@@ -148,7 +158,7 @@ export default {
     multiPetTitle: 'Companion Formation', multiPetDesc: 'Run multiple pets with separate positions, personalities, conversations, and memories. Interaction sessions use isolated context and never call system tools.', autoInteraction: 'Idle auto interaction', autoInteractionDesc: 'Runs only while the system is idle and cooldown has elapsed', interactionTurns: 'Turns per interaction', chooseFirstPet: 'Choose first pet', chooseSecondPet: 'Choose second pet', firstPet: 'First pet', secondPet: 'Second pet', interactionTopic: 'Interaction topic (optional)', interactionTopicLabel: 'Interaction topic', startInteraction: 'Start interaction', stopInteraction: 'Stop interaction', petInteraction: 'Pet interaction', recentInteractions: 'Recent interactions', recentInteractionsHint: 'Showing last {count}',
     interactionMemory: 'Keep interaction memories', interactionMemoryDesc: 'Remember shared jokes, promises, and experiences', shareOwnerMoments: "Share today's owner moments", shareOwnerMomentsDesc: 'Bring safe daily summaries from owner chats into pet interactions without sharing raw conversations or sensitive details', sharedMemoryTitle: 'Shared life memories', relationshipMemories: 'Memories together', todayOwnerMoments: 'Little things about the owner today', noRelationshipMemories: 'Shared memories will grow after a few interactions.', noOwnerMoments: 'No shareable moments yet today.', clearRelationshipMemory: 'Clear shared memories', clearInteractionMemoryConfirm: 'Clear the shared memories between these two pets? Interaction transcripts will remain.',
     desktopBehavior: 'Desktop Behavior', showPet: 'Show pet', showPetDesc: 'Show the transparent always-on-top work companion', roaming: 'Natural roaming', roamingDesc: 'Stroll, patrol, and avoid screen edges while idle', roamRange: 'Roaming range', roamActivity: 'Activity level', alwaysOnTop: 'Always on top', alwaysOnTopDesc: 'Keep the pet above other windows', petSize: 'Pet size', opacity: 'Opacity',
-    chatCapability: 'Chat Capability', provider: 'Model provider', providerCustom: 'Custom provider', apiFormat: 'API format', chatCompletionsDesc: 'Universal OpenAI-compatible format', responsesDesc: 'OpenAI Responses format', model: 'Model', customModelOption: 'Custom model…', customModelId: 'Custom model ID', customModelPlaceholder: 'Enter the model ID supplied by the provider', awaitingModel: 'Model required', apiAddress: 'API address', companionName: 'Companion name', keySaved: 'Key saved for this provider; leave blank to keep it', keyPlaceholder: "Enter this provider's API key", personality: 'Personality prompt', keySecurity: 'The key is read only by the Electron main process and encrypted with system secure storage.', saveAi: 'Save AI settings',
+    chatCapability: 'Model settings', provider: 'Model provider', providerCustom: 'Custom provider', apiFormat: 'API format', chatCompletionsDesc: 'Universal OpenAI-compatible format', responsesDesc: 'OpenAI Responses format', model: 'Model', customModelOption: 'Custom model…', customModelId: 'Custom model ID', customModelPlaceholder: 'Enter the model ID supplied by the provider', awaitingModel: 'Model required', apiAddress: 'API address', companionName: 'Companion name', keySaved: 'Key saved for this provider; leave blank to keep it', keyPlaceholder: "Enter this provider's API key", personality: 'Personality prompt', keySecurity: 'The key is read only by the Electron main process and encrypted with system secure storage.', saveAi: 'Save AI settings',
     petBubbleReady: 'Ready to work together?', petBubbleCheer: "Let's do our best today!", petBubbleNext: "What's next?",
     toolCall: '{tool}…', tool_list_workspaces: 'checking workspaces', tool_launch_workspace: 'launching workspace', tool_close_workspace: 'closing workspace', tool_list_software: 'searching software', tool_get_system_info: 'checking system status', tool_show_launchpad: 'opening LaunchPad', tool_open_browser: 'opening browser', tool_create_pet: 'designing a new pet', tool_terminate_process: 'terminating process', tool_execute_shell: 'running command',
     shellPermission: 'Full Control (Shell Access)',
@@ -167,6 +177,7 @@ export default {
     animation: { idle: 'Idle', walkRight: 'Walk right', walkLeft: 'Walk left', wave: 'Wave', jump: 'Jump', failed: 'Failed', waiting: 'Waiting', working: 'Working', review: 'Review' }
   },
   petStudy: {
+    backToTop: 'Back to top',
     loading: 'Loading the study engine…', title: 'Pet Study Mode', modeCompanion: 'Companion', modeCompanionDesc: 'Keep normal click-to-chat behavior without card rotation', modeStudy: 'Vocabulary Study', modeStudyDesc: 'Rotate cards in bubbles; click means remembered', modeStealth: 'Stealth Study', modeStealthDesc: 'Low-distraction rotation with click or shortcut quick add',
     targetLanguage: 'Target language', interval: 'Rotation interval', seconds: 'sec', shortcut: 'Quick-action shortcut', modeSwitchShortcut: 'Switch-mode shortcut', shortcutChecking: 'Checking shortcut…', shortcutDuplicate: 'Already used by workspace "{name}"', shortcutStudyConflict: 'Conflicts with the other study shortcut', shortcutOccupied: 'Shortcut is occupied by another program', shortcutInvalid: 'Invalid shortcut combination', shortcutSaved: 'Shortcut is available and saved', shortcutPlaceholder: 'Click and press a shortcut', shortcutRecording: 'Press a new shortcut, Esc to cancel', shortcutHint: 'Toggles quick add in Stealth mode; marks the current word mastered in Study mode', modeSwitchHint: 'Cycles through Companion, Vocabulary Study, and Stealth Study modes',
     statTerms: 'Terms', statDue: 'Due', statToday: 'Today', statMemory: 'Long-term', addTitle: 'Add & Generate', termPlaceholder: 'Enter a word or phrase', adding: 'AI completing…', addWithAi: 'Complete & add', defaultTopic: 'Everyday high-frequency vocabulary', topicPlaceholder: 'Topic for AI generation, e.g. Business English', generating: 'Generating…', generate: 'Generate 12', aiHint: 'AI uses the model configured in Pet Companion and generates content in the selected target language.', addedNotice: 'AI completed the entry and added it to the review queue', generatedNotice: 'AI created {count} {language} study cards',
@@ -471,6 +482,10 @@ export default {
     na: 'N/A'
   },
   settings: {
+    interfaceAppearance: 'Appearance',
+    interfaceAnimations: 'Interface animations',
+    interfaceAnimationsDesc: 'On by default. Animate page changes, card entrances and navigation. Turn off for instant switching; pet animations remain enabled.',
+
     title: 'Settings',
     subtitle: 'Manage system tray, startup behavior, process policy and local data',
     tabGeneral: 'General',

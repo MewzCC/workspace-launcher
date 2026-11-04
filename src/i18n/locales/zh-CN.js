@@ -70,6 +70,7 @@ export default {
     "action_sitDown": "坐下"
 },
   common: {
+    switchingView: '正在切换…',
     confirm: '确认',
     otherApps: '其余应用',
     clickToEdit: '点击可快速编辑',
@@ -102,6 +103,11 @@ export default {
     savingFailed: '保存失败：'
   },
   nav: {
+    workGroup: '工作与启动',
+    systemGroup: '系统工具',
+    expandSidebar: '展开导航',
+    collapseSidebar: '收起导航',
+
     petCenter: '桌宠工作台',
     dashboard: '启动台',
     workspaces: '空间管理',
@@ -122,6 +128,10 @@ export default {
     version: '版本'
   },
   petCenter: {
+    tabStudy: '学习模式',
+    capabilitiesSection: '能力与权限',
+    allMemoryTypes: '全部类型',
+
     tabMemory: '记忆中心',
     conversation: '当前会话', newConversation: '新建会话', clearConversation: '清空会话', clearConversationConfirm: '确定清空当前会话及摘要吗？此操作不可恢复。',
     renameConversation: '编辑会话主题', conversationTitle: '会话主题', conversationTitlePlaceholder: '输入便于识别的主题', conversationTitleRequired: '请输入会话主题', deleteConversation: '删除会话', deleteConversationConfirm: '确定删除会话「{title}」吗？所有消息与摘要都会被删除，此操作不可恢复。',
@@ -148,7 +158,7 @@ export default {
     multiPetTitle: '多桌宠编队', multiPetDesc: '同时开启多只桌宠，并为它们保留独立的位置、性格、会话与记忆。互动会话使用单独上下文，且永不调用系统工具。', autoInteraction: '空闲自动互动', autoInteractionDesc: '仅在系统空闲且冷却结束后触发', interactionTurns: '每次互动轮数', chooseFirstPet: '选择第一只桌宠', chooseSecondPet: '选择第二只桌宠', firstPet: '第一只桌宠', secondPet: '第二只桌宠', interactionTopic: '互动主题（可选）', interactionTopicLabel: '互动主题', startInteraction: '开始互动', stopInteraction: '停止互动', petInteraction: '桌宠互动', recentInteractions: '最近互动', recentInteractionsHint: '显示最近 {count} 条',
     interactionMemory: '保留互动记忆', interactionMemoryDesc: '记住彼此聊过的趣事、约定和共同经历', shareOwnerMoments: '分享主人今日动态', shareOwnerMomentsDesc: '把与主人聊天中可分享的生活摘要带入桌宠互动，不发送原始对话和敏感内容', sharedMemoryTitle: '共同生活记忆', relationshipMemories: '彼此的共同回忆', todayOwnerMoments: '今天关于主人的小事', noRelationshipMemories: '互动几次后，这里会长出共同回忆。', noOwnerMoments: '今天还没有可分享的小事。', clearRelationshipMemory: '清除共同回忆', clearInteractionMemoryConfirm: '确定清除这两只桌宠之间的共同回忆吗？互动聊天记录不会被删除。',
     desktopBehavior: '桌面行为', showPet: '显示桌宠', showPetDesc: '在桌面显示透明置顶的工作伙伴', roaming: '自然漫游', roamingDesc: '空闲时散步、巡游并自动避开屏幕边缘', roamRange: '漫游范围', roamActivity: '活跃程度', alwaysOnTop: '保持置顶', alwaysOnTopDesc: '让桌宠显示在其他窗口上方', petSize: '桌宠大小', opacity: '透明度',
-    chatCapability: '对话能力', provider: '模型厂商', providerCustom: '自定义厂商', apiFormat: '接口方式', chatCompletionsDesc: 'OpenAI Compatible 通用格式', responsesDesc: 'OpenAI 新版响应格式', model: '模型', customModelOption: '自定义模型…', customModelId: '自定义模型 ID', customModelPlaceholder: '请输入厂商提供的模型 ID', awaitingModel: '等待填写模型', apiAddress: 'API 地址', companionName: '伙伴名字', keySaved: '该厂商 Key 已保存，留空不修改', keyPlaceholder: '填写该厂商的 API Key', personality: '性格提示', keySecurity: 'Key 仅由 Electron 主进程读取，并使用系统安全存储加密。', saveAi: '保存 AI 设置',
+    chatCapability: '模型设置', provider: '模型厂商', providerCustom: '自定义厂商', apiFormat: '接口方式', chatCompletionsDesc: 'OpenAI Compatible 通用格式', responsesDesc: 'OpenAI 新版响应格式', model: '模型', customModelOption: '自定义模型…', customModelId: '自定义模型 ID', customModelPlaceholder: '请输入厂商提供的模型 ID', awaitingModel: '等待填写模型', apiAddress: 'API 地址', companionName: '伙伴名字', keySaved: '该厂商 Key 已保存，留空不修改', keyPlaceholder: '填写该厂商的 API Key', personality: '性格提示', keySecurity: 'Key 仅由 Electron 主进程读取，并使用系统安全存储加密。', saveAi: '保存 AI 设置',
     petBubbleReady: '准备好一起工作了吗？', petBubbleCheer: '今天也要加油！', petBubbleNext: '下一件事是什么？',
     toolCall: '正在{tool}', tool_list_workspaces: '查看工作空间', tool_launch_workspace: '启动工作空间', tool_close_workspace: '关闭工作空间', tool_list_software: '查找软件', tool_get_system_info: '查看系统状态', tool_show_launchpad: '打开 LaunchPad', tool_open_browser: '打开浏览器', tool_create_pet: '设计新桌宠', tool_terminate_process: '结束进程', tool_execute_shell: '执行命令',
     shellPermission: '完全权限（Shell 接管）',
@@ -167,6 +177,7 @@ export default {
     animation: { idle: '待机', walkRight: '右行', walkLeft: '左行', wave: '招手', jump: '跳跃', failed: '失败', waiting: '等待', working: '工作', review: '检查' }
   },
   petStudy: {
+    backToTop: '返回顶部',
     loading: '正在加载学习引擎…', title: '桌宠学习模式',
     modeCompanion: '桌宠模式', modeCompanionDesc: '保持普通单击聊天，不轮播词条', modeStudy: '单词学习', modeStudyDesc: '气泡自动轮播；单击表示“记住了”', modeStealth: '摸鱼学习', modeStealthDesc: '低打扰轮播；单击或快捷键快速添加',
     targetLanguage: '目标语言', interval: '轮播间隔', seconds: '秒', shortcut: '快速操作快捷键', modeSwitchShortcut: '切换模式快捷键', shortcutChecking: '正在检查快捷键…', shortcutDuplicate: '已被工作空间“{name}”使用', shortcutStudyConflict: '与另一项学习快捷键冲突', shortcutOccupied: '快捷键已被其他程序占用', shortcutInvalid: '无效的快捷键组合', shortcutSaved: '快捷键可用并已保存', shortcutPlaceholder: '点击后按下组合键', shortcutRecording: '请按下新的快捷键组合，Esc 取消', shortcutHint: '摸鱼模式切换快速添加窗；学习模式将当前词标记为已掌握', modeSwitchHint: '依次切换桌宠、单词学习和摸鱼学习模式',
@@ -471,6 +482,10 @@ export default {
     na: '不可用'
   },
   settings: {
+    interfaceAppearance: '界面外观',
+    interfaceAnimations: '界面动效',
+    interfaceAnimationsDesc: '默认开启。控制页面切换、卡片入场与导航过渡；关闭后立即切换，不影响桌宠自身动画。',
+
     title: '设置',
     subtitle: '管理系统托盘、开机启动、进程策略与本地数据',
     tabGeneral: '通用',

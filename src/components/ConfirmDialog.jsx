@@ -1,5 +1,4 @@
 import React, {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -10,9 +9,8 @@ import React, {
 import { createPortal } from 'react-dom'
 import { AlertTriangle, CircleHelp, RotateCcw, Trash2, X } from 'lucide-react'
 import { useT } from '../hooks/useT'
+import { ConfirmDialogContext } from './confirmDialogContext'
 import './ConfirmDialog.css'
-
-const ConfirmDialogContext = createContext(null)
 
 const ICONS = {
   default: CircleHelp,

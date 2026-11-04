@@ -1,6 +1,8 @@
 // 主布局组件：固定 Sidebar + 主区域，根据 currentView 渲染对应真实页面
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import Sidebar from './Sidebar'
+import ViewTransitionStatus from './ViewTransitionStatus'
+import { useViewTransition } from '../hooks/useViewTransition'
 import { useStore } from '../store/useStore'
 import Dashboard from '../pages/Dashboard'
 import Workspaces from '../pages/Workspaces'
@@ -29,13 +31,22 @@ const PAGES = {
 export function Layout() {
   // 当前视图 key
   const currentView = useStore((s) => s.currentView)
-  const PageComponent = PAGES[currentView] || Dashboard
+  const sidebarCollapsed = useStore((s) => s.sidebarCollapsed)
+  const { displayedKey, phase, busy } = useViewTransition(currentView)
+  const animationsEnabled = useStore((s) => s.animationsEnabled)
+  const mainRef = useRef(null)
+  const PageComponent = PAGES[displayedKey] || Dashboard
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: 'instant' }) }, [displayedKey])
 
   return (
-    <div className="layout">
+    <div className={`layout ${sidebarCollapsed ? 'layout--rail' : ''} ${animationsEnabled ? '' : 'layout--motion-off'}`}>
       <Sidebar />
-      <main className="main-view">
-        <PageComponent />
+      <main ref={mainRef} aria-busy={busy} data-view={displayedKey} data-transition={phase}
+        className={`main-view ${displayedKey === 'pet-center' ? 'main-view--pet' : ''}`}>
+        <div className={`page-scene view-transition-${phase}`} inert={busy ? '' : undefined}>
+          <PageComponent key={displayedKey} />
+        </div>
+        <ViewTransitionStatus phase={phase} />
       </main>
     </div>
   )

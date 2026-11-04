@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Brain, ChevronLeft, ChevronRight, Columns3, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowUp, BookOpen, Brain, ChevronLeft, ChevronRight, Columns3, Plus, Search, Sparkles, Trash2, X } from 'lucide-react'
 import { petApi } from '../lib/ipc'
 import { useT } from '../hooks/useT'
+import { useStore } from '../store/useStore'
 import GlowButton from './ui/GlowButton'
 import ResizableTable from './ui/ResizableTable'
 import ShortcutInput from './ShortcutInput'
@@ -24,6 +25,10 @@ const COLUMN_STORAGE_KEY = 'launchpad:pet-study:columns:v1'
 export default function PetStudyPanel({ instanceId, onNotice }) {
   const t = useT()
   const tableRef = useRef(null)
+  const scrollRef = useRef(null)
+  const tableRegionRef = useRef(null)
+  const [scrolled, setScrolled] = useState(false)
+  const animationsEnabled = useStore((state) => state.animationsEnabled)
   const searchRequestRef = useRef(0)
   const [data, setData] = useState(null)
   const [term, setTerm] = useState('')
@@ -40,6 +45,13 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
   const [library, setLibrary] = useState({ items: [], total: 0 })
   const [libraryLoading, setLibraryLoading] = useState(false)
   const [libraryVersion, setLibraryVersion] = useState(0)
+
+  const tableTop = () => {
+    const scroll = scrollRef.current
+    const table = tableRegionRef.current
+    if (!scroll || !table) return 0
+    return Math.max(0, scroll.scrollTop + table.getBoundingClientRect().top - scroll.getBoundingClientRect().top - scroll.clientTop)
+  }
 
   const load = () => petApi.studyGet(instanceId).then((next) => {
     setData(next)
@@ -180,7 +192,9 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
   const pageCount = Math.max(1, Math.ceil(library.total / PAGE_SIZE))
 
   return (
-    <div className="pet-study-layout">
+    <div className="pet-study-workspace">
+      <div className="pet-study-scroll" ref={scrollRef} onScroll={(event) => setScrolled(event.currentTarget.scrollTop > tableTop() + 1)}>
+      <div className="pet-study-layout">
       <section className="pet-settings-card pet-study-control">
         <div className="pet-section-title"><div><span>SPACED REPETITION</span><h2>{t('petStudy.title')}</h2></div><Brain size={21} /></div>
         <div className="pet-study-modes">{MODES.map(([value, titleKey, descKey]) => <button type="button" key={value} className={data.settings.mode === value ? 'active' : ''} onClick={() => update({ mode: value })}><strong>{t(`petStudy.${titleKey}`)}</strong><small>{t(`petStudy.${descKey}`)}</small></button>)}</div>
@@ -210,10 +224,24 @@ export default function PetStudyPanel({ instanceId, onNotice }) {
           </div>
         </div>
 
+        <div className="pet-study-table-region" ref={tableRegionRef}>
+          <div className="pet-study-table-viewport">
         <ResizableTable ref={tableRef} columns={columns} rows={library.items} getRowKey={(item) => item.id} renderCell={renderCell} storageKey={COLUMN_STORAGE_KEY} className="pet-study-table" empty={<div className="pet-study-empty">{debouncedQuery ? t('petStudy.noResults') : t('petStudy.emptyLibrary')}</div>} />
-
-        {library.total > PAGE_SIZE && <nav className="pet-study-pagination" aria-label={t('petStudy.pagination')}><button type="button" disabled={page <= 1 || libraryLoading} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label={t('petStudy.previousPage')}><ChevronLeft size={16} /></button><span>{t('petStudy.pageStatus', { page, pages: pageCount })}</span><button type="button" disabled={page >= pageCount || libraryLoading} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label={t('petStudy.nextPage')}><ChevronRight size={16} /></button></nav>}
+          </div>
+      <nav className="pet-study-pagination" aria-label={t('petStudy.pagination')}>
+        <button type="button" className="pet-study-back-top" disabled={!scrolled} onClick={() => scrollRef.current?.scrollTo({ top: tableTop(), behavior: animationsEnabled && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant' })}>
+          <ArrowUp size={15} /><span>{t('petStudy.backToTop')}</span>
+        </button>
+        <div className="pet-study-page-controls">
+          <button type="button" disabled={page <= 1 || libraryLoading} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label={t('petStudy.previousPage')}><ChevronLeft size={16} /></button>
+          <span aria-live="polite">{t('petStudy.pageStatus', { page, pages: pageCount })}</span>
+          <button type="button" disabled={page >= pageCount || libraryLoading} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label={t('petStudy.nextPage')}><ChevronRight size={16} /></button>
+        </div>
+      </nav>
+        </div>
       </section>
+      </div>
+      </div>
     </div>
   )
 }
